@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Inter:wght@300;400;500&display=swap');
+
+@layer base {
+  :root {
+    /* Wave G-Serif — Lavanda claro */
+    --background: 228 60% 97%;        /* #F0F4FF lavanda muito claro */
+    --foreground: 232 55% 18%;        /* #1E2761 azul profundo */
+
+    --card: 0 0% 100%;
+    --card-foreground: 232 55% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 232 55% 18%;
+
+    --primary: 232 55% 52%;           /* #4A5FC1 lavanda média */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 228 60% 93%;         /* #E8EEFF lavanda suave */
+    --secondary-foreground: 232 55% 38%;
+
+    --muted: 228 40% 94%;
+    --muted-foreground: 228 25% 58%;  /* #8A91C7 */
+
+    --accent: 258 55% 58%;            /* roxo suave para destaques */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 228 40% 88%;            /* #DDE3FF */
+    --input: 228 40% 88%;
+    --ring: 232 55% 52%;
+
+    --radius: 1rem;
+
+    --chart-1: 232 55% 52%;
+    --chart-2: 258 55% 58%;
+    --chart-3: 197 60% 42%;
+    --chart-4: 43 74% 60%;
+    --chart-5: 340 65% 55%;
+
+    /* Fonte serif para tipografia elegante */
+    --font-serif-display: 'Playfair Display', Georgia, serif;
+  }
+
+  .dark {
+    --background: 232 45% 8%;
+    --foreground: 228 60% 95%;
+    --card: 232 45% 11%;
+    --card-foreground: 228 60% 95%;
+    --popover: 232 45% 11%;
+    --popover-foreground: 228 60% 95%;
+    --primary: 232 55% 65%;
+    --primary-foreground: 232 55% 10%;
+    --secondary: 232 35% 18%;
+    --secondary-foreground: 228 60% 85%;
+    --muted: 232 35% 18%;
+    --muted-foreground: 228 25% 55%;
+    --accent: 258 50% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 232 35% 20%;
+    --input: 232 35% 20%;
+    --ring: 232 55% 65%;
+    --chart-1: 232 55% 65%;
+    --chart-2: 258 50% 65%;
+    --chart-3: 197 55% 55%;
+    --chart-4: 43 70% 60%;
+    --chart-5: 340 60% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Utilitários tipográficos Wave */
+.serif {
+  font-family: var(--font-serif-display);
+}
+
+.serif-italic {
+  font-family: var(--font-serif-display);
+  font-style: italic;
+}
+
+/* Números grandes em serif */
+.metric-number {
+  font-family: var(--font-serif-display);
+  font-weight: 400;
+  line-height: 1;
+  color: hsl(var(--foreground));
+}
+
+/* Cards Wave */
+.wave-card {
+  background: white;
+  border: 0.5px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+/* Scrollbar suave */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 2px;
+}
