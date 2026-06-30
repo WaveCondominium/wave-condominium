@@ -15,7 +15,7 @@ interface PendingProposal {
   duration: number;
   createdBy: string;
   createdAt: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'pending_approval' | 'approved' | 'rejected';
 }
 
 interface PendingDocument {
@@ -25,7 +25,7 @@ interface PendingDocument {
   fileContent: string;
   uploadedBy: string;
   uploadedAt: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'pending_approval' | 'approved' | 'rejected';
 }
 
 interface ApprovedProposal {
