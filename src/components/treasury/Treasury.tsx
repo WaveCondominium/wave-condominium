@@ -4,6 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 import { GenerateBoletoModal } from './GenerateBoletoModal';
 
@@ -13,12 +14,152 @@ interface TreasuryProps {
   };
 }
 
+// ---------------------------------------------------------------------------
+// IMPORTANTE (dívida técnica a resolver depois):
+// Esta interface `Boleto` é uma CÓPIA da que existe em Boletos.tsx. Isso é
+// arriscado — se um dos dois arquivos mudar o formato de um campo, os dois
+// componentes podem ficar lendo o mesmo localStorage ('wave_boletos') de
+// forma inconsistente sem nenhum erro de compilação avisando. Recomendo
+// extrair este tipo (e os helpers de data abaixo) para um arquivo único,
+// tipo `src/lib/boletos.ts`, e importar dos dois lugares.
+// ---------------------------------------------------------------------------
+interface Boleto {
+  id: string;
+  unitNumber: string;
+  unitOwner: string;
+  referenceMonth: string; // formato: 'YYYY-MM'
+  dueDate: string;        // formato: 'YYYY-MM-DD'
+  amount: number;
+  barcode: string;
+  status: 'pending' | 'paid' | 'compensated' | 'blockchain_registered' | 'overdue';
+  issuedAt: string;
+  issuedBy: string;
+  paidAt?: string;
+  compensatedAt?: string;
+  blockchainHash?: string;
+  stellarExplorerUrl?: string;
+  anchorTxHash?: string;
+  contentHash?: string;
+  blockchainRegisteredAt?: string;
+  description: string;
+  details: {
+    condominiumFee: number;
+    waterFee: number;
+    reserveFund: number;
+    otherFees: number;
+  };
+}
+
+// Status que consideramos "pago de fato" (mesmo critério usado em Boletos.tsx
+// para o badge verde "Pago" e para a estatística "Recebido")
+const PAID_STATUS = 'blockchain_registered';
+
+// Mesma lógica de "vencido" já corrigida em Boletos.tsx (compara texto
+// 'YYYY-MM-DD', nunca usa new Date(string) para evitar bug de timezone)
+function getTodayLocalISO(): string {
+  return new Date().toLocaleDateString('en-CA'); // en-CA => YYYY-MM-DD
+}
+
+function isBoletoOverdue(boleto: Pick<Boleto, 'status' | 'dueDate'>): boolean {
+  return boleto.status === 'pending' && boleto.dueDate < getTodayLocalISO();
+}
+
+// Mês atual no formato 'YYYY-MM', usando componentes locais (não UTC)
+function getCurrentMonthKey(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+}
+
+const MONTH_LABELS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+function formatMonthLabel(monthKey: string): string {
+  const [, month] = monthKey.split('-');
+  const idx = parseInt(month, 10) - 1;
+  return MONTH_LABELS_PT[idx] ?? monthKey;
+}
+
+function formatBRL(value: number): string {
+  return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export function Treasury({ userProfile }: TreasuryProps) {
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
   const [showGenerateBoletoModal, setShowGenerateBoletoModal] = useState(false);
   const [view, setView] = useState<'overview' | 'boletos'>('overview');
 
+  // Mesma chave de localStorage usada em Boletos.tsx — é o que conecta as
+  // duas telas. Default [] aqui de propósito: a lista "oficial" de boletos
+  // (com os 5 exemplos) já é inicializada por Boletos.tsx; se o usuário
+  // nunca abriu aquela tela, aqui simplesmente não há dados ainda.
+  const [boletos] = useLocalStorage<Boleto[]>('wave_boletos', []);
+
   const isAdmin = userProfile?.role === 'Síndico' || userProfile?.role === 'Administradora' || userProfile?.role === 'Administrador';
+
+  // -------------------------------------------------------------------------
+  // Cálculos reais a partir dos boletos (substituem os valores fixos antigos)
+  // -------------------------------------------------------------------------
+  const boletosPagos = boletos.filter(b => b.status === PAID_STATUS);
+
+  // Saldo Atual = soma de todos os boletos pagos
+  const saldoAtual = boletosPagos.reduce((sum, b) => sum + b.amount, 0);
+
+  // Fundo de Reserva = soma do componente "reserveFund" apenas dos boletos
+  // já pagos (dinheiro que de fato entrou, não o que ainda está pendente)
+  const fundoReserva = boletosPagos.reduce((sum, b) => sum + (b.details?.reserveFund ?? 0), 0);
+  const metaFundoReserva = 100000; // meta ainda fixa — não há de onde derivar isso dos boletos
+  const percentualMeta = metaFundoReserva > 0 ? Math.min(100, Math.round((fundoReserva / metaFundoReserva) * 100)) : 0;
+
+  // Receitas do mês atual (local, não UTC)
+  const currentMonthKey = getCurrentMonthKey();
+  const boletosDoMes = boletos.filter(b => b.referenceMonth === currentMonthKey);
+  const boletosPagosDoMes = boletosDoMes.filter(b => b.status === PAID_STATUS);
+  const receitasDoMes = boletosPagosDoMes.reduce((sum, b) => sum + b.amount, 0);
+
+  // ATENÇÃO: "total de unidades" aqui é uma aproximação — conta as unidades
+  // distintas que aparecem no histórico de boletos, não o cadastro real do
+  // condomínio (que ainda não existe como fonte de dados neste projeto).
+  const totalUnidadesConhecidas = new Set(boletos.map(b => b.unitNumber)).size;
+  const percentualArrecadadoMes = boletosDoMes.length > 0
+    ? Math.round((boletosPagosDoMes.length / boletosDoMes.length) * 100)
+    : 0;
+
+  // Inadimplência = boletos pendentes cujo vencimento já passou
+  const boletosVencidos = boletos.filter(isBoletoOverdue);
+  const totalInadimplencia = boletosVencidos.reduce((sum, b) => sum + b.amount, 0);
+  const unidadesInadimplentes = new Set(boletosVencidos.map(b => b.unitNumber)).size;
+
+  // Boletos pendentes (e ainda não vencidos) — para o card "Boletos Pendentes"
+  const boletosPendentesNaoVencidos = boletos.filter(b => b.status === 'pending' && !isBoletoOverdue(b));
+  const totalPendenteNaoVencido = boletosPendentesNaoVencidos.reduce((sum, b) => sum + b.amount, 0);
+
+  // Boletos pagos no ano corrente — para o card "Boletos Pagos (ano)"
+  const anoAtual = String(new Date().getFullYear());
+  const boletosPagosNoAno = boletosPagos.filter(b => b.referenceMonth.startsWith(anoAtual));
+  const totalEmitidosNoAno = boletos.filter(b => b.referenceMonth.startsWith(anoAtual)).length;
+  const taxaAdimplenciaAno = totalEmitidosNoAno > 0
+    ? Math.round((boletosPagosNoAno.length / totalEmitidosNoAno) * 100)
+    : 0;
+
+  // Evolução Financeira (últimos 6 meses com dados reais de receita)
+  // OBS: "despesas" fica zerado — não existe, ainda, nenhum modelo/fonte de
+  // dados de despesas no projeto (o que existe hoje na tabela de "Histórico
+  // de Transações" abaixo é mock). Quando houver um módulo de despesas real,
+  // é só substituir o valor fixo `despesas: 0` pelo dado real.
+  const monthsWithData = Array.from(new Set(boletos.map(b => b.referenceMonth))).sort();
+  const last6Months = monthsWithData.slice(-6);
+  const balanceData = last6Months.length > 0
+    ? last6Months.map(monthKey => {
+        const receitas = boletos
+          .filter(b => b.referenceMonth === monthKey && b.status === PAID_STATUS)
+          .reduce((sum, b) => sum + b.amount, 0);
+        return {
+          month: formatMonthLabel(monthKey),
+          receitas,
+          despesas: 0, // aguardando módulo de despesas
+        };
+      })
+    : [];
 
   const handleExport = () => {
     toast.success('Exportação iniciada!', {
@@ -43,19 +184,14 @@ export function Treasury({ userProfile }: TreasuryProps) {
 
   const handleSendBoletoReminder = () => {
     toast.success('Lembretes enviados!', {
-      description: 'Notificações enviadas para 4 unidades em atraso.'
+      description: `Notificações enviadas para ${unidadesInadimplentes} unidade${unidadesInadimplentes !== 1 ? 's' : ''} em atraso.`
     });
   };
 
-  const balanceData = [
-    { month: 'Jun', receitas: 45000, despesas: 32000 },
-    { month: 'Jul', receitas: 46000, despesas: 28000 },
-    { month: 'Ago', receitas: 44500, despesas: 35000 },
-    { month: 'Set', receitas: 47000, despesas: 31000 },
-    { month: 'Out', receitas: 45500, despesas: 29000 },
-    { month: 'Nov', receitas: 48000, despesas: 33000 }
-  ];
-
+  // NOTA: "Despesas por Categoria" continua mock — não há, hoje, nenhuma
+  // fonte de dados de despesas no projeto (só existe o modelo de Boleto,
+  // que é receita). Quando existir um módulo de despesas, troca este array
+  // fixo pelos dados reais agrupados por categoria.
   const expensesByCategory = [
     { name: 'Limpeza', value: 8500, color: '#3b82f6' },
     { name: 'Portaria', value: 12000, color: '#8b5cf6' },
@@ -64,6 +200,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
     { name: 'Água', value: 1800, color: '#06b6d4' }
   ];
 
+  // NOTA: "Histórico de Transações" também continua mock por enquanto — a
+  // parte de "despesa" não tem fonte de dados real ainda. Fora do escopo
+  // pedido nesta rodada; fica marcado aqui para não esquecer.
   const transactions = [
     {
       id: '1',
@@ -148,7 +287,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
             <Wallet className="w-5 h-5 text-wave-100" />
             <p className="text-wave-100 text-sm">Saldo Atual</p>
           </div>
-          <p className="text-3xl mb-1">R$ 148.250,00</p>
+          <p className="text-3xl mb-1">{formatBRL(saldoAtual)}</p>
           <p className="text-wave-100 text-sm">Caixa disponível</p>
         </div>
 
@@ -157,20 +296,22 @@ export function Treasury({ userProfile }: TreasuryProps) {
             <p className="text-wave-500 text-sm">Fundo de Reserva</p>
             <TrendingUp className="w-5 h-5 text-green-500" />
           </div>
-          <p className="text-wave-800 text-2xl mb-1">R$ 85.000,00</p>
+          <p className="text-wave-800 text-2xl mb-1">{formatBRL(fundoReserva)}</p>
           <div className="w-full bg-wave-100 rounded-full h-2 mt-3">
-            <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full" style={{ width: '85%' }} />
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full" style={{ width: `${percentualMeta}%` }} />
           </div>
-          <p className="text-green-600 text-sm mt-2">85% da meta (R$ 100k)</p>
+          <p className="text-green-600 text-sm mt-2">{percentualMeta}% da meta ({formatBRL(metaFundoReserva)})</p>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-wave-100 shadow-lg">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-wave-500 text-sm">Receitas (Dez)</p>
+            <p className="text-wave-500 text-sm">Receitas ({formatMonthLabel(currentMonthKey)})</p>
             <TrendingUp className="w-5 h-5 text-green-500" />
           </div>
-          <p className="text-wave-800 text-2xl mb-1">R$ 48.000,00</p>
-          <p className="text-wave-500 text-sm">96% arrecadado (48/50 unidades)</p>
+          <p className="text-wave-800 text-2xl mb-1">{formatBRL(receitasDoMes)}</p>
+          <p className="text-wave-500 text-sm">
+            {percentualArrecadadoMes}% arrecadado ({boletosPagosDoMes.length}/{boletosDoMes.length || totalUnidadesConhecidas} unidades)
+          </p>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-wave-100 shadow-lg">
@@ -178,8 +319,8 @@ export function Treasury({ userProfile }: TreasuryProps) {
             <p className="text-wave-500 text-sm">Inadimplência</p>
             <AlertCircle className="w-5 h-5 text-orange-500" />
           </div>
-          <p className="text-orange-600 text-2xl mb-1">R$ 3.400,00</p>
-          <p className="text-wave-500 text-sm">4 unidades em atraso</p>
+          <p className="text-orange-600 text-2xl mb-1">{formatBRL(totalInadimplencia)}</p>
+          <p className="text-wave-500 text-sm">{unidadesInadimplentes} unidade{unidadesInadimplentes !== 1 ? 's' : ''} em atraso</p>
         </div>
       </div>
 
@@ -215,10 +356,10 @@ export function Treasury({ userProfile }: TreasuryProps) {
                   <div className="p-2 bg-orange-200 rounded-lg">
                     <FileText className="w-5 h-5 text-orange-700" />
                   </div>
-                  <span className="text-2xl text-orange-900">46</span>
+                  <span className="text-2xl text-orange-900">{boletosPendentesNaoVencidos.length}</span>
                 </div>
                 <h4 className="text-orange-900">Boletos Pendentes</h4>
-                <p className="text-orange-700 text-sm">R$ 44.600,00 a receber</p>
+                <p className="text-orange-700 text-sm">{formatBRL(totalPendenteNaoVencido)} a receber</p>
               </div>
 
               <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
@@ -226,10 +367,10 @@ export function Treasury({ userProfile }: TreasuryProps) {
                   <div className="p-2 bg-red-200 rounded-lg">
                     <AlertCircle className="w-5 h-5 text-red-700" />
                   </div>
-                  <span className="text-2xl text-red-900">4</span>
+                  <span className="text-2xl text-red-900">{boletosVencidos.length}</span>
                 </div>
                 <h4 className="text-red-900">Boletos Vencidos</h4>
-                <p className="text-red-700 text-sm">R$ 3.400,00 em atraso</p>
+                <p className="text-red-700 text-sm">{formatBRL(totalInadimplencia)} em atraso</p>
               </div>
 
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
@@ -237,10 +378,10 @@ export function Treasury({ userProfile }: TreasuryProps) {
                   <div className="p-2 bg-green-200 rounded-lg">
                     <Receipt className="w-5 h-5 text-green-700" />
                   </div>
-                  <span className="text-2xl text-green-900">150</span>
+                  <span className="text-2xl text-green-900">{boletosPagosNoAno.length}</span>
                 </div>
-                <h4 className="text-green-900">Boletos Pagos (2025)</h4>
-                <p className="text-green-700 text-sm">Taxa de adimplência: 96%</p>
+                <h4 className="text-green-900">Boletos Pagos ({anoAtual})</h4>
+                <p className="text-green-700 text-sm">Taxa de adimplência: {taxaAdimplenciaAno}%</p>
               </div>
             </div>
 
@@ -267,7 +408,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
                   <Send className="w-5 h-5 text-orange-600" />
                   <div>
                     <p className="text-orange-900">Enviar Lembrete de Vencimento</p>
-                    <p className="text-orange-600 text-sm">Notificar 4 unidades com boletos em atraso</p>
+                    <p className="text-orange-600 text-sm">Notificar {unidadesInadimplentes} unidade{unidadesInadimplentes !== 1 ? 's' : ''} com boletos em atraso</p>
                   </div>
                 </div>
                 <Button
@@ -322,47 +463,56 @@ export function Treasury({ userProfile }: TreasuryProps) {
         {/* Balance Evolution */}
         <div className="lg:col-span-2 bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-wave-100 shadow-lg">
           <h3 className="text-wave-800 text-lg mb-6">Evolução Financeira (Últimos 6 Meses)</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={balanceData}>
-              <defs>
-                <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorDespesas" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#bfdbfe" />
-              <XAxis dataKey="month" stroke="#60a5fa" />
-              <YAxis stroke="#60a5fa" tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
-              <Tooltip 
-                formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR')}`}
-                contentStyle={{ 
-                  backgroundColor: 'white', 
-                  border: '2px solid #3b82f6',
-                  borderRadius: '12px'
-                }}
-              />
-              <Area 
-                type="monotone" 
-                dataKey="receitas" 
-                stroke="#3b82f6" 
-                strokeWidth={2}
-                fill="url(#colorReceitas)"
-                name="Receitas"
-              />
-              <Area 
-                type="monotone" 
-                dataKey="despesas" 
-                stroke="#f59e0b" 
-                strokeWidth={2}
-                fill="url(#colorDespesas)"
-                name="Despesas"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {balanceData.length === 0 ? (
+            <div className="h-[300px] flex items-center justify-center">
+              <p className="text-wave-400 text-sm italic">Ainda não há boletos suficientes para montar o gráfico.</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={balanceData}>
+                <defs>
+                  <linearGradient id="colorReceitas" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorDespesas" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#bfdbfe" />
+                <XAxis dataKey="month" stroke="#60a5fa" />
+                <YAxis stroke="#60a5fa" tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
+                <Tooltip 
+                  formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR')}`}
+                  contentStyle={{ 
+                    backgroundColor: 'white', 
+                    border: '2px solid #3b82f6',
+                    borderRadius: '12px'
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="receitas" 
+                  stroke="#3b82f6" 
+                  strokeWidth={2}
+                  fill="url(#colorReceitas)"
+                  name="Receitas"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="despesas" 
+                  stroke="#f59e0b" 
+                  strokeWidth={2}
+                  fill="url(#colorDespesas)"
+                  name="Despesas"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+          <p className="text-wave-400 text-xs italic mt-2">
+            * Despesas ainda não têm fonte de dados real neste projeto — aparecem zeradas até existir um módulo de despesas.
+          </p>
         </div>
 
         {/* Expenses by Category */}
@@ -401,6 +551,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
               </div>
             ))}
           </div>
+          <p className="text-wave-400 text-xs italic mt-3">
+            * Ainda mock — não há módulo de despesas por categoria implementado.
+          </p>
         </div>
       </div>
 
@@ -482,6 +635,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
             </tbody>
           </table>
         </div>
+        <p className="text-wave-400 text-xs italic px-6 pb-4">
+          * Esta tabela ainda é mock (mistura receita/despesa) — fora do escopo desta rodada de correção.
+        </p>
       </div>
 
       {/* Blockchain Info */}

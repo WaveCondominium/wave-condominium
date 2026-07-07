@@ -11,8 +11,8 @@ interface Boleto {
   id: string;
   unitNumber: string;
   unitOwner: string;
-  referenceMonth: string;
-  dueDate: string;
+  referenceMonth: string; // formato: 'YYYY-MM'
+  dueDate: string;        // formato: 'YYYY-MM-DD' (sem timezone/hora)
   amount: number;
   barcode: string;
   status: 'pending' | 'paid' | 'compensated' | 'blockchain_registered' | 'overdue';
@@ -40,6 +40,43 @@ interface BoletosProps {
     role: string;
     unit?: string;
   };
+}
+
+// ---------------------------------------------------------------------------
+// FIX (bug de timezone / off-by-one na Data de Vencimento):
+//
+// `new Date('2026-07-10')` é interpretado pelo JS como meia-noite UTC, não
+// meia-noite no horário local. No Brasil (UTC-3), isso equivale a
+// 2026-07-09T21:00 no horário local. Duas consequências:
+//
+//  1) `.toLocaleDateString('pt-BR')` mostrava a data ERRADA (um dia antes).
+//  2) O boleto virava "Vencido" a partir das 21h do dia anterior ao
+//     vencimento real, em vez de virar à meia-noite local do dia seguinte.
+//
+// As funções abaixo tratam `dueDate` como texto puro ('YYYY-MM-DD'), sem
+// nunca passar por `new Date(string)`, eliminando o problema de timezone.
+// Também centralizam a lógica que antes estava duplicada em 3 lugares.
+// ---------------------------------------------------------------------------
+
+// Data de "hoje" no horário local, já no formato 'YYYY-MM-DD'
+function getTodayLocalISO(): string {
+  return new Date().toLocaleDateString('en-CA'); // en-CA => YYYY-MM-DD
+}
+
+// Compara datas como texto (funciona pois o formato ISO é lexicograficamente
+// ordenável) — nunca usa new Date() sobre a string do boleto
+function isPastDue(dueDate: string): boolean {
+  return dueDate < getTodayLocalISO();
+}
+
+function isBoletoOverdue(boleto: Pick<Boleto, 'status' | 'dueDate'>): boolean {
+  return boleto.status === 'pending' && isPastDue(boleto.dueDate);
+}
+
+// Formata 'YYYY-MM-DD' para 'DD/MM/YYYY' sem passar por new Date()
+function formatDateBR(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-');
+  return `${day}/${month}/${year}`;
 }
 
 export function Boletos({ userProfile }: BoletosProps) {
@@ -283,21 +320,13 @@ export function Boletos({ userProfile }: BoletosProps) {
     if (filter === 'all') return true;
     if (filter === 'pending') return boleto.status === 'pending';
     if (filter === 'paid') return boleto.status === 'blockchain_registered';
-    if (filter === 'overdue') {
-      const today = new Date();
-      const dueDate = new Date(boleto.dueDate);
-      return boleto.status === 'pending' && dueDate < today;
-    }
+    if (filter === 'overdue') return isBoletoOverdue(boleto);
     return true;
   });
 
   const totalPending = boletos.filter(b => b.status === 'pending').reduce((sum, b) => sum + b.amount, 0);
   const totalPaid = boletos.filter(b => b.status === 'blockchain_registered').reduce((sum, b) => sum + b.amount, 0);
-  const totalOverdue = boletos.filter(b => {
-    const today = new Date();
-    const dueDate = new Date(b.dueDate);
-    return b.status === 'pending' && dueDate < today;
-  }).length;
+  const totalOverdue = boletos.filter(isBoletoOverdue).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -483,7 +512,7 @@ export function Boletos({ userProfile }: BoletosProps) {
       ) : (
         <div className="space-y-4 relative z-10">
           {filteredBoletos.map((boleto) => {
-            const isOverdue = new Date(boleto.dueDate) < new Date() && boleto.status === 'pending';
+            const isOverdue = isBoletoOverdue(boleto);
             
             return (
               <div
@@ -511,7 +540,7 @@ export function Boletos({ userProfile }: BoletosProps) {
                       <div>
                         <p className="text-wave-500 text-sm">Vencimento</p>
                         <p className="text-wave-800">
-                          {new Date(boleto.dueDate).toLocaleDateString('pt-BR')}
+                          {formatDateBR(boleto.dueDate)}
                         </p>
                       </div>
                       <div>
