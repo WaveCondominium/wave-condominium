@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { ArrowRight, Shield, Vote, FileText } from 'lucide-react';
@@ -32,18 +32,17 @@ export function Login({ onLogin }: LoginProps) {
   return (
     <div className="min-h-screen bg-wave-50 flex">
 
-      {/* Lado esquerdo — branding */}
       <div className="hidden lg:flex flex-col justify-between w-[45%] bg-wave-800 p-14">
         <div>
           <div className="flex items-center gap-2.5 mb-16">
             <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
               <span className="text-white font-serif text-sm">W</span>
             </div>
-            <span className="font-serif text-xl text-white">Wave</span>
+            <span className="font-serif text-xl text-white">Wave Condominium</span>
           </div>
 
           <h1 className="font-serif text-4xl text-white font-normal leading-tight mb-4">
-            Gestão condominial com transparência real
+            Gestão condominial com transparência
           </h1>
           <p className="text-wave-300 leading-relaxed mb-12">
             Cada decisão registrada, cada voto auditável, cada documento protegido —
@@ -74,16 +73,15 @@ export function Login({ onLogin }: LoginProps) {
         </p>
       </div>
 
-      {/* Lado direito — formulário */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm">
+      <div className="flex-1 relative flex items-center justify-center p-8 overflow-hidden bg-wave-50 lg:bg-wave-800">
 
-          {/* Logo mobile */}
+        <div className="relative z-10 w-full max-w-sm lg:bg-white/95 lg:backdrop-blur-md lg:rounded-2xl lg:shadow-2xl lg:p-8 lg:border lg:border-white/20">
+
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
             <div className="w-8 h-8 rounded-lg bg-wave-500 flex items-center justify-center">
               <span className="text-white font-serif text-sm">W</span>
             </div>
-            <span className="font-serif text-xl text-wave-800">Wave</span>
+            <span className="font-serif text-xl text-wave-800">Wave Condominium</span>
           </div>
 
           <div className="mb-8">
@@ -121,9 +119,12 @@ export function Login({ onLogin }: LoginProps) {
                 <input type="checkbox" className="rounded accent-wave-500 w-3.5 h-3.5" />
                 <span>Lembrar-me</span>
               </label>
-              <button onClick={() => { import('sonner').then(m => m.toast.info('Recuperação de senha', { description: 'Use qualquer senha para acessar a demonstração.' })); }} className="text-wave-500 hover:text-wave-700 italic font-serif text-sm">
+              <Link
+                href="/forgot-password"
+                className="text-wave-500 hover:text-wave-700 italic font-serif text-sm"
+              >
                 Esqueci minha senha
-              </button>
+              </Link>
             </div>
 
             <button
@@ -158,9 +159,6 @@ export function Login({ onLogin }: LoginProps) {
             </div>
           </div>
 
-          <p className="text-wave-300 text-xs text-center mt-6">
-            <Link href="/" className="hover:text-wave-500 transition-colors">← Voltar à página inicial</Link>
-          </p>
         </div>
       </div>
     </div>
