@@ -1,10 +1,11 @@
-'use client';
+﻿'use client';
 
-import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, Video, Receipt, Shield, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, Video, Receipt, Shield, MessageSquare, UserPlus, X } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMenuBadges } from '@/hooks/useMenuBadges';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 
 interface SidebarProps {
   userProfile: {
@@ -15,13 +16,24 @@ interface SidebarProps {
     avatar?: string;
   };
   onLogout: () => void;
+  // Novos props (opcionais) — controlam o drawer em telas mobile.
+  // Em desktop (lg+) não têm efeito nenhum, o menu fica sempre visível.
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export function Sidebar({ userProfile, onLogout }: SidebarProps) {
+export function Sidebar({ userProfile, onLogout, isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const isAdmin = userProfile.role === 'Administrador' || userProfile.role === 'Síndico';
   const { unreadCount } = useNotifications();
   const { governanceCount, communicationCount, meetingsCount, boletosCount, maintenanceCount } = useMenuBadges();
+
+  // Fecha o menu mobile automaticamente ao navegar para outra rota —
+  // melhoria de UX (sem isso, o menu ficaria aberto cobrindo a tela nova)
+  useEffect(() => {
+    onMobileClose?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const menuItems = [
     { href: '/dashboard',                label: 'Dashboard',   icon: LayoutDashboard, badge: unreadCount > 0 ? unreadCount : undefined },
@@ -34,6 +46,7 @@ export function Sidebar({ userProfile, onLogout }: SidebarProps) {
     { href: '/dashboard/maintenance',    label: 'Manutenção',  icon: Wrench,          badge: maintenanceCount > 0 ? maintenanceCount : undefined },
     { href: '/dashboard/blockchain',     label: 'Auditoria Stellar',  icon: Shield },
     { href: '/dashboard/units',          label: 'Unidades',    icon: Home },
+    { href: '/dashboard/create-account', label: 'Criar Nova Conta', icon: UserPlus },
     ...(isAdmin ? [{ href: '/dashboard/admin', label: 'Admin Panel', icon: Settings }] : [])
   ];
 
@@ -45,82 +58,111 @@ export function Sidebar({ userProfile, onLogout }: SidebarProps) {
     .toUpperCase();
 
   return (
-    <aside className="w-64 bg-white border-r border-wave-200 flex flex-col h-screen sticky top-0">
+    <>
+      {/* Fundo escurecido atrás do menu — só em mobile, só quando aberto.
+          Clicar nele fecha o menu (padrão universal de drawer). */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={onMobileClose}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Logo */}
-      <div className="px-6 py-6 border-b border-wave-100">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-wave-500 flex items-center justify-center">
-            <span className="text-white text-xs font-serif">W</span>
+      <aside
+        className={`w-64 bg-white border-r border-wave-200 flex flex-col h-screen fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
+          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0 lg:sticky lg:top-0 lg:z-auto`}
+      >
+
+        {/* Logo */}
+        <div className="px-6 py-6 border-b border-wave-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-wave-500 flex items-center justify-center">
+              <span className="text-white text-xs font-serif">W</span>
+            </div>
+            <div>
+              <h1 className="font-serif text-xl text-wave-800 leading-none">Wave</h1>
+              <p className="text-wave-400 text-xs mt-0.5 italic font-serif">Gestão Condominial</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-serif text-xl text-wave-800 leading-none">Wave</h1>
-            <p className="text-wave-400 text-xs mt-0.5 italic font-serif">Gestão Condominial</p>
+          {/* Botão fechar — só existe em mobile */}
+          <button
+            onClick={onMobileClose}
+            className="lg:hidden p-1 text-wave-400 hover:text-wave-600 transition-colors"
+            aria-label="Fechar menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Perfil do usuário */}
+        <div className="px-4 py-4 border-b border-wave-100">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-wave-50">
+            <div className="w-9 h-9 rounded-full bg-wave-100 border border-wave-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {userProfile.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={userProfile.avatar} alt={userProfile.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-wave-600 text-xs font-serif">{initials}</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-wave-800 text-sm font-medium truncate">{userProfile.name}</p>
+              <p className="text-wave-400 text-xs truncate font-serif italic">{userProfile.role} · {userProfile.unit}</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Perfil do usuário */}
-      <div className="px-4 py-4 border-b border-wave-100">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-wave-50">
-          <div className="w-9 h-9 rounded-full bg-wave-100 border border-wave-200 flex items-center justify-center flex-shrink-0">
-            <span className="text-wave-600 text-xs font-serif">{initials}</span>
+        {/* Navegação */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          <div className="space-y-0.5">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all group ${
+                    isActive
+                      ? 'bg-wave-100 text-wave-700'
+                      : 'text-wave-400 hover:bg-wave-50 hover:text-wave-600'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-wave-600' : 'text-wave-300 group-hover:text-wave-500'}`} />
+                  <span className="flex-1">{item.label}</span>
+                  {isActive && (
+                    <div className="w-1 h-4 rounded-full bg-wave-500" />
+                  )}
+                  {!isActive && item.badge && (
+                    <span className="px-1.5 py-0.5 bg-wave-500 text-white rounded-full text-xs leading-none">
+                      {item.badge}
+                    </span>
+                  )}
+                  {isActive && item.badge && (
+                    <span className="px-1.5 py-0.5 bg-wave-500 text-white rounded-full text-xs leading-none">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-wave-800 text-sm font-medium truncate">{userProfile.name}</p>
-            <p className="text-wave-400 text-xs truncate font-serif italic">{userProfile.role} · {userProfile.unit}</p>
-          </div>
+        </nav>
+
+        {/* Logout */}
+        <div className="px-3 py-4 border-t border-wave-100">
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-wave-400 hover:bg-wave-50 hover:text-wave-600 transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sair da conta</span>
+          </button>
         </div>
-      </div>
-
-      {/* Navegação */}
-      <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        <div className="space-y-0.5">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all group ${
-                  isActive
-                    ? 'bg-wave-100 text-wave-700'
-                    : 'text-wave-400 hover:bg-wave-50 hover:text-wave-600'
-                }`}
-              >
-                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-wave-600' : 'text-wave-300 group-hover:text-wave-500'}`} />
-                <span className="flex-1">{item.label}</span>
-                {isActive && (
-                  <div className="w-1 h-4 rounded-full bg-wave-500" />
-                )}
-                {!isActive && item.badge && (
-                  <span className="px-1.5 py-0.5 bg-wave-500 text-white rounded-full text-xs leading-none">
-                    {item.badge}
-                  </span>
-                )}
-                {isActive && item.badge && (
-                  <span className="px-1.5 py-0.5 bg-wave-500 text-white rounded-full text-xs leading-none">
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
-      {/* Logout */}
-      <div className="px-3 py-4 border-t border-wave-100">
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-wave-400 hover:bg-wave-50 hover:text-wave-600 transition-all"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sair da conta</span>
-        </button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

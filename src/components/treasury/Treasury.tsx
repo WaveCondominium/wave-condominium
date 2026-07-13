@@ -1,10 +1,10 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Wallet, TrendingUp, TrendingDown, DollarSign, PieChart as PieChartIcon, Download, ExternalLink, Filter, CreditCard, Smartphone, X, AlertCircle, Users, Receipt, FileText, Send } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useFinancialSummary, PAID_STATUS } from '../../hooks/useFinancialSummary';
 
 import { GenerateBoletoModal } from './GenerateBoletoModal';
 
@@ -12,63 +12,6 @@ interface TreasuryProps {
   userProfile?: {
     role: string;
   };
-}
-
-// ---------------------------------------------------------------------------
-// IMPORTANTE (dívida técnica a resolver depois):
-// Esta interface `Boleto` é uma CÓPIA da que existe em Boletos.tsx. Isso é
-// arriscado — se um dos dois arquivos mudar o formato de um campo, os dois
-// componentes podem ficar lendo o mesmo localStorage ('wave_boletos') de
-// forma inconsistente sem nenhum erro de compilação avisando. Recomendo
-// extrair este tipo (e os helpers de data abaixo) para um arquivo único,
-// tipo `src/lib/boletos.ts`, e importar dos dois lugares.
-// ---------------------------------------------------------------------------
-interface Boleto {
-  id: string;
-  unitNumber: string;
-  unitOwner: string;
-  referenceMonth: string; // formato: 'YYYY-MM'
-  dueDate: string;        // formato: 'YYYY-MM-DD'
-  amount: number;
-  barcode: string;
-  status: 'pending' | 'paid' | 'compensated' | 'blockchain_registered' | 'overdue';
-  issuedAt: string;
-  issuedBy: string;
-  paidAt?: string;
-  compensatedAt?: string;
-  blockchainHash?: string;
-  stellarExplorerUrl?: string;
-  anchorTxHash?: string;
-  contentHash?: string;
-  blockchainRegisteredAt?: string;
-  description: string;
-  details: {
-    condominiumFee: number;
-    waterFee: number;
-    reserveFund: number;
-    otherFees: number;
-  };
-}
-
-// Status que consideramos "pago de fato" (mesmo critério usado em Boletos.tsx
-// para o badge verde "Pago" e para a estatística "Recebido")
-const PAID_STATUS = 'blockchain_registered';
-
-// Mesma lógica de "vencido" já corrigida em Boletos.tsx (compara texto
-// 'YYYY-MM-DD', nunca usa new Date(string) para evitar bug de timezone)
-function getTodayLocalISO(): string {
-  return new Date().toLocaleDateString('en-CA'); // en-CA => YYYY-MM-DD
-}
-
-function isBoletoOverdue(boleto: Pick<Boleto, 'status' | 'dueDate'>): boolean {
-  return boleto.status === 'pending' && boleto.dueDate < getTodayLocalISO();
-}
-
-// Mês atual no formato 'YYYY-MM', usando componentes locais (não UTC)
-function getCurrentMonthKey(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return `${now.getFullYear()}-${month}`;
 }
 
 const MONTH_LABELS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -88,64 +31,42 @@ export function Treasury({ userProfile }: TreasuryProps) {
   const [showGenerateBoletoModal, setShowGenerateBoletoModal] = useState(false);
   const [view, setView] = useState<'overview' | 'boletos'>('overview');
 
-  // Mesma chave de localStorage usada em Boletos.tsx — é o que conecta as
-  // duas telas. Default [] aqui de propósito: a lista "oficial" de boletos
-  // (com os 5 exemplos) já é inicializada por Boletos.tsx; se o usuário
-  // nunca abriu aquela tela, aqui simplesmente não há dados ainda.
-  const [boletos] = useLocalStorage<Boleto[]>('wave_boletos', []);
+  // Extraído para src/hooks/useFinancialSummary.ts — mesmo cálculo que o
+  // Dashboard usa, garantindo que os dois lugares nunca divirjam.
+  const {
+    boletos,
+    saldoAtual,
+    fundoReserva,
+    currentMonthKey,
+    boletosDoMes,
+    boletosPagosDoMes,
+    receitasDoMes,
+    percentualAdimplencia,
+    percentualInadimplencia,
+    boletosVencidos,
+    totalInadimplencia,
+    unidadesInadimplentes,
+    totalUnidadesConhecidas,
+  } = useFinancialSummary();
 
   const isAdmin = userProfile?.role === 'Síndico' || userProfile?.role === 'Administradora' || userProfile?.role === 'Administrador';
 
-  // -------------------------------------------------------------------------
-  // Cálculos reais a partir dos boletos (substituem os valores fixos antigos)
-  // -------------------------------------------------------------------------
-  const boletosPagos = boletos.filter(b => b.status === PAID_STATUS);
-
-  // Saldo Atual = soma de todos os boletos pagos
-  const saldoAtual = boletosPagos.reduce((sum, b) => sum + b.amount, 0);
-
-  // Fundo de Reserva = soma do componente "reserveFund" apenas dos boletos
-  // já pagos (dinheiro que de fato entrou, não o que ainda está pendente)
-  const fundoReserva = boletosPagos.reduce((sum, b) => sum + (b.details?.reserveFund ?? 0), 0);
   const metaFundoReserva = 100000; // meta ainda fixa — não há de onde derivar isso dos boletos
   const percentualMeta = metaFundoReserva > 0 ? Math.min(100, Math.round((fundoReserva / metaFundoReserva) * 100)) : 0;
 
-  // Receitas do mês atual (local, não UTC)
-  const currentMonthKey = getCurrentMonthKey();
-  const boletosDoMes = boletos.filter(b => b.referenceMonth === currentMonthKey);
-  const boletosPagosDoMes = boletosDoMes.filter(b => b.status === PAID_STATUS);
-  const receitasDoMes = boletosPagosDoMes.reduce((sum, b) => sum + b.amount, 0);
-
-  // ATENÇÃO: "total de unidades" aqui é uma aproximação — conta as unidades
-  // distintas que aparecem no histórico de boletos, não o cadastro real do
-  // condomínio (que ainda não existe como fonte de dados neste projeto).
-  const totalUnidadesConhecidas = new Set(boletos.map(b => b.unitNumber)).size;
-  const percentualArrecadadoMes = boletosDoMes.length > 0
-    ? Math.round((boletosPagosDoMes.length / boletosDoMes.length) * 100)
-    : 0;
-
-  // Inadimplência = boletos pendentes cujo vencimento já passou
-  const boletosVencidos = boletos.filter(isBoletoOverdue);
-  const totalInadimplencia = boletosVencidos.reduce((sum, b) => sum + b.amount, 0);
-  const unidadesInadimplentes = new Set(boletosVencidos.map(b => b.unitNumber)).size;
-
   // Boletos pendentes (e ainda não vencidos) — para o card "Boletos Pendentes"
-  const boletosPendentesNaoVencidos = boletos.filter(b => b.status === 'pending' && !isBoletoOverdue(b));
+  const boletosPendentesNaoVencidos = boletos.filter(b => b.status === 'pending' && !boletosVencidos.includes(b));
   const totalPendenteNaoVencido = boletosPendentesNaoVencidos.reduce((sum, b) => sum + b.amount, 0);
 
   // Boletos pagos no ano corrente — para o card "Boletos Pagos (ano)"
   const anoAtual = String(new Date().getFullYear());
-  const boletosPagosNoAno = boletosPagos.filter(b => b.referenceMonth.startsWith(anoAtual));
+  const boletosPagosNoAno = boletos.filter(b => b.status === PAID_STATUS && b.referenceMonth.startsWith(anoAtual));
   const totalEmitidosNoAno = boletos.filter(b => b.referenceMonth.startsWith(anoAtual)).length;
   const taxaAdimplenciaAno = totalEmitidosNoAno > 0
     ? Math.round((boletosPagosNoAno.length / totalEmitidosNoAno) * 100)
     : 0;
 
   // Evolução Financeira (últimos 6 meses com dados reais de receita)
-  // OBS: "despesas" fica zerado — não existe, ainda, nenhum modelo/fonte de
-  // dados de despesas no projeto (o que existe hoje na tabela de "Histórico
-  // de Transações" abaixo é mock). Quando houver um módulo de despesas real,
-  // é só substituir o valor fixo `despesas: 0` pelo dado real.
   const monthsWithData = Array.from(new Set(boletos.map(b => b.referenceMonth))).sort();
   const last6Months = monthsWithData.slice(-6);
   const balanceData = last6Months.length > 0
@@ -184,7 +105,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
 
   const handleSendBoletoReminder = () => {
     toast.success('Lembretes enviados!', {
-      description: `Notificações enviadas para ${unidadesInadimplentes} unidade${unidadesInadimplentes !== 1 ? 's' : ''} em atraso.`
+      description: `Notificações enviadas para ${unidadesInadimplentes.size} unidade${unidadesInadimplentes.size !== 1 ? 's' : ''} em atraso.`
     });
   };
 
@@ -310,7 +231,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
           </div>
           <p className="text-wave-800 text-2xl mb-1">{formatBRL(receitasDoMes)}</p>
           <p className="text-wave-500 text-sm">
-            {percentualArrecadadoMes}% arrecadado ({boletosPagosDoMes.length}/{boletosDoMes.length || totalUnidadesConhecidas} unidades)
+            {percentualAdimplencia}% arrecadado ({boletosPagosDoMes.length}/{boletosDoMes.length || totalUnidadesConhecidas} unidades)
           </p>
         </div>
 
@@ -320,7 +241,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
             <AlertCircle className="w-5 h-5 text-orange-500" />
           </div>
           <p className="text-orange-600 text-2xl mb-1">{formatBRL(totalInadimplencia)}</p>
-          <p className="text-wave-500 text-sm">{unidadesInadimplentes} unidade{unidadesInadimplentes !== 1 ? 's' : ''} em atraso</p>
+          <p className="text-wave-500 text-sm">
+            {percentualInadimplencia}% · {unidadesInadimplentes.size} unidade{unidadesInadimplentes.size !== 1 ? 's' : ''} em atraso
+          </p>
         </div>
       </div>
 
@@ -408,7 +331,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
                   <Send className="w-5 h-5 text-orange-600" />
                   <div>
                     <p className="text-orange-900">Enviar Lembrete de Vencimento</p>
-                    <p className="text-orange-600 text-sm">Notificar {unidadesInadimplentes} unidade{unidadesInadimplentes !== 1 ? 's' : ''} com boletos em atraso</p>
+                    <p className="text-orange-600 text-sm">Notificar {unidadesInadimplentes.size} unidade{unidadesInadimplentes.size !== 1 ? 's' : ''} com boletos em atraso</p>
                   </div>
                 </div>
                 <Button

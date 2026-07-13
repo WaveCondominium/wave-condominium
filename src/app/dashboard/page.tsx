@@ -1,5 +1,7 @@
-'use client';
+﻿'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   AlertTriangle, 
   Clock,
@@ -12,46 +14,87 @@ import {
   Calendar,
   Activity,
   Zap,
-  Bell
+  Bell,
+  MapPin,
+  CheckCheck
 } from 'lucide-react';
 
 import Link from 'next/link';
+import { useFinancialSummary } from '@/hooks/useFinancialSummary';
+import { useMaintenanceOrders } from '@/hooks/useMaintenanceOrders';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+
+interface AvisoEvento {
+  id: string;
+  tipo: string;
+  titulo: string;
+  dataEvento?: string;
+  horarioEvento?: string;
+  localEvento?: string;
+}
+
+const MONTH_ABBR_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+function parseEventDate(dataEvento: string): { day: string; monthLabel: string } {
+  const [, month, day] = dataEvento.split('-');
+  const monthIdx = parseInt(month, 10) - 1;
+  return { day, monthLabel: MONTH_ABBR_PT[monthIdx] ?? month };
+}
+
+function getTodayLocalISO(): string {
+  return new Date().toLocaleDateString('en-CA');
+}
+
+function formatRelativeTime(timestamp: string): string {
+  const diffMs = Date.now() - new Date(timestamp).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'agora';
+  if (diffMin < 60) return `${diffMin}min atrás`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h atrás`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d atrás`;
+}
+
+function formatCurrentDateBR(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function formatBRL(value: number): string {
+  return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export default function DashboardPage() {
-  const healthMetrics = [
-    {
-      title: 'Saúde Financeira',
-      value: '92%',
-      status: 'good',
-      icon: DollarSign,
-      description: 'Saldo: R$ 127.450,00',
-      detail: 'Inadimplência: 8%'
-    },
-    {
-      title: 'Manutenções Críticas',
-      value: '2',
-      status: 'warning',
-      icon: Wrench,
-      description: 'Requerem atenção',
-      detail: 'Garantias próximas do vencimento'
-    },
-    {
-      title: 'Conformidade',
-      value: '100%',
-      status: 'good',
-      icon: Shield,
-      description: 'AVCB e Seguros',
-      detail: 'Documentação em dia'
-    },
-    {
-      title: 'Participação',
-      value: '78%',
-      status: 'good',
-      icon: Users,
-      description: 'Última assembleia',
-      detail: 'Quórum atingido'
+  const router = useRouter();
+  const [currentDateLabel, setCurrentDateLabel] = useState('');
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  useEffect(() => {
+    setCurrentDateLabel(formatCurrentDateBR(new Date()));
+  }, []);
+
+  const { saldoAtual, fundoReserva, percentualAdimplencia, percentualInadimplencia } = useFinancialSummary();
+  const { abertas, emAndamento, concluidas } = useMaintenanceOrders();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+
+  const [avisos] = useLocalStorage<AvisoEvento[]>('wave_avisos', []);
+  const todayISO = getTodayLocalISO();
+  const upcomingEvents = avisos
+    .filter((a) => a.tipo === 'evento' && a.dataEvento && a.dataEvento >= todayISO)
+    .sort((a, b) => (a.dataEvento! < b.dataEvento! ? -1 : a.dataEvento! > b.dataEvento! ? 1 : 0))
+    .slice(0, 5);
+
+  function handleNotificationClick(notification: { id: string; actionUrl?: string }) {
+    markAsRead(notification.id);
+    setIsNotifOpen(false);
+    if (notification.actionUrl) {
+      router.push(notification.actionUrl);
     }
-  ];
+  }
 
   const criticalAlerts = [
     {
@@ -83,27 +126,6 @@ export default function DashboardPage() {
     }
   ];
 
-  const upcomingEvents = [
-    {
-      title: 'Assembleia Ordinária',
-      date: '15/01/2026',
-      type: 'assembly',
-      status: 'scheduled'
-    },
-    {
-      title: 'Vistoria Anual Elevadores',
-      date: '20/01/2026',
-      type: 'maintenance',
-      status: 'pending'
-    },
-    {
-      title: 'Vencimento Boleto',
-      date: '10/01/2026',
-      type: 'financial',
-      status: 'pending'
-    }
-  ];
-
   return (
     <div className="space-y-8 relative">
       
@@ -115,32 +137,145 @@ export default function DashboardPage() {
         </div>
         
         <div className="flex gap-3">
-          <button className="p-2 bg-white rounded-xl shadow-sm border border-wave-100 text-wave-500 hover:bg-wave-50 transition-colors relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setIsNotifOpen((v) => !v)}
+              className="p-2 bg-white rounded-xl shadow-sm border border-wave-100 text-wave-500 hover:bg-wave-50 transition-colors relative"
+              aria-label="Notificações"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[10px] rounded-full border-2 border-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {isNotifOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsNotifOpen(false)}
+                  aria-hidden="true"
+                />
+                <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-2xl border border-wave-100 shadow-xl z-50">
+                  <div className="p-4 border-b border-wave-100 flex items-center justify-between sticky top-0 bg-white">
+                    <h3 className="text-wave-800 font-medium text-sm">Notificações</h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => markAllAsRead()}
+                        className="text-wave-500 text-xs hover:text-wave-700 flex items-center gap-1"
+                      >
+                        <CheckCheck className="w-3.5 h-3.5" />
+                        Marcar todas como lidas
+                      </button>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <p className="p-6 text-center text-wave-400 text-sm">Nenhuma notificação</p>
+                  ) : (
+                    <div className="divide-y divide-wave-50">
+                      {notifications.slice(0, 10).map((n) => (
+                        <button
+                          key={n.id}
+                          onClick={() => handleNotificationClick(n)}
+                          className={`w-full text-left p-4 hover:bg-wave-50 transition-colors flex gap-3 ${!n.read ? 'bg-wave-50/60' : ''}`}
+                        >
+                          {!n.read && <span className="w-2 h-2 mt-1.5 rounded-full bg-wave-500 flex-shrink-0" />}
+                          <div className={!n.read ? '' : 'ml-5'}>
+                            <p className="text-wave-800 text-sm font-medium">{n.title}</p>
+                            <p className="text-wave-500 text-xs mt-0.5 line-clamp-2">{n.message}</p>
+                            <p className="text-wave-400 text-xs mt-1">{formatRelativeTime(n.timestamp)}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
           <button className="px-4 py-2 bg-white rounded-xl shadow-sm border border-wave-100 text-wave-500 hover:bg-wave-50 transition-colors flex items-center gap-2">
             <Calendar className="w-4 h-4" />
-            <span>Dezembro 2025</span>
+            <span>{currentDateLabel}</span>
           </button>
         </div>
       </div>
 
       {/* Health Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-        {healthMetrics.map((metric, index) => {
+
+        <Link
+          href="/dashboard/treasury"
+          className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-wave-100 shadow-sm hover:shadow-md hover:border-wave-300 transition-all group block cursor-pointer"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-green-100 text-green-600 group-hover:scale-110 transition-transform">
+              <DollarSign className="w-6 h-6" />
+            </div>
+          </div>
+          <h3 className="text-wave-800 font-medium mb-3">Saúde Financeira</h3>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-wave-500">Saldo</span>
+              <span className="text-wave-800 font-medium">{formatBRL(saldoAtual)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-wave-500">Fundo de Reserva</span>
+              <span className="text-wave-800 font-medium">{formatBRL(fundoReserva)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-wave-50">
+              <span className="text-wave-500">Adimplência</span>
+              <span className="text-green-600 font-medium">{percentualAdimplencia}%</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-wave-500">Inadimplência</span>
+              <span className="text-orange-600 font-medium">{percentualInadimplencia}%</span>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/dashboard/maintenance"
+          className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-wave-100 shadow-sm hover:shadow-md hover:border-wave-300 transition-all group block cursor-pointer"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className={`p-3 rounded-xl ${abertas > 0 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'} group-hover:scale-110 transition-transform`}>
+              <Wrench className="w-6 h-6" />
+            </div>
+            <span className={`text-2xl font-bold ${abertas > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+              {abertas}
+            </span>
+          </div>
+          <h3 className="text-wave-800 font-medium mb-1">Manutenção</h3>
+          <p className="text-wave-500 text-sm mb-2">Ordens de serviço em aberto</p>
+          <p className="text-wave-400 text-xs">{emAndamento} em andamento · {concluidas} concluídas</p>
+        </Link>
+
+        {[
+          {
+            title: 'Conformidade',
+            value: '100%',
+            icon: Shield,
+            description: 'AVCB e Seguros',
+            detail: 'Documentação em dia'
+          },
+          {
+            title: 'Participação',
+            value: '78%',
+            icon: Users,
+            description: 'Última assembleia',
+            detail: 'Quórum atingido'
+          }
+        ].map((metric, index) => {
           const Icon = metric.icon;
           return (
             <div key={index} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-wave-100 shadow-sm hover:shadow-md transition-all group">
               <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl ${
-                  metric.status === 'good' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'
-                } group-hover:scale-110 transition-transform`}>
+                <div className="p-3 rounded-xl bg-green-100 text-green-600 group-hover:scale-110 transition-transform">
                   <Icon className="w-6 h-6" />
                 </div>
-                <span className={`text-2xl font-bold ${
-                  metric.status === 'good' ? 'text-green-600' : 'text-orange-600'
-                }`}>
+                <span className="text-2xl font-bold text-green-600">
                   {metric.value}
                 </span>
               </div>
@@ -153,9 +288,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
-        {/* Main Content Area */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Critical Alerts */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-orange-100 rounded-lg">
@@ -190,7 +323,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Activity Chart Placeholder */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
@@ -228,9 +360,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Right Sidebar */}
         <div className="space-y-8">
-          {/* Quick Actions */}
           <div className="bg-gradient-to-br from-wave-700 to-wave-500 rounded-2xl p-6 text-white shadow-lg">
             <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
               <Zap className="w-5 h-5" />
@@ -256,34 +386,46 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Upcoming Events */}
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-sm p-6">
             <h2 className="text-xl text-wave-800 mb-6">Próximos Eventos</h2>
-            <div className="space-y-4">
-              {upcomingEvents.map((event, index) => (
-                <div key={index} className="flex gap-4 items-start pb-4 border-b border-blue-50 last:border-0 last:pb-0">
-                  <div className="flex-shrink-0 w-12 text-center">
-                    <span className="block text-xs text-wave-500 uppercase font-bold">
-                      {event.date.split('/')[1] === '01' ? 'JAN' : 'DEZ'}
-                    </span>
-                    <span className="block text-xl text-wave-800 font-bold">
-                      {event.date.split('/')[0]}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-wave-800 font-medium text-sm">{event.title}</h3>
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] mt-1 ${
-                      event.type === 'assembly' ? 'bg-purple-100 text-purple-600' :
-                      event.type === 'maintenance' ? 'bg-orange-100 text-orange-600' :
-                      'bg-green-100 text-green-600'
-                    }`}>
-                      {event.type === 'assembly' ? 'Assembleia' : 
-                       event.type === 'maintenance' ? 'Manutenção' : 'Financeiro'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {upcomingEvents.length === 0 ? (
+              <p className="text-wave-400 text-sm italic text-center py-6">Nenhum evento agendado</p>
+            ) : (
+              <div className="space-y-1">
+                {upcomingEvents.map((event) => {
+                  const { day, monthLabel } = parseEventDate(event.dataEvento!);
+                  return (
+                    <div key={event.id} className="flex gap-3 items-start py-2.5 border-b border-wave-50 last:border-0">
+                      <div className="flex-shrink-0 w-11 text-center">
+                        <span className="block text-[10px] text-wave-500 uppercase font-medium">{monthLabel}</span>
+                        <span className="block text-xl text-wave-800 font-medium leading-tight">{day}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-wave-800 font-medium text-sm mb-1 truncate">{event.titulo}</p>
+                        {event.horarioEvento || event.localEvento ? (
+                          <p className="text-wave-500 text-xs flex items-center gap-3 flex-wrap">
+                            {event.horarioEvento && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" />
+                                {event.horarioEvento}
+                              </span>
+                            )}
+                            {event.localEvento && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5" />
+                                {event.localEvento}
+                              </span>
+                            )}
+                          </p>
+                        ) : (
+                          <p className="text-wave-400 text-xs italic">Sem horário informado</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

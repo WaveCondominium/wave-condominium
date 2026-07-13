@@ -1,19 +1,29 @@
-import { toast } from 'sonner';
+﻿import { toast } from 'sonner';
 import { useState } from 'react';
 import { Wrench, CheckCircle, AlertCircle, Calendar, Shield, Bell, Plus } from 'lucide-react';
 
 import { CreateMaintenanceModal } from './maintenance/CreateMaintenanceModal';
-import { InspectionOrderModal, InspectionOrder } from './maintenance/InspectionOrderModal';
+import { InspectionOrderModal } from './maintenance/InspectionOrderModal';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useMaintenanceOrders } from '../hooks/useMaintenanceOrders';
 
 export function Maintenance() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'progress' | 'completed'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInspectionModal, setShowInspectionModal] = useState(false);
   const [selectedWarranty, setSelectedWarranty] = useState<any>(null);
-  const [inspectionOrders, setInspectionOrders] = useLocalStorage<InspectionOrder[]>('wave_inspection_orders_v2', []);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [maintenanceRequests, setMaintenanceRequests] = useLocalStorage<any[]>('wave_maintenance_requests', []);
+
+  // Extraído para src/hooks/useMaintenanceOrders.ts — mesma lógica de merge
+  // OS + Vistorias que existia aqui antes, agora reutilizável pelo Dashboard.
+  const {
+    allOrders,
+    maintenanceOrders,
+    setMaintenanceOrders,
+    inspectionOrders,
+    setInspectionOrders,
+  } = useMaintenanceOrders();
 
   const warranties = [
     {
@@ -47,39 +57,6 @@ export function Maintenance() {
       supplier: 'SecurityTech Ltda'
     }
   ];
-
-  const [maintenanceOrders, setMaintenanceOrders] = useLocalStorage('wave_maintenance_orders', [
-    {
-      id: 'OS-001',
-      title: 'Reparo Interfone Apto 504',
-      priority: 'medium',
-      status: 'completed',
-      openedDate: '28/11/2025',
-      assignedTo: 'João Técnico',
-      category: 'Elétrica',
-      hasDocument: true
-    },
-    {
-      id: 'OS-002',
-      title: 'Vistoria Preventiva Elevador A',
-      priority: 'high',
-      status: 'progress',
-      openedDate: '01/12/2025',
-      assignedTo: 'Atlas Elevadores',
-      category: 'Equipamento',
-      hasDocument: false
-    },
-    {
-      id: 'OS-003',
-      title: 'Troca de Lâmpadas Garagem',
-      priority: 'low',
-      status: 'pending',
-      openedDate: '03/12/2025',
-      assignedTo: null,
-      category: 'Iluminação',
-      hasDocument: false
-    }
-  ]);
 
   const compliance = [
     {
@@ -137,30 +114,6 @@ export function Maintenance() {
     return 'good';
   };
 
-  // Converter Inspection Orders para o formato unificado
-  const convertedInspectionOrders = inspectionOrders.map(inspection => ({
-    id: inspection.id,
-    title: `Vistoria: ${inspection.system}`,
-    priority: inspection.inspectionType === 'urgente' ? 'high' : 'medium',
-    status: inspection.status === 'agendada' ? 'pending' : 
-            inspection.status === 'em_andamento' ? 'progress' : 
-            inspection.status === 'concluida' ? 'completed' : 'pending',
-    openedDate: new Date(inspection.createdAt).toLocaleDateString('pt-BR'),
-    assignedTo: inspection.responsible,
-    category: 'Vistoria de Garantia',
-    hasDocument: false,
-    isInspection: true,
-    inspectionData: inspection
-  }));
-
-  // Mesclar todas as OS e ordenar por data (mais recentes primeiro)
-  const allOrders = [...maintenanceOrders.map(o => ({ ...o, isInspection: false })), ...convertedInspectionOrders]
-    .sort((a, b) => {
-      const dateA = new Date(a.openedDate.split('/').reverse().join('-'));
-      const dateB = new Date(b.openedDate.split('/').reverse().join('-'));
-      return dateB.getTime() - dateA.getTime();
-    });
-
   const filteredOrders = allOrders.filter(order => {
     if (filter === 'all') return true;
     return order.status === filter;
@@ -176,7 +129,7 @@ export function Maintenance() {
     setShowInspectionModal(true);
   };
 
-  const handleCreateInspectionOrder = (newOrder: InspectionOrder) => {
+  const handleCreateInspectionOrder = (newOrder: any) => {
     setInspectionOrders([...inspectionOrders, newOrder]);
     setShowInspectionModal(false);
   };
@@ -201,7 +154,7 @@ export function Maintenance() {
       id: `OS-${Date.now().toString().slice(-3)}`,
       title: request.title,
       priority: request.priority,
-      status: 'pending',
+      status: 'pending' as const,
       openedDate: new Date().toLocaleDateString('pt-BR'),
       assignedTo: null,
       category: request.category,
@@ -434,9 +387,9 @@ export function Maintenance() {
                 {order.status !== 'completed' && (
                   <button
                     onClick={() => {
-                      const nextStatus = order.status === 'pending' ? 'in_progress' : 'completed';
-                      const label = nextStatus === 'in_progress' ? 'Em Andamento' : 'Concluída';
-                      setMaintenanceOrders((prev: any[]) => prev.map((o: any) => o.id === order.id ? { ...o, status: nextStatus } : o));
+                      const nextStatus = order.status === 'pending' ? 'progress' : 'completed';
+                      const label = nextStatus === 'progress' ? 'Em Andamento' : 'Concluída';
+                      setMaintenanceOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: nextStatus } : o));
                       toast.success(`OS ${order.id} atualizada para: ${label}`);
                     }}
                     className="flex-1 py-2 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:opacity-90 transition-all shadow-lg text-sm"

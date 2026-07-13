@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -9,6 +9,29 @@ export interface User {
   role: 'Admin' | 'Morador' | 'Síndico';
   unit: string;
   walletAddress?: string; // mantido por compatibilidade com tipos existentes; não utilizado na arquitetura atual
+  photoUrl?: string; // foto de perfil, quando existir uma conta cadastrada com o mesmo e-mail
+}
+
+// ---------------------------------------------------------------------------
+// Busca, no localStorage de contas criadas (via "Criar Nova Conta"), se existe
+// um cadastro com o mesmo e-mail que está fazendo login — e, se existir e
+// tiver foto, retorna essa foto. É uma ponte simples entre dois sistemas mock
+// que hoje não se conversam (login por atalho vs. contas cadastradas de
+// verdade). Quando existir backend real de autenticação, isso deixa de ser
+// necessário — a foto viria direto do registro do usuário no banco.
+// ---------------------------------------------------------------------------
+function buscarFotoDaContaCadastrada(email: string): string | undefined {
+  try {
+    const contasCadastradas = JSON.parse(localStorage.getItem('wave_users') || '[]');
+    const emailNormalizado = email.toLowerCase().trim();
+    const conta = contasCadastradas.find(
+      (c: any) => typeof c?.email === 'string' && c.email.toLowerCase() === emailNormalizado
+    );
+    return conta?.photoPreview || undefined;
+  } catch {
+    // localStorage corrompido/indisponível — segue sem foto, não quebra o login
+    return undefined;
+  }
 }
 
 export function useAuth() {
@@ -81,6 +104,12 @@ export function useAuth() {
         role: emailLower.includes('sindico') || emailLower.includes('admin') ? 'Síndico' : 'Morador',
         unit: 'Apto 101',
       };
+    }
+
+    // Enriquece com foto real, se existir uma conta cadastrada com este e-mail
+    const photoUrl = buscarFotoDaContaCadastrada(email);
+    if (photoUrl) {
+      mockUser = { ...mockUser, photoUrl };
     }
 
     try {

@@ -1,11 +1,11 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { MessageSquare, Calendar, Plus, User, Clock, MapPin, CheckCircle, X, AlertCircle, Mail } from 'lucide-react';
 
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { toast } from 'sonner';
 import { ReservasCalendar } from './ReservasCalendar';
 
-interface Aviso {
+export interface Aviso {
   id: string;
   tipo: 'urgente' | 'info' | 'evento' | 'manutencao';
   titulo: string;
@@ -15,6 +15,9 @@ interface Aviso {
   comentariosAtivos: boolean;
   comentarios?: Comentario[];
   enviarEmail?: boolean;
+  dataEvento?: string;
+  horarioEvento?: string;
+  localEvento?: string;
 }
 
 interface Comentario {
@@ -41,6 +44,7 @@ export function Communication() {
   const [selectedAviso, setSelectedAviso] = useState<Aviso | null>(null);
   const [comentarioTexto, setComentarioTexto] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
+  const [tipoAvisoSelecionado, setTipoAvisoSelecionado] = useState<Aviso['tipo']>('info');
 
   const [avisos, setAvisos] = useLocalStorage<Aviso[]>('wave_avisos', [
     {
@@ -64,11 +68,14 @@ export function Communication() {
       id: '2',
       tipo: 'evento',
       titulo: 'Confraternização de Fim de Ano',
-      conteudo: 'Convite para todos os moradores! Nossa confraternização anual será no dia 23/12/2025 às 19h no salão de festas. Haverá ceia e amigo secreto (valor sugerido: R$ 50).',
+      conteudo: 'Convite para todos os moradores! Nossa confraternização anual será no dia 23/12/2026 às 19h no salão de festas. Haverá ceia e amigo secreto (valor sugerido: R$ 50).',
       autor: 'Comissão de Eventos',
       dataPublicacao: new Date('2026-07-05'),
       comentariosAtivos: true,
-      comentarios: []
+      comentarios: [],
+      dataEvento: '2026-12-23',
+      horarioEvento: '19:00',
+      localEvento: 'Salão de festas'
     },
     {
       id: '3',
@@ -202,8 +209,8 @@ export function Communication() {
     
     setAvisos([aviso, ...avisos]);
     setShowCreateAvisoModal(false);
+    setTipoAvisoSelecionado('info');
     
-    // Simular envio de email se solicitado
     if (novoAviso.enviarEmail) {
       toast.success('Aviso publicado e emails enviados!', {
         description: 'Todos os moradores cadastrados foram notificados por email.'
@@ -294,7 +301,7 @@ export function Communication() {
                     {getTipoAvisoBadge(aviso.tipo)}
                   </div>
                   <p className="text-wave-600 mb-3">{aviso.conteudo}</p>
-                  <div className="flex items-center gap-4 text-sm text-wave-500">
+                  <div className="flex items-center gap-4 text-sm text-wave-500 flex-wrap">
                     <span className="flex items-center gap-1">
                       <User className="w-4 h-4" />
                       {aviso.autor}
@@ -304,6 +311,16 @@ export function Communication() {
                       <Clock className="w-4 h-4" />
                       {new Date(aviso.dataPublicacao).toLocaleDateString('pt-BR')}
                     </span>
+                    {aviso.tipo === 'evento' && aviso.dataEvento && (
+                      <>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-purple-600">
+                          <Calendar className="w-4 h-4" />
+                          Evento em {aviso.dataEvento.split('-').reverse().join('/')}
+                          {aviso.horarioEvento ? ` às ${aviso.horarioEvento}` : ''}
+                        </span>
+                      </>
+                    )}
                     {aviso.comentariosAtivos && (
                       <>
                         <span>•</span>
@@ -415,6 +432,27 @@ export function Communication() {
             <div className="mb-4">
               {getTipoAvisoBadge(selectedAviso.tipo)}
             </div>
+
+            {selectedAviso.tipo === 'evento' && selectedAviso.dataEvento && (
+              <div className="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-xl flex flex-wrap gap-4 text-sm text-purple-800">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4" />
+                  {selectedAviso.dataEvento.split('-').reverse().join('/')}
+                </span>
+                {selectedAviso.horarioEvento && (
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4" />
+                    {selectedAviso.horarioEvento}
+                  </span>
+                )}
+                {selectedAviso.localEvento && (
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-4 h-4" />
+                    {selectedAviso.localEvento}
+                  </span>
+                )}
+              </div>
+            )}
 
             <p className="text-wave-700 mb-6">{selectedAviso.conteudo}</p>
 
@@ -567,11 +605,14 @@ export function Communication() {
       {/* Modal Criar Aviso */}
       {showCreateAvisoModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-wave-800 text-2xl">Novo Aviso</h2>
               <button
-                onClick={() => setShowCreateAvisoModal(false)}
+                onClick={() => {
+                  setShowCreateAvisoModal(false);
+                  setTipoAvisoSelecionado('info');
+                }}
                 className="text-wave-500 hover:text-wave-600"
               >
                 <X className="w-6 h-6" />
@@ -588,7 +629,10 @@ export function Communication() {
                   conteudo: formData.get('conteudo') as string,
                   autor: 'Síndico João Silva',
                   comentariosAtivos: formData.get('comentarios') === 'on',
-                  enviarEmail: formData.get('enviarEmail') === 'on'
+                  enviarEmail: formData.get('enviarEmail') === 'on',
+                  dataEvento: (formData.get('dataEvento') as string) || undefined,
+                  horarioEvento: (formData.get('horarioEvento') as string) || undefined,
+                  localEvento: (formData.get('localEvento') as string) || undefined,
                 });
               }}
               className="space-y-4"
@@ -598,6 +642,8 @@ export function Communication() {
                 <select
                   name="tipo"
                   required
+                  value={tipoAvisoSelecionado}
+                  onChange={(e) => setTipoAvisoSelecionado(e.target.value as Aviso['tipo'])}
                   className="w-full px-4 py-3 bg-wave-50 border border-wave-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wave-300 text-wave-800"
                 >
                   <option value="info">Informação</option>
@@ -617,6 +663,43 @@ export function Communication() {
                   className="w-full px-4 py-3 bg-wave-50 border border-wave-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wave-300 text-wave-800"
                 />
               </div>
+
+              {tipoAvisoSelecionado === 'evento' && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                  <p className="text-purple-800 text-xs font-medium flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Detalhes do evento
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-wave-700 text-sm mb-1.5">Data do evento</label>
+                      <input
+                        type="date"
+                        name="dataEvento"
+                        required
+                        className="w-full px-3 py-2 bg-white border border-wave-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wave-300 text-wave-800 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-wave-700 text-sm mb-1.5">Horário (opcional)</label>
+                      <input
+                        type="time"
+                        name="horarioEvento"
+                        className="w-full px-3 py-2 bg-white border border-wave-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wave-300 text-wave-800 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-wave-700 text-sm mb-1.5">Local (opcional)</label>
+                    <input
+                      type="text"
+                      name="localEvento"
+                      placeholder="Ex: Salão de festas"
+                      className="w-full px-3 py-2 bg-white border border-wave-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wave-300 text-wave-800 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-wave-800 mb-2">Conteúdo</label>
@@ -659,7 +742,10 @@ export function Communication() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateAvisoModal(false)}
+                  onClick={() => {
+                    setShowCreateAvisoModal(false);
+                    setTipoAvisoSelecionado('info');
+                  }}
                   className="flex-1 py-3 bg-wave-100 text-wave-600 rounded-xl hover:bg-wave-200 transition-all"
                 >
                   Cancelar
