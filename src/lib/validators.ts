@@ -105,3 +105,14 @@ export function formatPhone(value: string): string {
     .replace(/(\d{2})(\d)/, '($1) $2')
     .replace(/(\d{5})(\d{1,4})$/, '$1-$2');
 }
+
+// --- CEP ---------------------------------------------------------------
+
+export function isValidCEP(value: string): boolean {
+  return onlyDigits(value).length === 8;
+}
+
+export function formatCEP(value: string): string {
+  const digits = onlyDigits(value).slice(0, 8);
+  return digits.replace(/(\d{5})(\d{1,3})$/, '$1-$2');
+}
