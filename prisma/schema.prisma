@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Condominium {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+}
+
+model User {
+  id            String      @id @default(cuid())
+  email         String
+  passwordHash  String
+  name          String
+  role          Role        @default(MORADOR)
+  unit          String?
+  photoUrl      String?
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id])
+  sessions      Session[]
+  createdAt     DateTime    @default(now())
+
+  @@unique([condominiumId, email])
+  @@index([condominiumId])
+}
+
+enum Role {
+  ADMIN
+  SINDICO
+  MORADOR
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshHash String
+  userAgent   String?
+  ip          String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
