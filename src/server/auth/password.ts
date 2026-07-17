@@ -1,19 +1,23 @@
-﻿import argon2 from "argon2";
+import bcrypt from "bcryptjs";
+
+const SALT_ROUNDS = 12;
 
 export function hashPassword(plain: string): Promise<string> {
-  return argon2.hash(plain, { type: argon2.argon2id });
+  return bcrypt.hash(plain, SALT_ROUNDS);
 }
 
-// verify roda mesmo sem hash (dummy) para nao vazar existencia de usuario por tempo
-const DUMMY_HASH =
-  "$argon2id$v=19$m=65536,t=3,p=4$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-
+// Consome tempo mesmo sem hash (usuario inexistente) para nao vazar
+// a existencia da conta por timing.
 export async function verifyPassword(
   hash: string | undefined | null,
   plain: string
 ): Promise<boolean> {
+  if (!hash) {
+    await bcrypt.hash(plain, SALT_ROUNDS);
+    return false;
+  }
   try {
-    return await argon2.verify(hash ?? DUMMY_HASH, plain);
+    return await bcrypt.compare(plain, hash);
   } catch {
     return false;
   }

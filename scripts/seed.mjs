@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -9,7 +9,7 @@ const condo = await prisma.condominium.upsert({
   create: { id: "seed-condo", name: "Condominio Demo" },
 });
 
-const passwordHash = await argon2.hash("Senha@12345", { type: argon2.argon2id });
+const passwordHash = await bcrypt.hash("Senha@12345", 12);
 
 const demoUsers = [
   { email: "admin@wave.com",   name: "Administrador Wave", role: "ADMIN",   unit: "Administracao" },
