@@ -1,4 +1,9 @@
-import { X, Receipt, DollarSign, CheckCircle, Download, Copy, ExternalLink, Barcode } from 'lucide-react';
+'use client';
+
+import { X, Receipt, DollarSign, CheckCircle, Download, Copy, ExternalLink, Barcode, Printer } from 'lucide-react';
+import { toast } from 'sonner';
+
+import { downloadBoletoPdf, printBoletoPdf } from './boletos/boletoActions';
 
 interface Boleto {
   id: string;
@@ -33,22 +38,45 @@ interface BoletoDetailsModalProps {
   canSimulateCompensation?: boolean;
 }
 
-export function BoletoDetailsModal({ 
-  boleto, 
-  onClose, 
+export function BoletoDetailsModal({
+  boleto,
+  onClose,
   onSimulatePayment,
   onSimulateCompensation,
   canSimulatePayment,
   canSimulateCompensation
 }: BoletoDetailsModalProps) {
-  
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     alert('✅ Copiado para a área de transferência!');
   };
 
+  // Gera o PDF do boleto (sem dependências externas) e inicia o download.
   const downloadPDF = () => {
-    alert('📄 Em produção, aqui seria gerado um PDF do boleto para download.');
+    try {
+      downloadBoletoPdf(boleto);
+      toast.success('PDF gerado!', { description: 'O download foi iniciado.' });
+    } catch (err) {
+      console.error('Falha ao gerar PDF do boleto', err);
+      toast.error('Não foi possível gerar o PDF.', {
+        description: 'Tente novamente.',
+        action: { label: 'Tentar de novo', onClick: downloadPDF },
+      });
+    }
+  };
+
+  // Abre a janela de impressão do navegador com o boleto em PDF.
+  const printPDF = () => {
+    try {
+      printBoletoPdf(boleto);
+    } catch (err) {
+      console.error('Falha ao imprimir boleto', err);
+      toast.error('Não foi possível abrir a impressão.', {
+        description: 'Tente novamente.',
+        action: { label: 'Tentar de novo', onClick: printPDF },
+      });
+    }
   };
 
   return (
@@ -97,9 +125,9 @@ export function BoletoDetailsModal({
               <div>
                 <p className="text-wave-500 text-sm mb-1">Referência</p>
                 <p className="text-wave-800">
-                  {new Date(boleto.referenceMonth + '-01').toLocaleDateString('pt-BR', { 
-                    month: 'long', 
-                    year: 'numeric' 
+                  {new Date(boleto.referenceMonth + '-01').toLocaleDateString('pt-BR', {
+                    month: 'long',
+                    year: 'numeric'
                   })}
                 </p>
               </div>
@@ -268,13 +296,21 @@ export function BoletoDetailsModal({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={downloadPDF}
-            className="flex-1 py-3 bg-wave-100 text-wave-600 rounded-xl hover:bg-wave-200 transition-all flex items-center justify-center gap-2"
+            className="flex-1 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:opacity-95 transition-all shadow-lg flex items-center justify-center gap-2"
           >
             <Download className="w-5 h-5" />
             Baixar PDF
+          </button>
+
+          <button
+            onClick={printPDF}
+            className="flex-1 py-3 bg-white border-2 border-wave-200 text-wave-700 rounded-xl hover:bg-wave-50 transition-all flex items-center justify-center gap-2"
+          >
+            <Printer className="w-5 h-5" />
+            Imprimir
           </button>
 
           {canSimulatePayment && onSimulatePayment && (
