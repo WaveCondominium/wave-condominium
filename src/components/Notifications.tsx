@@ -1,4 +1,4 @@
-import { Bell, CheckCircle, X, Trash2, Filter, Shield, DollarSign, Vote, FileText, Video, Receipt, Megaphone, AlertCircle, Clock } from 'lucide-react';
+import { Bell, CheckCircle, X, Trash2, Filter, Shield, DollarSign, Vote, FileText, Video, Receipt, Megaphone, CalendarCheck, AlertCircle, Clock } from 'lucide-react';
 import { useNotifications, Notification } from '../hooks/useNotifications';
 
 interface NotificationsProps {
@@ -37,6 +37,8 @@ export function Notifications({ onNavigate }: NotificationsProps) {
         return Receipt;
       case 'announcement':
         return Megaphone;
+      case 'reservation':
+        return CalendarCheck;
       default:
         return Bell;
     }
@@ -58,6 +60,8 @@ export function Notifications({ onNavigate }: NotificationsProps) {
         return 'from-teal-400 to-wave-500';
       case 'announcement':
         return 'from-red-400 to-rose-400';
+      case 'reservation':
+        return 'from-purple-400 to-wave-500';
       default:
         return 'from-slate-400 to-gray-400';
     }
@@ -101,6 +105,7 @@ export function Notifications({ onNavigate }: NotificationsProps) {
       meeting: 'Reunião',
       boleto: 'Boleto',
       announcement: 'Comunicado',
+      reservation: 'Reserva',
       system: 'Sistema'
     };
     return labels[type] || type;
@@ -135,6 +140,8 @@ export function Notifications({ onNavigate }: NotificationsProps) {
       onNavigate('meetings');
     } else if (notification.metadata?.documentId && onNavigate) {
       onNavigate('documents');
+    } else if (notification.metadata?.reservaId && onNavigate) {
+      onNavigate('communication');
     } else if (notification.metadata?.blockchainHash && onNavigate) {
       onNavigate('blockchain');
     }
@@ -291,7 +298,7 @@ export function Notifications({ onNavigate }: NotificationsProps) {
           >
             Todos os Tipos
           </button>
-          {['blockchain', 'payment', 'proposal', 'document', 'meeting', 'boleto', 'announcement'].map(type => (
+          {['blockchain', 'payment', 'proposal', 'document', 'meeting', 'boleto', 'announcement', 'reservation'].map(type => (
             <button
               key={type}
               onClick={() => setTypeFilter(type)}

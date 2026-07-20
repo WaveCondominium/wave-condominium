@@ -38,7 +38,7 @@ interface MinimalMaintenanceRequest {
 
 export function useMenuBadges() {
   const [proposals] = useLocalStorage<MinimalProposal[]>('wave_proposals', []);
-  const [reservas] = useLocalStorage<MinimalReserva[]>('wave_reservas', []);
+  const [reservas] = useLocalStorage<MinimalReserva[]>('wave_reservas_v2', []);
   const [meetings] = useLocalStorage<MinimalMeeting[]>('wave_meetings', []);
   const [boletos] = useLocalStorage<MinimalBoleto[]>('wave_boletos', []);
   const [maintenanceRequests] = useLocalStorage<MinimalMaintenanceRequest[]>('wave_maintenance_requests', []);

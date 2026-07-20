@@ -3,7 +3,7 @@ import { useLocalStorage } from './useLocalStorage';
 
 export interface Notification {
   id: string;
-  type: 'blockchain' | 'payment' | 'proposal' | 'document' | 'meeting' | 'boleto' | 'announcement' | 'system';
+  type: 'blockchain' | 'payment' | 'proposal' | 'document' | 'meeting' | 'boleto' | 'announcement' | 'reservation' | 'system';
   title: string;
   message: string;
   timestamp: string;
@@ -16,6 +16,7 @@ export interface Notification {
     boletoId?: string;
     meetingId?: string;
     documentId?: string;
+    reservaId?: string;
   };
 }
 
