@@ -37,13 +37,13 @@ interface MinimalMaintenanceRequest {
 }
 
 export function useMenuBadges() {
-  const [proposals] = useLocalStorage<MinimalProposal[]>('wave_proposals', []);
+  const [proposals] = useLocalStorage<MinimalProposal[]>('wave_proposals_v2', []);
   const [reservas] = useLocalStorage<MinimalReserva[]>('wave_reservas_v2', []);
   const [meetings] = useLocalStorage<MinimalMeeting[]>('wave_meetings', []);
   const [boletos] = useLocalStorage<MinimalBoleto[]>('wave_boletos', []);
   const [maintenanceRequests] = useLocalStorage<MinimalMaintenanceRequest[]>('wave_maintenance_requests', []);
 
-  const governanceCount = proposals.filter((p) => p.status === 'active').length;
+  const governanceCount = proposals.filter((p) => p.status === 'votacao_aberta').length;
   const communicationCount = reservas.filter((r) => r.status === 'pendente').length;
   const meetingsCount = meetings.filter((m) => m.status === 'scheduled').length;
   const boletosCount = boletos.filter((b) => b.status === 'pending' || b.status === 'overdue').length;
