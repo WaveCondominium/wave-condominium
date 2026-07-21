@@ -5,6 +5,10 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 import { IssueBoletoModal } from './IssueBoletoModal';
 import { BoletoDetailsModal } from './BoletoDetailsModal';
 import { PagamentoStellarModal } from './PagamentoStellarModal';
+import { AbertosSection } from './boletos/AbertosSection';
+import { HistoricoSection } from './boletos/HistoricoSection';
+import { ComprovanteModal } from './boletos/ComprovanteModal';
+import { isPago } from './boletos/boletoFormat';
 import { useBlockchainAutoRegistry } from '../hooks/useBlockchainAutoRegistry';
 import { isManager, isPlatformAdmin, type Role } from '@/lib/rbac';
 
@@ -26,6 +30,7 @@ interface Boleto {
   anchorTxHash?: string;
   contentHash?: string;
   blockchainRegisteredAt?: string;
+  paymentMethod?: 'pix' | 'card' | 'boleto';
   description: string;
   details: {
     condominiumFee: number;
@@ -183,10 +188,11 @@ export function Boletos({ userProfile }: BoletosProps) {
     }
   ]);
 
-  const [filter, setFilter] = useState<'all' | 'pending' | 'paid' | 'overdue'>('all');
+  const [activeTab, setActiveTab] = useState<'abertos' | 'historico'>('abertos');
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [selectedBoleto, setSelectedBoleto] = useState<Boleto | null>(null);
   const [boletoParaPagar, setBoletoParaPagar] = useState<Boleto | null>(null);
+  const [comprovanteBoleto, setComprovanteBoleto] = useState<Boleto | null>(null);
   const { registerPayment } = useBlockchainAutoRegistry();
 
   const canIssueBoleto = isManager(userProfile.role);
@@ -202,6 +208,8 @@ export function Boletos({ userProfile }: BoletosProps) {
     const anchorTxHash  = result.receipt?.anchorTxHash ?? '';
     const contentHash   = result.receipt?.contentHash ?? '';
     const explorerUrl   = result.settlement?.explorerUrl ?? result.receipt?.anchorExplorerUrl ?? '';
+    // Forma de pagamento escolhida no modal (pix/card/boleto).
+    const method        = result.method as ('pix' | 'card' | 'boleto' | undefined);
 
     setBoletos(prev => prev.map(b =>
       b.id === boletoParaPagar.id
@@ -213,6 +221,8 @@ export function Boletos({ userProfile }: BoletosProps) {
             // Salva o txHash da liquidação Stellar — 64 chars hex, sem 0x
             blockchainHash: stellarTxHash,
             blockchainRegisteredAt: new Date().toISOString(),
+            // Forma de pagamento (para o Histórico de Pagamentos)
+            paymentMethod: method,
             // Campos adicionais para auditoria
             stellarExplorerUrl: explorerUrl,
             anchorTxHash,
@@ -254,19 +264,6 @@ export function Boletos({ userProfile }: BoletosProps) {
     const value = Math.floor(Math.random() * 1000000).toString().padStart(10, '0');
     
     return `23793.38128 60000.${random1} ${random2}.${random3} ${digit} 9999${value}`;
-  };
-
-  const handleSimulatePayment = (boletoId: string) => {
-    setBoletos(boletos.map(b => 
-      b.id === boletoId
-        ? {
-            ...b,
-            status: 'paid' as const,
-            paidAt: new Date().toISOString().split('T')[0]
-          }
-        : b
-    ));
-    toast.success('Pagamento registrado!', { description: 'Aguardando compensação bancária (1-2 dias úteis).' });
   };
 
   const handleSimulateCompensation = async (boletoId: string) => {
@@ -311,23 +308,31 @@ export function Boletos({ userProfile }: BoletosProps) {
   const normalizedUserUnit = (userProfile.unit ?? '')
     .replace(/[^0-9]/g, '').trim();
 
-  const filteredBoletos = boletos.filter(boleto => {
-    // Filtro por unidade para moradores (não síndicos/admins)
+  // Boletos visíveis: o morador vê só a própria unidade; síndico/admin veem todos.
+  const unitBoletos = boletos.filter(boleto => {
     if (!canIssueBoleto && normalizedUserUnit && boleto.unitNumber !== normalizedUserUnit) {
       return false;
     }
-
-    // Filtro por status
-    if (filter === 'all') return true;
-    if (filter === 'pending') return boleto.status === 'pending';
-    if (filter === 'paid') return boleto.status === 'blockchain_registered';
-    if (filter === 'overdue') return isBoletoOverdue(boleto);
     return true;
   });
 
-  const totalPending = boletos.filter(b => b.status === 'pending').reduce((sum, b) => sum + b.amount, 0);
-  const totalPaid = boletos.filter(b => b.status === 'blockchain_registered').reduce((sum, b) => sum + b.amount, 0);
-  const totalOverdue = boletos.filter(isBoletoOverdue).length;
+  // Seção "Em Aberto": ainda não pagos, ordenados pelo vencimento mais próximo.
+  const abertos = unitBoletos
+    .filter(b => !isPago(b))
+    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
+
+  // Seção "Histórico": pagos, do pagamento mais recente para o mais antigo.
+  const pagos = unitBoletos
+    .filter(isPago)
+    .sort((a, b) => {
+      const da = a.paidAt || a.compensatedAt || '';
+      const db = b.paidAt || b.compensatedAt || '';
+      return db.localeCompare(da);
+    });
+
+  const totalPending = unitBoletos.filter(b => b.status === 'pending').reduce((sum, b) => sum + b.amount, 0);
+  const totalPaid = unitBoletos.filter(b => b.status === 'blockchain_registered').reduce((sum, b) => sum + b.amount, 0);
+  const totalOverdue = unitBoletos.filter(isBoletoOverdue).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -438,189 +443,55 @@ export function Boletos({ userProfile }: BoletosProps) {
             <div className="p-3 bg-wave-100 rounded-xl">
               <Receipt className="w-6 h-6 text-wave-500" />
             </div>
-            <span className="text-3xl text-wave-800">{boletos.length}</span>
+            <span className="text-3xl text-wave-800">{unitBoletos.length}</span>
           </div>
           <h3 className="text-wave-800">Total de Boletos</h3>
           <p className="text-wave-500 text-sm">Histórico completo</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-wave-100 mb-6 shadow-lg relative z-10">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-xl transition-all ${
-              filter === 'all'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
-                : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
-            }`}
-          >
-            Todos ({boletos.length})
-          </button>
-          <button
-            onClick={() => setFilter('pending')}
-            className={`px-4 py-2 rounded-xl transition-all ${
-              filter === 'pending'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
-                : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
-            }`}
-          >
-            Pendentes ({boletos.filter(b => b.status === 'pending').length})
-          </button>
-          <button
-            onClick={() => setFilter('paid')}
-            className={`px-4 py-2 rounded-xl transition-all ${
-              filter === 'paid'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
-                : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
-            }`}
-          >
-            Pagos ({boletos.filter(b => b.status === 'blockchain_registered').length})
-          </button>
-          <button
-            onClick={() => setFilter('overdue')}
-            className={`px-4 py-2 rounded-xl transition-all ${
-              filter === 'overdue'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
-                : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
-            }`}
-          >
-            Vencidos ({totalOverdue})
-          </button>
-        </div>
+      {/* Abas: Boletos em Aberto / Histórico de Pagamentos */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-2 border border-wave-100 mb-6 shadow-lg relative z-10 flex flex-col sm:flex-row gap-2">
+        <button
+          onClick={() => setActiveTab('abertos')}
+          className={`flex-1 px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'abertos'
+              ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+              : 'bg-transparent text-wave-500 hover:bg-wave-50'
+          }`}
+        >
+          <Clock className="w-5 h-5" />
+          Boletos em Aberto ({abertos.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('historico')}
+          className={`flex-1 px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'historico'
+              ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+              : 'bg-transparent text-wave-500 hover:bg-wave-50'
+          }`}
+        >
+          <CheckCircle className="w-5 h-5" />
+          Histórico de Pagamentos ({pagos.length})
+        </button>
       </div>
 
-      {/* Boletos List */}
-      {filteredBoletos.length === 0 ? (
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 border border-wave-100 shadow-lg text-center relative z-10">
-          <Receipt className="w-16 h-16 text-wave-300 mx-auto mb-4" />
-          <h3 className="text-wave-800 text-xl mb-2">Nenhum boleto encontrado</h3>
-          <p className="text-wave-500 mb-4">
-            {filter === 'all' 
-              ? 'Não há boletos cadastrados' 
-              : `Nenhum boleto ${filter === 'pending' ? 'pendente' : filter === 'paid' ? 'pago' : 'vencido'}`}
-          </p>
-          {canIssueBoleto && filter !== 'paid' && (
-            <button
-              onClick={() => setShowIssueModal(true)}
-              className="px-6 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg"
-            >
-              Emitir Primeiro Boleto
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4 relative z-10">
-          {filteredBoletos.map((boleto) => {
-            const isOverdue = isBoletoOverdue(boleto);
-            
-            return (
-              <div
-                key={boleto.id}
-                className={`bg-white/80 backdrop-blur-sm rounded-2xl border p-6 shadow-lg hover:shadow-xl transition-all ${
-                  isOverdue ? 'border-red-200 bg-red-50/50' : 'border-wave-100'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-wave-800 text-xl">{boleto.description}</h3>
-                      {getStatusBadge(isOverdue ? 'overdue' : boleto.status)}
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <p className="text-wave-500 text-sm">Unidade</p>
-                        <p className="text-wave-800">{boleto.unitNumber}</p>
-                      </div>
-                      <div>
-                        <p className="text-wave-500 text-sm">Proprietário</p>
-                        <p className="text-wave-800">{boleto.unitOwner}</p>
-                      </div>
-                      <div>
-                        <p className="text-wave-500 text-sm">Vencimento</p>
-                        <p className="text-wave-800">
-                          {formatDateBR(boleto.dueDate)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-wave-500 text-sm">Valor</p>
-                        <p className="text-wave-800 text-xl">
-                          R$ {boleto.amount.toFixed(2).replace('.', ',')}
-                        </p>
-                      </div>
-                    </div>
-
-                    {boleto.blockchainHash && (
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-emerald-800 text-sm flex items-center gap-2 font-medium">
-                            <CheckCircle className="w-4 h-4 text-emerald-600" />
-                            Comprovante verificável registrado
-                          </p>
-                        </div>
-                        <div className="space-y-1.5">
-                          <div>
-                            <p className="text-emerald-600 text-xs mb-0.5">ID da transação</p>
-                            <p className="text-emerald-700 text-xs font-mono break-all">{boleto.blockchainHash}</p>
-                          </div>
-                          {boleto.blockchainRegisteredAt && (
-                            <p className="text-emerald-600 text-xs">
-                              Comprovante emitido em: {new Date(boleto.blockchainRegisteredAt).toLocaleString('pt-BR')}
-                            </p>
-                          )}
-                        </div>
-                        {/* Link verificável — qualquer pessoa pode confirmar o registro */}
-                        {(boleto.stellarExplorerUrl || (!boleto.blockchainHash.startsWith('0x') && boleto.blockchainHash.length === 64)) && (
-                          <a
-                            href={boleto.stellarExplorerUrl ?? `https://stellar.expert/explorer/testnet/tx/${boleto.blockchainHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-3 flex items-center justify-center gap-2 w-full py-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-all text-xs font-medium"
-                          >
-                            Verificar autenticidade do comprovante ↗
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setSelectedBoleto(boleto)}
-                    className="flex-1 py-3 bg-wave-100 text-wave-600 rounded-xl hover:bg-wave-200 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Receipt className="w-5 h-5" />
-                    Ver Detalhes
-                  </button>
-                  
-                  {boleto.status === 'pending' && (
-                    <button
-                      onClick={() => setBoletoParaPagar(boleto)}
-                      className="flex-1 py-3 bg-wave-800 text-white rounded-xl hover:bg-wave-700 transition-all flex items-center justify-center gap-2"
-                    >
-                      <DollarSign className="w-5 h-5" />
-                      Pagar
-                    </button>
-                  )}
-
-                  {boleto.status === 'paid' && isAdmin && (
-                    <button
-                      onClick={() => handleSimulateCompensation(boleto.id)}
-                      className="flex-1 py-3 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all flex items-center justify-center gap-2 shadow-lg"
-                    >
-                      <CheckCircle className="w-5 h-5" />
-                      Simular Compensação
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Conteúdo da aba ativa */}
+      <div className="relative z-10">
+        {activeTab === 'abertos' ? (
+          <AbertosSection
+            boletos={abertos}
+            onVerDetalhes={(b) => setSelectedBoleto(b as Boleto)}
+            onPagar={(b) => setBoletoParaPagar(b as Boleto)}
+          />
+        ) : (
+          <HistoricoSection
+            boletos={pagos}
+            onVerComprovante={(b) => setComprovanteBoleto(b as Boleto)}
+            onVerDetalhes={(b) => setSelectedBoleto(b as Boleto)}
+          />
+        )}
+      </div>
 
       {/* Info Box */}
       <div className="mt-8 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
@@ -653,9 +524,9 @@ export function Boletos({ userProfile }: BoletosProps) {
         <BoletoDetailsModal
           boleto={selectedBoleto}
           onClose={() => setSelectedBoleto(null)}
-          onSimulatePayment={() => setBoletoParaPagar(selectedBoleto)}
+          onPagar={() => setBoletoParaPagar(selectedBoleto)}
           onSimulateCompensation={handleSimulateCompensation}
-          canSimulatePayment={selectedBoleto.status === 'pending'}
+          canPagar={selectedBoleto.status === 'pending'}
           canSimulateCompensation={isAdmin && selectedBoleto.status === 'paid'}
         />
       )}
@@ -669,6 +540,13 @@ export function Boletos({ userProfile }: BoletosProps) {
             handlePagamentoStellarSucesso(result);
             setBoletoParaPagar(null);
           }}
+        />
+      )}
+
+      {comprovanteBoleto && (
+        <ComprovanteModal
+          boleto={comprovanteBoleto}
+          onClose={() => setComprovanteBoleto(null)}
         />
       )}
     </div>

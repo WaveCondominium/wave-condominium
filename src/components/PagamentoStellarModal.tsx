@@ -79,7 +79,8 @@ export function PagamentoStellarModal({
 
       setResult(res);
       setStep('success');
-      onSuccess(res);
+      // Inclui o metodo escolhido para que o boleto registre a forma de pagamento.
+      onSuccess({ ...res, method });
     } catch (err: any) {
       setSteps(s => ({ ...s, settlement: 'error' }));
       setError(err?.message ?? 'Erro inesperado. Verifique sua conexão.');

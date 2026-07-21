@@ -7,7 +7,7 @@
 // evitar o bug de timezone/off-by-one ja documentado em Boletos.tsx.
 // ---------------------------------------------------------------------------
 
-import type { BoletoLike, StatusMorador } from './boletoTypes';
+import type { BoletoLike, PaymentMethod, StatusAberto, StatusMorador } from './boletoTypes';
 
 /** R$ 1.234,56 */
 export function formatCurrency(value: number): string {
@@ -63,6 +63,59 @@ export const STATUS_MORADOR_LABEL: Record<StatusMorador, string> = {
   pendente: 'Pendente',
   vencido: 'Vencido',
 };
+
+/** true se o boleto ja foi pago (qualquer etapa apos o pagamento). */
+export function isPago(boleto: Pick<BoletoLike, 'status'>): boolean {
+  return ['paid', 'compensated', 'blockchain_registered'].includes(boleto.status);
+}
+
+/** Janela (em dias) para considerar um boleto "Proximo do Vencimento". */
+export const DIAS_PROXIMO_VENCIMENTO = 5;
+
+/** Dias ate o vencimento (negativo = ja venceu), comparando datas locais. */
+export function diasAteVencimento(dueDate: string, now: Date = new Date()): number {
+  const [y, m, d] = dueDate.split('-').map(Number);
+  if (!y || !m || !d) return 0;
+  const due = new Date(y, m - 1, d);
+  const hoje = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((due.getTime() - hoje.getTime()) / 86400000);
+}
+
+/**
+ * Status de um boleto EM ABERTO para a secao correspondente:
+ *   - vencido: data de vencimento ja passou;
+ *   - proximo: vence dentro de DIAS_PROXIMO_VENCIMENTO dias;
+ *   - aberto:  ainda ha folga ate o vencimento.
+ */
+export function resolveStatusAberto(
+  boleto: Pick<BoletoLike, 'dueDate'>,
+  now: Date = new Date(),
+): StatusAberto {
+  const dias = diasAteVencimento(boleto.dueDate, now);
+  if (dias < 0) return 'vencido';
+  if (dias <= DIAS_PROXIMO_VENCIMENTO) return 'proximo';
+  return 'aberto';
+}
+
+export const STATUS_ABERTO_LABEL: Record<StatusAberto, string> = {
+  aberto: 'Em Aberto',
+  proximo: 'Proximo do Vencimento',
+  vencido: 'Vencido',
+};
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  pix: 'Pix',
+  card: 'Cartao de Credito',
+  boleto: 'Boleto Bancario',
+};
+
+/**
+ * Rotulo da forma de pagamento. Boletos antigos (sem metodo salvo) assumem
+ * "Pix" por padrao (decisao de produto para dados legados).
+ */
+export function paymentMethodLabel(method?: PaymentMethod): string {
+  return method ? PAYMENT_METHOD_LABEL[method] : PAYMENT_METHOD_LABEL.pix;
+}
 
 /** Nome de arquivo seguro para o PDF do boleto. */
 export function boletoFileName(boleto: Pick<BoletoLike, 'unitNumber' | 'referenceMonth'>): string {

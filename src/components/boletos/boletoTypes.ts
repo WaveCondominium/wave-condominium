@@ -32,3 +32,27 @@ export interface BoletoLike {
 
 /** Status voltado ao morador, conforme regra de negocio (3 estados). */
 export type StatusMorador = 'pago' | 'pendente' | 'vencido';
+
+/** Status de um boleto em aberto, para a secao "Boletos em Aberto". */
+export type StatusAberto = 'aberto' | 'proximo' | 'vencido';
+
+/** Forma de pagamento escolhida no fluxo de pagamento. */
+export type PaymentMethod = 'pix' | 'card' | 'boleto';
+
+/**
+ * Boleto completo (com dados de pagamento e ancoragem na Stellar). Estende o
+ * BoletoLike com os campos opcionais preenchidos ao longo do ciclo de vida.
+ * O objeto Boleto de Boletos.tsx satisfaz esta interface por estrutura.
+ */
+export interface BoletoFull extends BoletoLike {
+  issuedAt: string;
+  issuedBy: string;
+  paidAt?: string;
+  compensatedAt?: string;
+  paymentMethod?: PaymentMethod;
+  blockchainHash?: string;
+  blockchainRegisteredAt?: string;
+  stellarExplorerUrl?: string;
+  anchorTxHash?: string;
+  contentHash?: string;
+}

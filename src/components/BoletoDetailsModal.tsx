@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Receipt, DollarSign, CheckCircle, Download, Copy, ExternalLink, Barcode, Printer } from 'lucide-react';
+import { X, Receipt, DollarSign, CheckCircle, Download, Copy, ExternalLink, Barcode, Printer, Smartphone, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { downloadBoletoPdf, printBoletoPdf } from './boletos/boletoActions';
@@ -32,18 +32,19 @@ interface Boleto {
 interface BoletoDetailsModalProps {
   boleto: Boleto;
   onClose: () => void;
-  onSimulatePayment?: (boletoId: string) => void;
+  /** Abre o mesmo fluxo de pagamento da listagem de boletos. */
+  onPagar?: (boletoId: string) => void;
   onSimulateCompensation?: (boletoId: string) => void;
-  canSimulatePayment?: boolean;
+  canPagar?: boolean;
   canSimulateCompensation?: boolean;
 }
 
 export function BoletoDetailsModal({
   boleto,
   onClose,
-  onSimulatePayment,
+  onPagar,
   onSimulateCompensation,
-  canSimulatePayment,
+  canPagar,
   canSimulateCompensation
 }: BoletoDetailsModalProps) {
 
@@ -313,16 +314,16 @@ export function BoletoDetailsModal({
             Imprimir
           </button>
 
-          {canSimulatePayment && onSimulatePayment && (
+          {canPagar && onPagar && (
             <button
               onClick={() => {
-                onSimulatePayment(boleto.id);
+                onPagar(boleto.id);
                 onClose();
               }}
-              className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-wave-800 text-white rounded-xl hover:bg-wave-700 transition-all shadow-lg flex items-center justify-center gap-2"
             >
               <DollarSign className="w-5 h-5" />
-              Simular Pagamento
+              Pagar
             </button>
           )}
 
@@ -341,11 +342,27 @@ export function BoletoDetailsModal({
         </div>
 
         {boleto.status === 'pending' && (
-          <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-xl">
-            <p className="text-orange-700 text-sm">
-              💡 <strong>Dica:</strong> Use o código de barras ou código numérico para pagar via app do banco.
-              Após a compensação (1-2 dias úteis), o pagamento será automaticamente registrado na rede Stellar.
+          <div className="mt-4 rounded-xl border border-wave-200 bg-wave-50 p-4">
+            <h4 className="mb-2 flex items-center gap-2 text-wave-800">
+              <Smartphone className="h-5 w-5 text-wave-600" />
+              Como pagar este boleto
+            </h4>
+            <p className="mb-3 text-sm text-wave-600">
+              Utilize o <strong>código de barras</strong> ou a <strong>linha digitável</strong> para realizar o
+              pagamento no aplicativo do seu banco.
             </p>
+            <p className="text-sm text-wave-600">
+              Após a compensação bancária (normalmente entre 1 e 2 dias úteis), o pagamento será identificado
+              automaticamente pelo sistema e registrado na blockchain Stellar, garantindo transparência,
+              rastreabilidade e imutabilidade do registro.
+            </p>
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <p className="text-xs text-emerald-700">
+                Assim que o pagamento for compensado, o boleto passa para o <strong>Histórico de Pagamentos</strong>{' '}
+                com o comprovante rastreável e o hash da transação.
+              </p>
+            </div>
           </div>
         )}
 
