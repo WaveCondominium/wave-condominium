@@ -3,112 +3,33 @@
 // ---------------------------------------------------------------------------
 // src/components/dao/useGovernance.ts
 //
-// Camada de dados da Governanca (fase localStorage). Fonte unica de verdade
-// para propostas e votos. Encapsula persistencia, encerramento automatico por
-// prazo, voto unico por morador, apuracao e notificacoes in-app.
+// Camada de dados da Governanca — agora sobre PostgreSQL via Server Actions.
 //
-// Chave versionada (wave_proposals_v2) porque o modelo mudou em relacao ao
-// formato antigo e incompativel usado antes.
+// As regras de negocio (voto unico, apuracao por prazo, resultado por maioria
+// de todos os moradores) sao aplicadas NO SERVIDOR. Aqui o hook apenas busca,
+// dispara as actions e reflete o resultado no estado. A UI (GovernanceView,
+// dashboard, fila) permanece igual — muda so a origem dos dados.
 // ---------------------------------------------------------------------------
 
-import { useCallback, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { useNotifications } from '../../hooks/useNotifications';
 import {
   type Categoria,
   type GovernanceConfig,
   type Proposta,
   type VoteChoice,
   DEFAULT_CONFIG,
-  apurar,
   isAprovada,
   isEmVotacao,
-  isVotacaoExpirada,
   ordenarFila,
-  prazoFrom,
-  resolverResultado,
 } from './governanceCore';
-
-const PROPOSALS_KEY = 'wave_proposals_v2';
-const CONFIG_KEY = 'wave_governance_config';
-
-function uid(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function daysAgoISO(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString();
-}
-
-const SEED: Proposta[] = [
-  {
-    id: 'prop-seed-1',
-    titulo: 'Instalacao de Energia Solar',
-    descricao: 'Sistema fotovoltaico nas areas comuns para reduzir a conta de energia do condominio.',
-    categoria: 'sustentabilidade',
-    autor: 'Sindico Joao Silva',
-    criadaEm: daysAgoISO(10),
-    prazoVotacao: prazoFrom(daysAgoISO(10)),
-    status: 'votacao_aberta',
-    votos: { 'seed-a': 'aprovo', 'seed-b': 'aprovo', 'seed-c': 'reprovo', 'seed-d': 'abstencao' },
-  },
-  {
-    id: 'prop-seed-2',
-    titulo: 'Cameras Inteligentes',
-    descricao: 'Upgrade do sistema de seguranca com cameras com reconhecimento e visao noturna.',
-    categoria: 'seguranca',
-    autor: 'Sindico Joao Silva',
-    criadaEm: daysAgoISO(40),
-    prazoVotacao: prazoFrom(daysAgoISO(40)),
-    status: 'aprovada_comunidade',
-    votos: { 'seed-a': 'aprovo', 'seed-b': 'aprovo', 'seed-c': 'aprovo', 'seed-d': 'aprovo', 'seed-e': 'reprovo' },
-    encerradaEm: daysAgoISO(10),
-    aprovadaEm: daysAgoISO(10),
-  },
-  {
-    id: 'prop-seed-3',
-    titulo: 'Reforma da Academia',
-    descricao: 'Modernizacao dos equipamentos e do piso da academia do condominio.',
-    categoria: 'melhorias',
-    autor: 'Maria Santos - Apto 302',
-    criadaEm: daysAgoISO(70),
-    prazoVotacao: prazoFrom(daysAgoISO(70)),
-    status: 'em_execucao',
-    votos: { 'seed-a': 'aprovo', 'seed-b': 'aprovo', 'seed-c': 'aprovo', 'seed-d': 'reprovo' },
-    encerradaEm: daysAgoISO(40),
-    aprovadaEm: daysAgoISO(40),
-  },
-  {
-    id: 'prop-seed-4',
-    titulo: 'Pintura da Fachada',
-    descricao: 'Repintura completa da fachada e areas externas do predio.',
-    categoria: 'obras',
-    autor: 'Sindico Joao Silva',
-    criadaEm: daysAgoISO(120),
-    prazoVotacao: prazoFrom(daysAgoISO(120)),
-    status: 'concluida',
-    votos: { 'seed-a': 'aprovo', 'seed-b': 'aprovo', 'seed-c': 'aprovo', 'seed-d': 'aprovo' },
-    encerradaEm: daysAgoISO(90),
-    aprovadaEm: daysAgoISO(90),
-  },
-  {
-    id: 'prop-seed-5',
-    titulo: 'Aumento da Taxa de Eventos',
-    descricao: 'Proposta para aumentar a taxa de uso do salao de festas em 30%.',
-    categoria: 'financeiro',
-    autor: 'Carlos Mendes - Apto 504',
-    criadaEm: daysAgoISO(45),
-    prazoVotacao: prazoFrom(daysAgoISO(45)),
-    status: 'rejeitada',
-    votos: { 'seed-a': 'reprovo', 'seed-b': 'reprovo', 'seed-c': 'aprovo', 'seed-d': 'reprovo' },
-    encerradaEm: daysAgoISO(15),
-  },
-];
+import {
+  listPropostasAction,
+  criarPropostaAction,
+  votarAction,
+  encerrarVotacaoAction,
+  removerPropostaAction,
+} from '@/app/actions/governanca';
 
 export interface GovernanceStats {
   emVotacao: number;
@@ -116,51 +37,47 @@ export interface GovernanceStats {
   rejeitadas: number;
   totalParticipantes: number;
   taxaParticipacao: number; // 0-100
-  ranking: Proposta[]; // top por apoio
+  ranking: Proposta[];
 }
 
 export interface UseGovernanceResult {
   propostas: Proposta[];
+  loading: boolean;
   emVotacao: Proposta[];
   aprovadas: Proposta[];
-  fila: Proposta[]; // aprovadas ordenadas por apoio
+  fila: Proposta[];
   config: GovernanceConfig;
   stats: GovernanceStats;
-  criarProposta: (input: { titulo: string; descricao: string; categoria: Categoria }, autor: string) => Proposta;
-  votar: (propostaId: string, userId: string, escolha: VoteChoice) => 'ok' | 'ja_votou' | 'encerrada';
-  encerrarVotacao: (propostaId: string) => void;
-  removerProposta: (propostaId: string) => void;
+  criarProposta: (input: { titulo: string; descricao: string; categoria: Categoria }, autor: string) => Promise<Proposta | null>;
+  votar: (propostaId: string, userId: string, escolha: VoteChoice) => Promise<'ok' | 'ja_votou' | 'encerrada'>;
+  encerrarVotacao: (propostaId: string) => Promise<void>;
+  removerProposta: (propostaId: string) => Promise<void>;
   setTotalMoradores: (n: number) => void;
 }
 
 export function useGovernance(): UseGovernanceResult {
-  const [raw, setRaw] = useLocalStorage<Proposta[]>(PROPOSALS_KEY, SEED);
-  const [config, setConfig] = useLocalStorage<GovernanceConfig>(CONFIG_KEY, DEFAULT_CONFIG);
-  const { addNotification } = useNotifications();
+  const [propostas, setPropostas] = useState<Proposta[]>([]);
+  const [config, setConfig] = useState<GovernanceConfig>(DEFAULT_CONFIG);
+  const [loading, setLoading] = useState(true);
 
-  // Encerramento automatico por prazo (spec secao 4): fecha e apura as
-  // votacoes expiradas na montagem / quando a lista muda.
+  const refresh = useCallback(async () => {
+    const { propostas: lista, totalMoradores } = await listPropostasAction();
+    setPropostas(lista);
+    setConfig({ totalMoradores });
+  }, []);
+
   useEffect(() => {
-    let mudou = false;
-    const atualizadas = raw.map((p) => {
-      if (isEmVotacao(p) && isVotacaoExpirada(p)) {
-        mudou = true;
-        const resultado = resolverResultado(p, config);
-        const agora = new Date().toISOString();
-        return {
-          ...p,
-          status: resultado,
-          encerradaEm: agora,
-          aprovadaEm: resultado === 'aprovada_comunidade' ? agora : undefined,
-        };
-      }
-      return p;
-    });
-    if (mudou) setRaw(atualizadas);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [raw]);
+    let alive = true;
+    refresh()
+      .catch((err) => console.error('Falha ao carregar propostas', err))
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [refresh]);
 
-  const propostas = useMemo(() => raw, [raw]);
   const emVotacao = useMemo(() => propostas.filter(isEmVotacao), [propostas]);
   const aprovadas = useMemo(() => propostas.filter(isAprovada), [propostas]);
   const fila = useMemo(() => ordenarFila(aprovadas), [aprovadas]);
@@ -190,99 +107,52 @@ export function useGovernance(): UseGovernanceResult {
   }, [propostas, emVotacao.length, aprovadas.length, config.totalMoradores]);
 
   const criarProposta = useCallback(
-    (input: { titulo: string; descricao: string; categoria: Categoria }, autor: string): Proposta => {
-      const criadaEm = new Date().toISOString();
-      const nova: Proposta = {
-        id: uid(),
-        titulo: input.titulo.trim(),
-        descricao: input.descricao.trim(),
-        categoria: input.categoria,
-        autor,
-        criadaEm,
-        prazoVotacao: prazoFrom(criadaEm),
-        status: 'votacao_aberta',
-        votos: {},
-        comentarios: [],
-      };
-      setRaw((prev) => [nova, ...prev]);
-      // Notificacao in-app a todos os moradores (spec secao 3). E-mail e mock.
-      addNotification({
-        type: 'proposal',
-        title: 'Nova proposta disponivel para votacao',
-        message: `"${nova.titulo}" esta aberta para votacao. Sua participacao e importante — o prazo e de 30 dias.`,
-        priority: 'medium',
-        actionUrl: 'governance',
-        metadata: { proposalId: nova.id },
-      });
-      toast.success('Proposta publicada!', {
-        description: 'Os moradores foram notificados. A votacao fica aberta por 30 dias.',
-      });
+    async (input: { titulo: string; descricao: string; categoria: Categoria }, autor: string) => {
+      const nova = await criarPropostaAction(input, autor);
+      if (nova) setPropostas((prev) => [nova, ...prev]);
       return nova;
     },
-    [setRaw, addNotification],
+    [],
   );
 
   const votar = useCallback(
-    (propostaId: string, userId: string, escolha: VoteChoice): 'ok' | 'ja_votou' | 'encerrada' => {
-      const alvo = raw.find((p) => p.id === propostaId);
-      if (!alvo) return 'encerrada';
-      if (!isEmVotacao(alvo) || isVotacaoExpirada(alvo)) return 'encerrada';
-      if (alvo.votos[userId]) return 'ja_votou';
-      setRaw((prev) =>
-        prev.map((p) => (p.id === propostaId ? { ...p, votos: { ...p.votos, [userId]: escolha } } : p)),
-      );
-      return 'ok';
+    async (propostaId: string, userId: string, escolha: VoteChoice) => {
+      const r = await votarAction(propostaId, escolha);
+      if (r === 'ok') {
+        setPropostas((prev) =>
+          prev.map((p) =>
+            p.id === propostaId ? { ...p, votos: { ...p.votos, [userId]: escolha } } : p,
+          ),
+        );
+      } else if (r === 'encerrada') {
+        // A votacao ja tinha encerrado no servidor — sincroniza a lista.
+        void refresh();
+      }
+      return r;
     },
-    [raw, setRaw],
+    [refresh],
   );
 
   const encerrarVotacao = useCallback(
-    (propostaId: string) => {
-      setRaw((prev) =>
-        prev.map((p) => {
-          if (p.id !== propostaId || !isEmVotacao(p)) return p;
-          const resultado = resolverResultado(p, config);
-          const agora = new Date().toISOString();
-          return {
-            ...p,
-            status: resultado,
-            encerradaEm: agora,
-            aprovadaEm: resultado === 'aprovada_comunidade' ? agora : undefined,
-          };
-        }),
-      );
-      const alvo = raw.find((p) => p.id === propostaId);
-      if (alvo) {
-        const resultado = resolverResultado(alvo, config);
-        const { aprovo } = apurar(alvo);
-        toast.success('Votacao encerrada', {
-          description:
-            resultado === 'aprovada_comunidade'
-              ? `Aprovada pela comunidade (${aprovo} votos favoraveis).`
-              : 'Proposta rejeitada.',
-        });
-      }
+    async (propostaId: string) => {
+      await encerrarVotacaoAction(propostaId);
+      await refresh();
     },
-    [raw, setRaw, config],
+    [refresh],
   );
 
-  const removerProposta = useCallback(
-    (propostaId: string) => {
-      setRaw((prev) => prev.filter((p) => p.id !== propostaId));
-      toast.success('Proposta removida.', {
-        description: 'A proposta foi retirada da governanca.',
-      });
-    },
-    [setRaw],
-  );
+  const removerProposta = useCallback(async (propostaId: string) => {
+    await removerPropostaAction(propostaId);
+    setPropostas((prev) => prev.filter((p) => p.id !== propostaId));
+  }, []);
 
   const setTotalMoradores = useCallback(
-    (n: number) => setConfig((c) => ({ ...c, totalMoradores: Math.max(1, Math.round(n)) })),
-    [setConfig],
+    (n: number) => setConfig({ totalMoradores: Math.max(1, Math.round(n)) }),
+    [],
   );
 
   return {
-    propostas, emVotacao, aprovadas, fila, config, stats,
+    propostas, loading, emVotacao, aprovadas, fila, config, stats,
     criarProposta, votar, encerrarVotacao, removerProposta, setTotalMoradores,
   };
 }

@@ -2,7 +2,9 @@
 
 import { ArrowLeft, User, Calendar, Clock, CheckCircle, XCircle, MinusCircle } from 'lucide-react';
 
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useEffect, useState } from 'react';
+
+import { listPropostasAction } from '@/app/actions/governanca';
 import {
   type Proposta,
   apurar,
@@ -22,8 +24,36 @@ interface ProposalDetailsProps {
 }
 
 export function ProposalDetails({ proposalId, onBack }: ProposalDetailsProps) {
-  const [propostas] = useLocalStorage<Proposta[]>('wave_proposals_v2', []);
-  const proposta = propostas.find((p) => p.id === proposalId);
+  const [proposta, setProposta] = useState<Proposta | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    listPropostasAction()
+      .then(({ propostas }) => {
+        if (alive) setProposta(propostas.find((p) => p.id === proposalId) ?? null);
+      })
+      .catch((err) => console.error('Falha ao carregar proposta', err))
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [proposalId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-wave-700 to-wave-500 p-6">
+        <button onClick={onBack} className="mb-6 inline-flex items-center gap-2 text-wave-700 hover:text-wave-800">
+          <ArrowLeft className="h-5 w-5" /> Voltar
+        </button>
+        <div className="rounded-2xl border border-wave-100 bg-white/80 p-12 text-center text-wave-500 backdrop-blur-sm">
+          Carregando proposta...
+        </div>
+      </div>
+    );
+  }
 
   if (!proposta) {
     return (

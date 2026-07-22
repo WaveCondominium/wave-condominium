@@ -30,7 +30,7 @@ export function GovernanceView({ onViewProposal }: GovernanceViewProps) {
   const canManage = isManager(userProfile.role);
   const userId = userProfile.id || 'morador-demo';
 
-  const { propostas, emVotacao, aprovadas, fila, config, stats, criarProposta, votar, encerrarVotacao, removerProposta } = useGovernance();
+  const { propostas, loading, emVotacao, aprovadas, fila, config, stats, criarProposta, votar, encerrarVotacao, removerProposta } = useGovernance();
 
   const [view, setView] = useState<'votacoes' | 'fila' | 'deliberacoes'>('votacoes');
   const [filtro, setFiltro] = useState<Filtro>('todas');
@@ -43,16 +43,21 @@ export function GovernanceView({ onViewProposal }: GovernanceViewProps) {
     return propostas;
   }, [filtro, propostas, emVotacao]);
 
-  const handleVotar = (id: string, escolha: VoteChoice) => {
-    const r = votar(id, userId, escolha);
+  const handleVotar = async (id: string, escolha: VoteChoice) => {
+    const r = await votar(id, userId, escolha);
     if (r === 'ja_votou') toast.error('Voce ja votou nesta proposta.');
     else if (r === 'encerrada') toast.error('A votacao desta proposta esta encerrada.');
     else toast.success('Voto registrado!', { description: 'Seu voto e unico e nao pode ser alterado.' });
   };
 
-  const handleCriar = (input: { titulo: string; descricao: string; categoria: Proposta['categoria'] }) => {
-    criarProposta(input, userProfile.name || 'Morador');
+  const handleCriar = async (input: { titulo: string; descricao: string; categoria: Proposta['categoria'] }) => {
     setShowCreate(false);
+    try {
+      await criarProposta(input, userProfile.name || 'Morador');
+    } catch (err) {
+      console.error('Falha ao criar proposta', err);
+      toast.error('Nao foi possivel publicar a proposta. Tente novamente.');
+    }
   };
 
   return (
@@ -106,7 +111,11 @@ export function GovernanceView({ onViewProposal }: GovernanceViewProps) {
             <Chip active={filtro === 'rejeitadas'} onClick={() => setFiltro('rejeitadas')} label={`Rejeitadas (${propostas.filter((p) => p.status === 'rejeitada').length})`} />
           </div>
 
-          {lista.length === 0 ? (
+          {loading ? (
+            <div className="rounded-2xl border border-wave-100 bg-white/70 px-6 py-14 text-center text-sm text-wave-500 backdrop-blur-sm">
+              Carregando propostas...
+            </div>
+          ) : lista.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-wave-200 bg-white/70 px-6 py-14 text-center backdrop-blur-sm">
               <Vote className="mb-3 h-10 w-10 text-wave-300" aria-hidden="true" />
               <h3 className="mb-1 text-lg text-wave-800">Nenhuma proposta</h3>
