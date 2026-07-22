@@ -1,3 +1,19 @@
+// ---------------------------------------------------------------------------
+// Wave Condominium — schema Prisma
+//
+// Fundacao PostgreSQL do dominio (SOW Instaward, entregavel 1).
+//
+// Alem da autenticacao (ja existente), este schema modela:
+//  - Administradora (canal B2B2C): gere N condominios (entregavel 2);
+//  - Hierarquia de papeis: ADMINISTRADORA > SINDICO > MORADOR (+ ADMIN plataforma);
+//  - Os dominios ja construidos no app (hoje em localStorage): Comunicacao
+//    (Aviso/Comentario), Reservas (Reserva/Bloqueio), Boletos (Boleto),
+//    Governanca (Proposta/Voto) e os registros por unidade do Dashboard.
+//
+// Todo dado de dominio e escopado por condominiumId, garantindo isolamento
+// multi-tenant (um condominio nunca ve dados de outro) — validado no servidor.
+// ---------------------------------------------------------------------------
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,34 +23,64 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Condominium {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  users     User[]
+// --- Tenancy / contas --------------------------------------------------------
+
+model Administradora {
+  id           String        @id @default(cuid())
+  name         String
+  cnpj         String?       @unique
+  createdAt    DateTime      @default(now())
+  condominiums Condominium[]
+  users        User[]
 }
 
-model User {
-  id            String      @id @default(cuid())
-  email         String
-  passwordHash  String
-  name          String
-  role          Role        @default(MORADOR)
-  unit          String?
-  photoUrl      String?
-  condominiumId String
-  condominium   Condominium @relation(fields: [condominiumId], references: [id])
-  sessions      Session[]
-  createdAt     DateTime    @default(now())
+model Condominium {
+  id               String          @id @default(cuid())
+  name             String
+  administradoraId String?
+  administradora   Administradora? @relation(fields: [administradoraId], references: [id])
+  createdAt        DateTime        @default(now())
 
-  @@unique([condominiumId, email])
-  @@index([condominiumId])
+  users     User[]
+  avisos    Aviso[]
+  reservas  Reserva[]
+  bloqueios Bloqueio[]
+  boletos   Boleto[]
+  propostas Proposta[]
+
+  @@index([administradoraId])
 }
 
 enum Role {
-  ADMIN
+  ADMIN // Admin de plataforma (Wave)
+  ADMINISTRADORA // Empresa que gere multiplos condominios
   SINDICO
   MORADOR
+}
+
+model User {
+  id           String @id @default(cuid())
+  email        String
+  passwordHash String
+  name         String
+  role         Role   @default(MORADOR)
+  unit         String?
+  photoUrl     String?
+
+  // Vinculo com condominio (sindico/morador) OU administradora.
+  condominiumId String?
+  condominium   Condominium? @relation(fields: [condominiumId], references: [id])
+
+  administradoraId String?
+  administradora   Administradora? @relation(fields: [administradoraId], references: [id])
+
+  sessions  Session[]
+  votos     Voto[]
+  createdAt DateTime  @default(now())
+
+  @@unique([condominiumId, email])
+  @@index([condominiumId])
+  @@index([administradoraId])
 }
 
 model Session {
@@ -48,4 +94,273 @@ model Session {
   createdAt   DateTime @default(now())
 
   @@index([userId])
+}
+
+// --- Comunicacao (Avisos) ----------------------------------------------------
+
+enum Prioridade {
+  URGENTE
+  ALTA
+  NORMAL
+}
+
+enum CategoriaAviso {
+  ELEVADOR
+  AGUA
+  ENERGIA
+  OBRAS
+  CAIXA_DAGUA
+  DEDETIZACAO
+  SEGURANCA
+  EVENTO
+  COMUNICADO
+}
+
+model Aviso {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  titulo            String
+  conteudo          String
+  categoria         CategoriaAviso
+  prioridade        Prioridade
+  autorNome         String
+  comentariosAtivos Boolean        @default(true)
+  enviarEmail       Boolean        @default(false)
+
+  // Campos opcionais de evento.
+  dataEvento    String?
+  horarioEvento String?
+  localEvento   String?
+
+  publicadoEm DateTime          @default(now())
+  comentarios ComentarioAviso[]
+
+  @@index([condominiumId, prioridade])
+}
+
+model ComentarioAviso {
+  id       String   @id @default(cuid())
+  avisoId  String
+  aviso    Aviso    @relation(fields: [avisoId], references: [id], onDelete: Cascade)
+  autor    String
+  conteudo String
+  criadoEm DateTime @default(now())
+
+  @@index([avisoId])
+}
+
+// --- Reservas de espacos comuns ---------------------------------------------
+
+enum EspacoComum {
+  SALAO
+  CHURRASQUEIRA
+  QUADRA
+  GOURMET
+}
+
+enum StatusReserva {
+  PENDENTE
+  APROVADA
+  REJEITADA
+  CANCELADA
+}
+
+model Reserva {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  espaco         EspacoComum
+  data           String // 'YYYY-MM-DD'
+  horarioInicio  String
+  horarioFim     String
+  solicitanteId  String
+  solicitante    String
+  status         StatusReserva @default(PENDENTE)
+  observacoes    String?
+  motivoRejeicao String?
+
+  criadaEm    DateTime  @default(now())
+  decididaEm  DateTime?
+  canceladaEm DateTime?
+
+  @@index([condominiumId, status])
+  @@index([condominiumId, espaco, data])
+}
+
+model Bloqueio {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  // null = bloqueia todos os espacos naquele dia.
+  espaco   EspacoComum?
+  data     String // 'YYYY-MM-DD'
+  motivo   String?
+  criadoPor String
+  criadoEm  DateTime @default(now())
+
+  @@index([condominiumId, data])
+}
+
+// --- Boletos -----------------------------------------------------------------
+
+enum StatusBoleto {
+  PENDING
+  PAID
+  COMPENSATED
+  BLOCKCHAIN_REGISTERED
+  OVERDUE
+}
+
+enum FormaPagamento {
+  PIX
+  CARD
+  BOLETO
+}
+
+model Boleto {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  unitNumber     String
+  unitOwner      String
+  referenceMonth String // 'YYYY-MM'
+  dueDate        String // 'YYYY-MM-DD'
+  amount         Decimal      @db.Decimal(10, 2)
+  barcode        String
+  status         StatusBoleto @default(PENDING)
+  description    String
+
+  condominiumFee Decimal @db.Decimal(10, 2) @default(0)
+  waterFee       Decimal @db.Decimal(10, 2) @default(0)
+  reserveFund    Decimal @db.Decimal(10, 2) @default(0)
+  otherFees      Decimal @db.Decimal(10, 2) @default(0)
+
+  paymentMethod          FormaPagamento?
+  paidAt                 DateTime?
+  compensatedAt          DateTime?
+  blockchainHash         String?
+  blockchainRegisteredAt DateTime?
+  stellarExplorerUrl     String?
+
+  issuedBy  String
+  issuedAt  DateTime @default(now())
+
+  @@index([condominiumId, unitNumber])
+  @@index([condominiumId, status])
+}
+
+// --- Governanca (DAO) --------------------------------------------------------
+
+enum CategoriaProposta {
+  OBRAS
+  SEGURANCA
+  FINANCEIRO
+  EVENTOS
+  MELHORIAS
+  SUSTENTABILIDADE
+  OUTROS
+}
+
+enum StatusProposta {
+  VOTACAO_ABERTA
+  VOTACAO_ENCERRADA
+  APROVADA_COMUNIDADE
+  FILA_PRIORIDADES
+  EM_ASSEMBLEIA
+  APROVADA_ASSEMBLEIA
+  EM_EXECUCAO
+  CONCLUIDA
+  REJEITADA
+}
+
+enum VotoEscolha {
+  APROVO
+  REPROVO
+  ABSTENCAO
+}
+
+model Proposta {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  titulo       String
+  descricao    String
+  categoria    CategoriaProposta
+  autorNome    String
+  status       StatusProposta    @default(VOTACAO_ABERTA)
+  criadaEm     DateTime          @default(now())
+  prazoVotacao DateTime
+  encerradaEm  DateTime?
+  aprovadaEm   DateTime?
+
+  votos Voto[]
+
+  @@index([condominiumId, status])
+}
+
+model Voto {
+  id         String      @id @default(cuid())
+  propostaId String
+  proposta   Proposta    @relation(fields: [propostaId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  escolha    VotoEscolha
+  criadoEm   DateTime    @default(now())
+
+  // Voto unico por morador em cada proposta.
+  @@unique([propostaId, userId])
+  @@index([propostaId])
+}
+
+// --- Dashboard do morador: registros por unidade -----------------------------
+
+enum StatusOcorrencia {
+  ABERTA
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+model DocumentoUnidade {
+  id            String   @id @default(cuid())
+  condominiumId String
+  unidade       String
+  titulo        String
+  tipo          String
+  data          DateTime @default(now())
+
+  @@index([condominiumId, unidade])
+}
+
+model SolicitacaoServico {
+  id            String           @id @default(cuid())
+  condominiumId String
+  unidade       String
+  protocolo     String
+  tipo          String
+  status        StatusOcorrencia @default(ABERTA)
+  descricao     String?
+  aberturaEm    DateTime         @default(now())
+  atualizadoEm  DateTime         @updatedAt
+
+  @@index([condominiumId, unidade])
+}
+
+model ManutencaoUnidade {
+  id            String           @id @default(cuid())
+  condominiumId String
+  unidade       String
+  data          DateTime
+  descricao     String
+  categoria     String
+  status        StatusOcorrencia @default(CONCLUIDA)
+  responsavel   String
+
+  @@index([condominiumId, unidade])
 }

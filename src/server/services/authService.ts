@@ -8,11 +8,13 @@ import type { Role as PrismaRole } from "@prisma/client";
 // Mantido aqui para nao recriar o bug de grafia que o rbac.ts eliminou.
 const DB_TO_LABEL: Record<PrismaRole, Role> = {
   ADMIN: "Admin",
+  ADMINISTRADORA: "Administradora",
   SINDICO: "Síndico",
   MORADOR: "Morador",
 };
 const LABEL_TO_DB: Record<Role, PrismaRole> = {
   Admin: "ADMIN",
+  Administradora: "ADMINISTRADORA",
   "Síndico": "SINDICO",
   Morador: "MORADOR",
 };
@@ -24,12 +26,14 @@ export interface PublicUser {
   role: Role;
   unit: string | null;
   photoUrl: string | null;
-  condominiumId: string;
+  condominiumId: string | null;
+  administradoraId: string | null;
 }
 
 type DbUser = {
   id: string; email: string; name: string; role: PrismaRole;
-  unit: string | null; photoUrl: string | null; condominiumId: string;
+  unit: string | null; photoUrl: string | null;
+  condominiumId: string | null; administradoraId: string | null;
 };
 
 function toPublic(u: DbUser): PublicUser {
@@ -41,6 +45,7 @@ function toPublic(u: DbUser): PublicUser {
     unit: u.unit,
     photoUrl: u.photoUrl,
     condominiumId: u.condominiumId,
+    administradoraId: u.administradoraId,
   };
 }
 
@@ -57,7 +62,8 @@ export async function login(email: string, password: string): Promise<LoginResul
   await createSession({
     userId: user.id,
     role: DB_TO_LABEL[user.role],
-    condominiumId: user.condominiumId,
+    condominiumId: user.condominiumId ?? null,
+    administradoraId: user.administradoraId ?? null,
   });
   return { ok: true, user: toPublic(user) };
 }

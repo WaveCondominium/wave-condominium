@@ -29,7 +29,7 @@ export type Role = User['role'];
  * (Admin Panel), criar novas contas de usuário.
  */
 export function isManager(role: Role | undefined | null): boolean {
-  return role === 'Síndico' || role === 'Admin';
+  return role === 'Síndico' || role === 'Admin' || role === 'Administradora';
 }
 
 /**
@@ -38,4 +38,14 @@ export function isManager(role: Role | undefined | null): boolean {
  */
 export function isPlatformAdmin(role: Role | undefined | null): boolean {
   return role === 'Admin';
+}
+
+/**
+ * Administradora: canal B2B2C que gere MULTIPLOS condominios. Superset do
+ * Sindico para os condominios sob sua gestao (hierarquia
+ * administradora > sindico > morador). Use para: painel multi-condominio,
+ * troca de condominio ativo, gestao consolidada.
+ */
+export function isAdministradora(role: Role | undefined | null): boolean {
+  return role === 'Administradora';
 }

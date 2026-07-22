@@ -9,7 +9,10 @@ const MAX_AGE_SECONDS = 60 * 60 * 8; // 8 horas
 export interface SessionPayload {
   userId: string;
   role: Role;
-  condominiumId: string;
+  /** Condominio ativo (sindico/morador). Null para Administradora sem contexto. */
+  condominiumId: string | null;
+  /** Administradora dona da sessao (canal B2B2C multi-condominio). */
+  administradoraId?: string | null;
 }
 
 function getSecret(): Uint8Array {
@@ -44,7 +47,8 @@ export async function getSession(): Promise<SessionPayload | null> {
     return {
       userId: String(payload.userId),
       role: payload.role as Role,
-      condominiumId: String(payload.condominiumId),
+      condominiumId: payload.condominiumId ? String(payload.condominiumId) : null,
+      administradoraId: payload.administradoraId ? String(payload.administradoraId) : null,
     };
   } catch {
     return null;

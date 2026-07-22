@@ -6,7 +6,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: "Admin" | "Morador" | "Síndico";
+  role: "Admin" | "Morador" | "Síndico" | "Administradora";
   unit: string;
   walletAddress?: string;
   photoUrl?: string;
