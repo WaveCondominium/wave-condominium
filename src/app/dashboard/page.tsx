@@ -26,6 +26,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useUser } from '@/contexts/UserContext';
 import { isManager } from '@/lib/rbac';
+import { MoradorDashboard } from '@/components/dashboard/MoradorDashboard';
 import {
   CONDOMINIUM_SETTINGS_KEY,
   DEFAULT_CONDOMINIUM_SETTINGS,
@@ -75,7 +76,7 @@ function formatBRL(value: number): string {
   return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function DashboardPage() {
+function GestorDashboard() {
   const router = useRouter();
   const { userProfile } = useUser();
   const [currentDateLabel, setCurrentDateLabel] = useState('');
@@ -463,5 +464,18 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  const { userProfile } = useUser();
+  // A Visao Geral (funcionalidade existente) e PRESERVADA para todos os perfis.
+  // Para o morador, acrescentamos ABAIXO as secoes da sua unidade + comunicados,
+  // sem remover nem alterar nada do dashboard atual.
+  return (
+    <>
+      <GestorDashboard />
+      {!isManager(userProfile.role) && <MoradorDashboard />}
+    </>
   );
 }
