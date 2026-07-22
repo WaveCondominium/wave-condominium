@@ -26,7 +26,7 @@ export function AvisosPanel() {
   const nomeLeitor =
     userProfile.name + (userProfile.unit ? ` - ${userProfile.unit}` : '') || 'Morador';
 
-  const { avisos, criarAviso, editarAviso, excluirAviso, adicionarComentario } = useAvisos();
+  const { avisos, loading, criarAviso, editarAviso, excluirAviso, adicionarComentario } = useAvisos();
 
   const [detalheId, setDetalheId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -49,35 +49,52 @@ export function AvisosPanel() {
     setShowForm(true);
   };
 
-  const handleSubmitForm = (input: NovoAvisoInput) => {
-    if (avisoEmEdicao) {
-      editarAviso({ id: avisoEmEdicao.id, ...input });
-      toast.success('Aviso atualizado com sucesso!');
-    } else {
-      criarAviso(input, nomeAutor);
-      toast.success(
-        input.enviarEmail ? 'Aviso publicado e moradores notificados!' : 'Aviso publicado!',
-        input.enviarEmail
-          ? { description: 'Todos os moradores cadastrados receberam o comunicado por e-mail.' }
-          : undefined,
-      );
-    }
+  const handleSubmitForm = async (input: NovoAvisoInput) => {
     setShowForm(false);
-    setAvisoEmEdicao(null);
+    try {
+      if (avisoEmEdicao) {
+        await editarAviso({ id: avisoEmEdicao.id, ...input });
+        toast.success('Aviso atualizado com sucesso!');
+      } else {
+        await criarAviso(input, nomeAutor);
+        toast.success(
+          input.enviarEmail ? 'Aviso publicado e moradores notificados!' : 'Aviso publicado!',
+          input.enviarEmail
+            ? { description: 'Todos os moradores cadastrados receberam o comunicado por e-mail.' }
+            : undefined,
+        );
+      }
+    } catch (err) {
+      console.error('Falha ao salvar aviso', err);
+      toast.error('Não foi possível salvar o aviso. Tente novamente.');
+    } finally {
+      setAvisoEmEdicao(null);
+    }
   };
 
-  const confirmarExclusao = () => {
+  const confirmarExclusao = async () => {
     if (!avisoParaExcluir) return;
-    excluirAviso(avisoParaExcluir.id);
-    if (detalheId === avisoParaExcluir.id) setDetalheId(null);
+    const alvo = avisoParaExcluir;
     setAvisoParaExcluir(null);
-    toast.success('Aviso excluído.');
+    try {
+      await excluirAviso(alvo.id);
+      if (detalheId === alvo.id) setDetalheId(null);
+      toast.success('Aviso excluído.');
+    } catch (err) {
+      console.error('Falha ao excluir aviso', err);
+      toast.error('Não foi possível excluir o aviso.');
+    }
   };
 
-  const handleAddComment = (conteudo: string) => {
+  const handleAddComment = async (conteudo: string) => {
     if (!avisoDetalhe) return;
-    const ok = adicionarComentario(avisoDetalhe.id, nomeLeitor, conteudo);
-    if (ok) toast.success('Comentário adicionado!');
+    try {
+      const ok = await adicionarComentario(avisoDetalhe.id, nomeLeitor, conteudo);
+      if (ok) toast.success('Comentário adicionado!');
+    } catch (err) {
+      console.error('Falha ao comentar', err);
+      toast.error('Não foi possível adicionar o comentário.');
+    }
   };
 
   return (
@@ -103,7 +120,7 @@ export function AvisosPanel() {
         )}
       </div>
 
-      {isLoading ? (
+      {isLoading || loading ? (
         <AvisosListSkeleton />
       ) : avisos.length === 0 ? (
         <AvisosEmptyState canManage={canManage} onCreate={abrirCriacao} />
