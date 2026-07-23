@@ -182,7 +182,7 @@ export function GenerateBoletoModal({ onClose, onGenerate }: GenerateBoletoModal
           </div>
 
           {/* Datas */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-blue-900 mb-2 flex items-center gap-2">
                 <Calendar className="w-4 h-4" />

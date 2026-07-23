@@ -150,14 +150,14 @@ export function Notifications({ onNavigate }: NotificationsProps) {
   const totalNotifications = Object.values(groupedNotifications).reduce((sum, group) => sum + group.length, 0);
 
   return (
-    <div className="p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
       
 
       {/* Header */}
       <div className="mb-8 relative z-10">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
           <div>
-            <h1 className="text-wave-800 text-3xl mb-2 flex items-center gap-3">
+            <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2 flex items-center gap-3">
               <Bell className="w-8 h-8" />
               Central de Notificações
             </h1>

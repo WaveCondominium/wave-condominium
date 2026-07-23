@@ -150,14 +150,14 @@ export function AdminPanel() {
   const pendingDocumentsCount = pendingDocuments.filter(d => d.status === 'pending' || d.status === 'pending_approval').length;
 
   return (
-    <div className="p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
       
 
       {/* Header */}
       <div className="mb-8 relative z-10">
         <div className="flex items-center gap-3 mb-2">
           <Shield className="w-8 h-8 text-wave-500" />
-          <h1 className="text-wave-800 text-3xl">Painel Administrativo</h1>
+          <h1 className="text-wave-800 text-2xl sm:text-3xl">Painel Administrativo</h1>
         </div>
         <p className="text-wave-500">
           Gerencie aprovações de propostas/documentos e a ancoragem de hashes na Stellar

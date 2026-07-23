@@ -177,12 +177,12 @@ export function Dashboard({ onViewProposal, onNavigate }: DashboardProps) {
   };
 
   return (
-    <div className="p-8 min-h-screen bg-wave-50">
+    <div className="p-4 sm:p-6 lg:p-8 min-h-screen bg-wave-50">
 
       {/* Header */}
       <div className="mb-8">
         <p className="text-wave-400 text-sm italic font-serif mb-1">Visão geral</p>
-        <h1 className="font-serif text-3xl text-wave-800 font-normal">Residencial Aurora</h1>
+        <h1 className="font-serif text-2xl sm:text-3xl text-wave-800 font-normal">Residencial Aurora</h1>
       </div>
 
       {/* Métricas principais */}

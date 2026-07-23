@@ -114,7 +114,7 @@ export function BoletoDetailsModal({
             </div>
 
             {/* Info Grid */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div>
                 <p className="text-wave-500 text-sm mb-1">Unidade</p>
                 <p className="text-wave-800">{boleto.unitNumber}</p>

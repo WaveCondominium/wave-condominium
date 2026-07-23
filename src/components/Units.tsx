@@ -92,12 +92,12 @@ export function Units() {
   const totalResidents = units.reduce((s, u) => s + u.residents, 0);
 
   return (
-    <div className="p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 relative z-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">
         <div>
-          <h1 className="text-wave-800 text-3xl mb-2">Unidades</h1>
+          <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Unidades</h1>
           <p className="text-wave-500">Gestão de apartamentos e moradores do condomínio</p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="px-4 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl shadow-lg flex items-center gap-2 hover:opacity-90 transition-all">
@@ -244,7 +244,7 @@ export function Units() {
                   <option>Vago</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-wave-700 text-sm mb-1">Andar</label>
                   <input type="number" min={1}

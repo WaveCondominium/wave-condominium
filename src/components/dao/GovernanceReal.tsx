@@ -216,13 +216,13 @@ export function GovernanceReal({ onViewProposal }: GovernanceProps) {
   }
 
   return (
-    <div className="p-8 bg-wave-50 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-wave-50 min-h-screen relative">
       
       
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 relative z-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">
         <div>
-          <h1 className="text-blue-900 text-3xl mb-2">Governança do Condomínio</h1>
+          <h1 className="text-blue-900 text-2xl sm:text-3xl mb-2">Governança do Condomínio</h1>
           <p className="text-blue-600">Participe das decisões do condomínio de forma transparente</p>
           {!isConnected && (
             <p className="text-orange-600 text-sm mt-2">

@@ -119,7 +119,7 @@ export function CreateMeetingModal({ onClose, onCreate }: CreateMeetingModalProp
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-blue-900 mb-2 flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
@@ -150,7 +150,7 @@ export function CreateMeetingModal({ onClose, onCreate }: CreateMeetingModalProp
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-blue-900 mb-2">
                 Duração (minutos)

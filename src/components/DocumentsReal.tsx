@@ -102,11 +102,11 @@ export function DocumentsReal() {
   });
 
   return (
-    <div className="p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
 
       {/* Header */}
       <div className="mb-8 relative z-10">
-        <h1 className="text-wave-800 text-3xl mb-2">Documentos</h1>
+        <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Documentos</h1>
         <p className="text-wave-500">
           Registro imutável de documentos com verificação criptográfica na rede Stellar
         </p>

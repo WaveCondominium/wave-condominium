@@ -149,9 +149,9 @@ function GestorDashboard() {
     <div className="space-y-8 relative">
       
       
-      <div className="flex items-center justify-between relative z-20">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-20">
         <div>
-          <h1 className="text-3xl text-wave-800">Visão Geral</h1>
+          <h1 className="text-2xl sm:text-3xl text-wave-800">Visão Geral</h1>
           <p className="text-wave-500">Bem-vindo ao painel de gestão do seu condomínio</p>
         </div>
         

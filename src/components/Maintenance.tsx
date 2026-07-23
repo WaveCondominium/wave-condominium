@@ -168,13 +168,13 @@ export function Maintenance() {
   };
 
   return (
-    <div className="p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
       
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 relative z-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">
         <div>
-          <h1 className="text-wave-800 text-3xl mb-2">Manutenção Preditiva</h1>
+          <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Manutenção Preditiva</h1>
           <p className="text-wave-500">Gestão inteligente de garantias, manutenções e conformidade</p>
         </div>
         <button onClick={() => setShowCreateModal(true)} className="px-4 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2">

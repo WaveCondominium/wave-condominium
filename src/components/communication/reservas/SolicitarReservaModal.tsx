@@ -97,7 +97,7 @@ export function SolicitarReservaModal({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="inicio" className="mb-2 block text-sm text-wave-800">
                 Inicio

@@ -41,11 +41,11 @@ export function BlockchainRegistry() {
   const pending   = records.filter(r => r.status === 'pending').length;
 
   return (
-    <div className="p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
 
       {/* Header */}
       <div className="mb-6 relative z-10">
-        <h1 className="text-wave-800 text-3xl mb-1">
+        <h1 className="text-wave-800 text-2xl sm:text-3xl mb-1">
           {userProfile.role === 'Morador' ? 'Meus Comprovantes' : 'Auditoria Stellar'}
         </h1>
         <p className="text-wave-500 text-sm">

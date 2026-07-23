@@ -142,7 +142,7 @@ export function AvisoFormModal({ avisoParaEditar, onClose, onSubmit }: AvisoForm
                 <CalendarDays className="h-3.5 w-3.5" />
                 Detalhes do evento
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="dataEvento" className="mb-1.5 block text-sm text-wave-700">
                     Data do evento

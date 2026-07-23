@@ -69,7 +69,7 @@ export default function Sobre() {
         </div>
 
         <div className="bg-[#0A0F2E] flex items-end justify-center overflow-hidden">
-          <div className="w-[380px] h-[400px]">
+          <div className="w-full max-w-[380px] h-[300px] sm:h-[400px]">
             <BuildingAnimation />
           </div>
         </div>
