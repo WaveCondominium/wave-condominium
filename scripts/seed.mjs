@@ -50,6 +50,9 @@ const moradores = [
 await prisma.proposta.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.aviso.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.boleto.deleteMany({ where: { condominiumId: condo.id } });
+await prisma.documentoUnidade.deleteMany({ where: { condominiumId: condo.id } });
+await prisma.solicitacaoServico.deleteMany({ where: { condominiumId: condo.id } });
+await prisma.manutencaoUnidade.deleteMany({ where: { condominiumId: condo.id } });
 
 // --- Avisos (Comunicacao) ----------------------------------------------------
 
@@ -174,6 +177,31 @@ for (const b of boletos) {
   await prisma.boleto.create({ data: { condominiumId: condo.id, ...b } });
 }
 console.log("Seed ok -> " + boletos.length + " boletos");
+
+// --- Dashboard da unidade (documentos / solicitacoes / manutencoes) ----------
+
+const docsUnidade = [
+  { unidade: "203", titulo: "Contrato de Locacao - Apto 203", tipo: "Contrato", data: daysFromNow(-120) },
+  { unidade: "203", titulo: "Comunicado: vistoria hidraulica da unidade", tipo: "Comunicado", data: daysFromNow(-20) },
+  { unidade: "203", titulo: "Relatorio de atendimento - Vazamento", tipo: "Relatorio", data: daysFromNow(-8) },
+  { unidade: "101", titulo: "Contrato de Locacao - Apto 101", tipo: "Contrato", data: daysFromNow(-90) },
+];
+for (const d of docsUnidade) await prisma.documentoUnidade.create({ data: { condominiumId: condo.id, ...d } });
+
+const solicitacoes = [
+  { unidade: "203", protocolo: "2026-000123", tipo: "Reparo hidraulico", status: "EM_ANDAMENTO", descricao: "Vazamento na tubulacao da pia da cozinha.", aberturaEm: daysFromNow(-10) },
+  { unidade: "203", protocolo: "2026-000098", tipo: "Manutencao de fechadura", status: "CONCLUIDA", descricao: "Troca da fechadura da porta principal.", aberturaEm: daysFromNow(-30) },
+];
+for (const s of solicitacoes) await prisma.solicitacaoServico.create({ data: { condominiumId: condo.id, ...s } });
+
+const manutencoes = [
+  { unidade: "203", data: daysFromNow(-2),  descricao: "Reparo de vazamento na pia da cozinha", categoria: "hidraulica", status: "EM_ANDAMENTO", responsavel: "Joao Tecnico" },
+  { unidade: "203", data: daysFromNow(-25), descricao: "Troca de fechadura da porta principal", categoria: "fechadura",  status: "CONCLUIDA",    responsavel: "Carlos Serralheiro" },
+  { unidade: "203", data: daysFromNow(-60), descricao: "Substituicao de disjuntor do quadro da unidade", categoria: "eletrica", status: "CONCLUIDA", responsavel: "Eletrica Predial LTDA" },
+];
+for (const m of manutencoes) await prisma.manutencaoUnidade.create({ data: { condominiumId: condo.id, ...m } });
+
+console.log("Seed ok -> unidade 203: " + docsUnidade.length + " docs, " + solicitacoes.length + " solicitacoes, " + manutencoes.length + " manutencoes");
 
 console.log("Senha para todos: Senha@12345");
 await prisma.$disconnect();
