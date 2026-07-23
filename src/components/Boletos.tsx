@@ -1,7 +1,6 @@
 ﻿import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Receipt, DollarSign, CheckCircle, Clock, AlertCircle, Plus, TrendingUp } from 'lucide-react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
 import { IssueBoletoModal } from './IssueBoletoModal';
 import { BoletoDetailsModal } from './BoletoDetailsModal';
 import { PagamentoStellarModal } from './PagamentoStellarModal';
@@ -9,6 +8,7 @@ import { AbertosSection } from './boletos/AbertosSection';
 import { HistoricoSection } from './boletos/HistoricoSection';
 import { ComprovanteModal } from './boletos/ComprovanteModal';
 import { isPago } from './boletos/boletoFormat';
+import { listBoletosAction, emitirBoletoAction, atualizarBoletoAction } from '@/app/actions/boletos';
 import { useBlockchainAutoRegistry } from '../hooks/useBlockchainAutoRegistry';
 import { isManager, isPlatformAdmin, type Role } from '@/lib/rbac';
 
@@ -86,107 +86,18 @@ function formatDateBR(dateStr: string): string {
 }
 
 export function Boletos({ userProfile }: BoletosProps) {
-  const [boletos, setBoletos] = useLocalStorage<Boleto[]>('wave_boletos', [
-    {
-      id: '1',
-      unitNumber: '101',
-      unitOwner: 'Maria Silva',
-      referenceMonth: '2026-07',
-      dueDate: '2026-07-10',
-      amount: 850.00,
-      barcode: '23793.38128 60000.123456 78901.234567 1 99990000085000',
-      status: 'blockchain_registered',
-      issuedAt: '2026-06-01',
-      issuedBy: 'Síndico João',
-      paidAt: '2026-06-20',
-      compensatedAt: '2026-06-21',
-      description: 'Taxa condominial - Julho 2026',
-      details: {
-        condominiumFee: 650.00,
-        waterFee: 120.00,
-        reserveFund: 50.00,
-        otherFees: 30.00
-      }
-    },
-    {
-      id: '2',
-      unitNumber: '101',
-      unitOwner: 'Maria Silva',
-      referenceMonth: '2026-08',
-      dueDate: '2026-08-10',
-      amount: 850.00,
-      barcode: '23793.38128 60000.654321 78901.987654 2 99990000085000',
-      status: 'pending',
-      issuedAt: '2026-06-01',
-      issuedBy: 'Síndico João',
-      description: 'Taxa condominial - Agosto 2026',
-      details: {
-        condominiumFee: 650.00,
-        waterFee: 120.00,
-        reserveFund: 50.00,
-        otherFees: 30.00
-      }
-    },
-    {
-      id: '3',
-      unitNumber: '202',
-      unitOwner: 'João Santos',
-      referenceMonth: '2026-08',
-      dueDate: '2026-08-10',
-      amount: 920.00,
-      barcode: '23793.38128 60000.111222 78901.333444 3 99990000092000',
-      status: 'compensated',
-      issuedAt: '2026-06-01',
-      issuedBy: 'Síndico João',
-      paidAt: '2026-07-05',
-      compensatedAt: '2026-07-06',
-      description: 'Taxa condominial - Agosto 2026',
-      details: {
-        condominiumFee: 720.00,
-        waterFee: 130.00,
-        reserveFund: 50.00,
-        otherFees: 20.00
-      }
-    },
-    {
-      id: '4',
-      unitNumber: '203',
-      unitOwner: 'Maria Santos',
-      referenceMonth: '2026-07',
-      dueDate: '2026-07-10',
-      amount: 780.00,
-      barcode: '23793.38128 60000.203001 78901.203001 4 99990000078000',
-      status: 'pending',
-      issuedAt: '2026-06-01',
-      issuedBy: 'Síndico João',
-      description: 'Taxa condominial - Julho 2026',
-      details: {
-        condominiumFee: 580.00,
-        waterFee: 110.00,
-        reserveFund: 50.00,
-        otherFees: 40.00
-      }
-    },
-    {
-      id: '5',
-      unitNumber: '203',
-      unitOwner: 'Maria Santos',
-      referenceMonth: '2026-08',
-      dueDate: '2026-08-10',
-      amount: 780.00,
-      barcode: '23793.38128 60000.203002 78901.203002 5 99990000078000',
-      status: 'pending',
-      issuedAt: '2026-06-15',
-      issuedBy: 'Síndico João',
-      description: 'Taxa condominial - Agosto 2026',
-      details: {
-        condominiumFee: 580.00,
-        waterFee: 110.00,
-        reserveFund: 50.00,
-        otherFees: 40.00
-      }
-    }
-  ]);
+  // Dados agora vem do PostgreSQL (migracao da fundacao). Antes: useLocalStorage.
+  const [boletos, setBoletos] = useState<Boleto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    listBoletosAction()
+      .then((list) => { if (alive) setBoletos(list as Boleto[]); })
+      .catch((err) => console.error('Falha ao carregar boletos', err))
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<'abertos' | 'historico'>('abertos');
   const [showIssueModal, setShowIssueModal] = useState(false);
@@ -199,7 +110,7 @@ export function Boletos({ userProfile }: BoletosProps) {
   const isAdmin = isPlatformAdmin(userProfile.role);
 
   // Callback de sucesso do pagamento Stellar
-  function handlePagamentoStellarSucesso(result: any) {
+  async function handlePagamentoStellarSucesso(result: any) {
     if (!boletoParaPagar) return;
 
     // Salva o txHash REAL da transação Stellar (da liquidação ou da âncora)
@@ -239,31 +150,39 @@ export function Boletos({ userProfile }: BoletosProps) {
       } : undefined,
       duration: 6000,
     });
+
+    // Persiste o pagamento + ancora Stellar no PostgreSQL.
+    await atualizarBoletoAction(boletoParaPagar.id, {
+      status: 'blockchain_registered',
+      paidAt: new Date().toISOString().split('T')[0],
+      compensatedAt: new Date().toISOString().split('T')[0],
+      blockchainHash: stellarTxHash,
+      blockchainRegisteredAt: new Date().toISOString(),
+      paymentMethod: method ?? null,
+      stellarExplorerUrl: explorerUrl,
+    });
   }
 
-  const handleIssueBoleto = (data: Omit<Boleto, 'id' | 'issuedAt' | 'issuedBy' | 'status' | 'barcode'>) => {
-    const newBoleto: Boleto = {
-      ...data,
-      id: Date.now().toString(),
-      barcode: generateBarcode(),
-      status: 'pending',
-      issuedAt: new Date().toISOString().split('T')[0],
-      issuedBy: userProfile.name
-    };
-
-    setBoletos([newBoleto, ...boletos]);
+  const handleIssueBoleto = async (data: Omit<Boleto, 'id' | 'issuedAt' | 'issuedBy' | 'status' | 'barcode'>) => {
     setShowIssueModal(false);
-    toast.success('Boleto emitido com sucesso!');
-  };
-
-  const generateBarcode = () => {
-    const random1 = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
-    const random2 = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    const random3 = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    const digit = Math.floor(Math.random() * 10);
-    const value = Math.floor(Math.random() * 1000000).toString().padStart(10, '0');
-    
-    return `23793.38128 60000.${random1} ${random2}.${random3} ${digit} 9999${value}`;
+    const novo = await emitirBoletoAction(
+      {
+        unitNumber: data.unitNumber,
+        unitOwner: data.unitOwner,
+        referenceMonth: data.referenceMonth,
+        dueDate: data.dueDate,
+        amount: data.amount,
+        description: data.description,
+        details: data.details,
+      },
+      userProfile.name,
+    );
+    if (novo) {
+      setBoletos((prev) => [novo as Boleto, ...prev]);
+      toast.success('Boleto emitido com sucesso!');
+    } else {
+      toast.error('Não foi possível emitir o boleto.');
+    }
   };
 
   const handleSimulateCompensation = async (boletoId: string) => {
@@ -292,7 +211,7 @@ export function Boletos({ userProfile }: BoletosProps) {
     });
 
     // Atualizar boleto com dados da blockchain
-    setBoletos(prevBoletos => prevBoletos.map(b => 
+    setBoletos(prevBoletos => prevBoletos.map(b =>
       b.id === boletoId
         ? {
             ...b,
@@ -302,6 +221,14 @@ export function Boletos({ userProfile }: BoletosProps) {
           }
         : b
     ));
+
+    // Persiste a compensacao + registro Stellar no PostgreSQL.
+    await atualizarBoletoAction(boletoId, {
+      status: 'blockchain_registered',
+      compensatedAt: new Date().toISOString().split('T')[0],
+      blockchainHash: record.txHash,
+      blockchainRegisteredAt: record.timestamp,
+    });
   };
 
   // Normaliza o número da unidade do usuário (ex: "Apto 203" → "203")
@@ -478,7 +405,11 @@ export function Boletos({ userProfile }: BoletosProps) {
 
       {/* Conteúdo da aba ativa */}
       <div className="relative z-10">
-        {activeTab === 'abertos' ? (
+        {loading ? (
+          <div className="rounded-2xl border border-wave-100 bg-white/80 p-12 text-center text-wave-500 shadow-lg backdrop-blur-sm">
+            Carregando boletos...
+          </div>
+        ) : activeTab === 'abertos' ? (
           <AbertosSection
             boletos={abertos}
             onVerDetalhes={(b) => setSelectedBoleto(b as Boleto)}

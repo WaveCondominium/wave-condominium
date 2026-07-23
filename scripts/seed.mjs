@@ -49,6 +49,7 @@ const moradores = [
 
 await prisma.proposta.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.aviso.deleteMany({ where: { condominiumId: condo.id } });
+await prisma.boleto.deleteMany({ where: { condominiumId: condo.id } });
 
 // --- Avisos (Comunicacao) ----------------------------------------------------
 
@@ -125,6 +126,54 @@ for (const p of propostas) {
   });
 }
 console.log("Seed ok -> " + propostas.length + " propostas");
+
+// --- Boletos -----------------------------------------------------------------
+
+function ymd(days) {
+  return daysFromNow(days).toISOString().split("T")[0];
+}
+function ym(monthsOffset) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + monthsOffset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+const boletos = [
+  {
+    unitNumber: "203", unitOwner: "Maria Santos", referenceMonth: ym(-1), dueDate: ymd(-40),
+    amount: 850, barcode: "23793.38128 60000.123456 78901.234567 1 99990000085000",
+    status: "BLOCKCHAIN_REGISTERED", description: "Taxa condominial",
+    condominiumFee: 650, waterFee: 120, reserveFund: 50, otherFees: 30,
+    paymentMethod: "PIX", paidAt: daysFromNow(-38), compensatedAt: daysFromNow(-37),
+    blockchainHash: "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+    blockchainRegisteredAt: daysFromNow(-37), issuedBy: "Sindico Joao Silva",
+  },
+  {
+    unitNumber: "203", unitOwner: "Maria Santos", referenceMonth: ym(0), dueDate: ymd(8),
+    amount: 850, barcode: "23793.38128 60000.654321 78901.987654 2 99990000085000",
+    status: "PENDING", description: "Taxa condominial",
+    condominiumFee: 650, waterFee: 120, reserveFund: 50, otherFees: 30,
+    issuedBy: "Sindico Joao Silva",
+  },
+  {
+    unitNumber: "203", unitOwner: "Maria Santos", referenceMonth: ym(-2), dueDate: ymd(-70),
+    amount: 780, barcode: "23793.38128 60000.203003 78901.203003 3 99990000078000",
+    status: "PENDING", description: "Taxa condominial (em atraso)",
+    condominiumFee: 580, waterFee: 110, reserveFund: 50, otherFees: 40,
+    issuedBy: "Sindico Joao Silva",
+  },
+  {
+    unitNumber: "101", unitOwner: "Joao Silva", referenceMonth: ym(0), dueDate: ymd(8),
+    amount: 920, barcode: "23793.38128 60000.111222 78901.333444 4 99990000092000",
+    status: "PENDING", description: "Taxa condominial",
+    condominiumFee: 720, waterFee: 130, reserveFund: 50, otherFees: 20,
+    issuedBy: "Sindico Joao Silva",
+  },
+];
+for (const b of boletos) {
+  await prisma.boleto.create({ data: { condominiumId: condo.id, ...b } });
+}
+console.log("Seed ok -> " + boletos.length + " boletos");
 
 console.log("Senha para todos: Senha@12345");
 await prisma.$disconnect();
