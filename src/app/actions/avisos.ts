@@ -58,7 +58,6 @@ const CATEGORIA_FROM_DB: Record<PrismaCategoria, CategoriaAviso> = {
   COMUNICADO: "comunicado",
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function toApp(row: any): Aviso {
   return {
     id: row.id,

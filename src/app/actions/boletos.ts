@@ -30,7 +30,6 @@ function dateOnly(d: Date | null | undefined): string | undefined {
   return d ? new Date(d).toISOString().split("T")[0] : undefined;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function toApp(b: any): BoletoFull {
   return {
     id: b.id,

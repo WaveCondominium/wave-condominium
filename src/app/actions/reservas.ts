@@ -34,7 +34,6 @@ const STATUS_FROM_DB: Record<PrismaStatus, StatusReserva> = {
   PENDENTE: "pendente", APROVADA: "aprovada", REJEITADA: "rejeitada", CANCELADA: "cancelada",
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function toReserva(r: any): Reserva {
   return {
     id: r.id,

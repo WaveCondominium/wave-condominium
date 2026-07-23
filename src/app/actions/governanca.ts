@@ -52,7 +52,6 @@ const ESCOLHA_FROM_DB: Record<PrismaEscolha, VoteChoice> = {
   APROVO: "aprovo", REPROVO: "reprovo", ABSTENCAO: "abstencao",
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function toApp(row: any): Proposta {
   const votos: Record<string, VoteChoice> = {};
   for (const v of row.votos ?? []) votos[v.userId] = ESCOLHA_FROM_DB[v.escolha as PrismaEscolha];

@@ -28,7 +28,6 @@ const STATUS_FROM_DB: Record<PrismaStatusOcorrencia, StatusOcorrencia> = {
   ABERTA: "aberta", EM_ANDAMENTO: "em_andamento", CONCLUIDA: "concluida", CANCELADA: "cancelada",
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 function toDoc(d: any): DocumentoUnidade {
   return { id: d.id, unidade: d.unidade, titulo: d.titulo, tipo: d.tipo, data: new Date(d.data).toISOString() };
 }
