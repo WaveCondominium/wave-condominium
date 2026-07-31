@@ -53,7 +53,9 @@ export function useAuth() {
       const res = await loginAction(email, password);
       if (res.error) return { error: res.error };
       setUser(res.user ? toUser(res.user) : null);
-      router.push("/dashboard");
+      // Administradora entra pelo painel multi-condominio (escolhe o condominio
+      // ativo la); demais perfis vao direto ao dashboard.
+      router.push(res.user?.role === "Administradora" ? "/dashboard/administradora" : "/dashboard");
       return { error: null };
     } catch (err) {
       console.error(err);

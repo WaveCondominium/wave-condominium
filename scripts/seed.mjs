@@ -203,5 +203,143 @@ for (const m of manutencoes) await prisma.manutencaoUnidade.create({ data: { con
 
 console.log("Seed ok -> unidade 203: " + docsUnidade.length + " docs, " + solicitacoes.length + " solicitacoes, " + manutencoes.length + " manutencoes");
 
+// --- Administradora + condominios (Entregavel 2: multi-condominio) ------------
+
+const adm = await prisma.administradora.upsert({
+  where: { id: "seed-adm" },
+  update: { name: "Wave Gestao Condominial" },
+  create: { id: "seed-adm", name: "Wave Gestao Condominial" },
+});
+
+// Login da administradora: administradoraId setado, condominiumId null (sem
+// condominio fixo — escolhe o ativo no painel). O @@unique e [condominiumId,email],
+// entao com condominiumId null resolvemos manualmente por e-mail.
+const admEmail = "administradora@wave.com";
+const admExisting = await prisma.user.findFirst({ where: { email: admEmail } });
+if (admExisting) {
+  await prisma.user.update({
+    where: { id: admExisting.id },
+    data: { passwordHash, name: "Wave Gestao", role: "ADMINISTRADORA", administradoraId: adm.id, condominiumId: null },
+  });
+} else {
+  await prisma.user.create({
+    data: { email: admEmail, passwordHash, name: "Wave Gestao", role: "ADMINISTRADORA", administradoraId: adm.id },
+  });
+}
+console.log("Seed ok -> administradora@wave.com (ADMINISTRADORA)");
+
+const condosAdm = [
+  {
+    id: "seed-condo-aurora", name: "Residencial Aurora",
+    sindico: { email: "sindico.aurora@wave.com", name: "Roberto Alves", unit: "Apto 101" },
+    moradores: [
+      { email: "aurora.morador1@wave.com", name: "Fernanda Dias", unit: "Apto 201" },
+      { email: "aurora.morador2@wave.com", name: "Lucas Prado", unit: "Apto 202" },
+      { email: "aurora.morador3@wave.com", name: "Juliana Reis", unit: "Apto 203" },
+    ],
+    avisos: 2, boletosPend: 3, propostasAbertas: 2,
+  },
+  {
+    id: "seed-condo-horizonte", name: "Edificio Horizonte",
+    sindico: { email: "sindico.horizonte@wave.com", name: "Marcos Tavares", unit: "Apto 100" },
+    moradores: [
+      { email: "horizonte.morador1@wave.com", name: "Patricia Gomes", unit: "Apto 301" },
+      { email: "horizonte.morador2@wave.com", name: "Rafael Nunes", unit: "Apto 302" },
+    ],
+    avisos: 1, boletosPend: 1, propostasAbertas: 1,
+  },
+  {
+    id: "seed-condo-flores", name: "Parque das Flores",
+    sindico: { email: "sindico.flores@wave.com", name: "Sonia Barros", unit: "Casa 1" },
+    moradores: [
+      { email: "flores.morador1@wave.com", name: "Diego Martins", unit: "Casa 12" },
+      { email: "flores.morador2@wave.com", name: "Camila Souza", unit: "Casa 15" },
+      { email: "flores.morador3@wave.com", name: "Andre Lopes", unit: "Casa 18" },
+      { email: "flores.morador4@wave.com", name: "Tania Ferraz", unit: "Casa 22" },
+    ],
+    avisos: 3, boletosPend: 2, propostasAbertas: 1,
+  },
+];
+
+const AVISO_TITULOS = ["Assembleia ordinaria", "Dedetizacao das areas comuns", "Nova regra da piscina"];
+const AVISO_CATS = ["COMUNICADO", "DEDETIZACAO", "SEGURANCA"];
+const AVISO_PRIOS = ["NORMAL", "ALTA", "URGENTE"];
+const PROP_TITULOS = ["Reforma do playground", "Instalacao de bicicletario"];
+const PROP_CATS = ["MELHORIAS", "SUSTENTABILIDADE"];
+
+for (const cfg of condosAdm) {
+  const condo = await prisma.condominium.upsert({
+    where: { id: cfg.id },
+    update: { name: cfg.name, administradoraId: adm.id },
+    create: { id: cfg.id, name: cfg.name, administradoraId: adm.id },
+  });
+
+  await prisma.user.upsert({
+    where: { condominiumId_email: { condominiumId: condo.id, email: cfg.sindico.email } },
+    update: { passwordHash, name: cfg.sindico.name, role: "SINDICO", unit: cfg.sindico.unit },
+    create: { email: cfg.sindico.email, passwordHash, name: cfg.sindico.name, role: "SINDICO", unit: cfg.sindico.unit, condominiumId: condo.id },
+  });
+
+  const moradorIds = [];
+  for (const m of cfg.moradores) {
+    const saved = await prisma.user.upsert({
+      where: { condominiumId_email: { condominiumId: condo.id, email: m.email } },
+      update: { passwordHash, name: m.name, role: "MORADOR", unit: m.unit },
+      create: { email: m.email, passwordHash, name: m.name, role: "MORADOR", unit: m.unit, condominiumId: condo.id },
+    });
+    moradorIds.push(saved.id);
+  }
+
+  // Idempotencia do dominio deste condominio
+  await prisma.proposta.deleteMany({ where: { condominiumId: condo.id } });
+  await prisma.aviso.deleteMany({ where: { condominiumId: condo.id } });
+  await prisma.boleto.deleteMany({ where: { condominiumId: condo.id } });
+
+  for (let i = 0; i < cfg.avisos; i++) {
+    await prisma.aviso.create({
+      data: {
+        condominiumId: condo.id, autorNome: "Sindico " + cfg.sindico.name, comentariosAtivos: true,
+        titulo: AVISO_TITULOS[i % AVISO_TITULOS.length],
+        conteudo: "Comunicado do condominio " + cfg.name + ".",
+        categoria: AVISO_CATS[i % AVISO_CATS.length],
+        prioridade: AVISO_PRIOS[i % AVISO_PRIOS.length],
+      },
+    });
+  }
+
+  for (let i = 0; i < cfg.boletosPend; i++) {
+    const owner = cfg.moradores[i % cfg.moradores.length];
+    await prisma.boleto.create({
+      data: {
+        condominiumId: condo.id,
+        unitNumber: owner.unit.replace(/\D/g, "") || String(100 + i),
+        unitOwner: owner.name, referenceMonth: ym(0), dueDate: ymd(8 - i * 5),
+        amount: 700 + i * 50,
+        barcode: "23793.38128 60000." + String(100000 + i) + " 78901.000000 " + (i + 1) + " 99990000070000",
+        status: "PENDING", description: "Taxa condominial",
+        condominiumFee: 500 + i * 40, waterFee: 100, reserveFund: 50, otherFees: 50 + i * 10,
+        issuedBy: "Sindico " + cfg.sindico.name,
+      },
+    });
+  }
+
+  for (let i = 0; i < cfg.propostasAbertas; i++) {
+    const vs = moradorIds.slice(0, 2).map((uid, idx) => ({ userId: uid, escolha: idx === 0 ? "APROVO" : "REPROVO" }));
+    await prisma.proposta.create({
+      data: {
+        condominiumId: condo.id,
+        titulo: PROP_TITULOS[i % PROP_TITULOS.length],
+        descricao: "Proposta em votacao no condominio " + cfg.name + ".",
+        categoria: PROP_CATS[i % PROP_CATS.length],
+        status: "VOTACAO_ABERTA", autorNome: cfg.sindico.name,
+        criadaEm: daysFromNow(-3), prazoVotacao: daysFromNow(27),
+        votos: { create: vs },
+      },
+    });
+  }
+
+  console.log("Seed ok -> " + cfg.name + ": 1 sindico, " + cfg.moradores.length + " moradores, " + cfg.avisos + " avisos, " + cfg.boletosPend + " boletos, " + cfg.propostasAbertas + " propostas");
+}
+
 console.log("Senha para todos: Senha@12345");
 await prisma.$disconnect();

@@ -1,10 +1,10 @@
 ﻿'use client';
 
-import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, SlidersHorizontal, Video, Receipt, Shield, MessageSquare, UserPlus, User, X } from 'lucide-react';
+import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, SlidersHorizontal, Video, Receipt, Shield, MessageSquare, UserPlus, User, X, Building2 } from 'lucide-react';
 import { formatDisplayName } from '@/lib/formatName';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMenuBadges } from '@/hooks/useMenuBadges';
-import { isManager, type Role } from '@/lib/rbac';
+import { isManager, isAdministradora, type Role } from '@/lib/rbac';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
@@ -38,6 +38,10 @@ export function Sidebar({ userProfile, onLogout, isMobileOpen = false, onMobileC
   }, [pathname]);
 
   const menuItems = [
+    // Administradora (canal multi-condominio): acesso ao painel consolidado.
+    ...(isAdministradora(userProfile.role)
+      ? [{ href: '/dashboard/administradora', label: 'Painel Administradora', icon: Building2 }]
+      : []),
     { href: '/dashboard',                label: 'Dashboard',   icon: LayoutDashboard, badge: unreadCount > 0 ? unreadCount : undefined },
     { href: '/dashboard/governance',     label: 'Governança',  icon: Vote,            badge: governanceCount > 0 ? governanceCount : undefined },
     { href: '/dashboard/communication',  label: 'Comunicação', icon: MessageSquare,   badge: communicationCount > 0 ? communicationCount : undefined },

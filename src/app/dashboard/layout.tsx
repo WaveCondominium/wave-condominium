@@ -1,10 +1,16 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, Building2, ChevronLeft } from 'lucide-react';
 import { Sidebar } from '@/components/Sidebar';
 import { useUser } from '@/contexts/UserContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import {
+  contextoAdministradoraAction,
+  sairDoCondominioAction,
+} from '@/app/actions/administradora';
+
+const PAINEL_ADM = '/dashboard/administradora';
 
 export default function DashboardLayout({
   children,
@@ -13,7 +19,12 @@ export default function DashboardLayout({
 }) {
   const { userProfile, isAuthenticated, isLoading, logout } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Condominio ativo da Administradora (vem da sessao no servidor).
+  const [condAtivo, setCondAtivo] = useState<{ id: string | null; nome: string | null } | null>(null);
+  const [saindo, setSaindo] = useState(false);
 
   useEffect(() => {
     // Só redireciona ao login após confirmar que não há sessão ativa
@@ -22,11 +33,47 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Administradora: descobre o condominio ativo e, se nao houver, leva ao painel.
+  useEffect(() => {
+    if (isLoading || !isAuthenticated) return;
+    if (userProfile.role !== 'Administradora') return;
+
+    let ativo = true;
+    contextoAdministradoraAction()
+      .then((ctx) => {
+        if (!ativo) return;
+        setCondAtivo({ id: ctx.activeCondominiumId, nome: ctx.activeCondominiumName });
+        if (!ctx.activeCondominiumId && pathname !== PAINEL_ADM) {
+          router.replace(PAINEL_ADM);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [isAuthenticated, isLoading, userProfile.role, pathname, router]);
+
+  async function handleTrocarCondominio() {
+    setSaindo(true);
+    try {
+      await sairDoCondominioAction();
+      setCondAtivo({ id: null, nome: null });
+      router.push(PAINEL_ADM);
+    } finally {
+      setSaindo(false);
+    }
+  }
+
   // Enquanto verifica sessão, não renderiza nada
   if (isLoading) return null;
 
   // Não autenticado — aguarda redirect
   if (!isAuthenticated) return null;
+
+  const mostrarBanner =
+    userProfile.role === 'Administradora' &&
+    condAtivo?.id &&
+    pathname !== PAINEL_ADM;
 
   return (
     <div className="flex min-h-screen bg-wave-50">
@@ -51,6 +98,27 @@ export default function DashboardLayout({
           </button>
           <span className="font-serif text-lg text-wave-800">Wave</span>
         </header>
+
+        {/* Banner de contexto da Administradora — indica qual condominio esta
+            sendo gerenciado e permite voltar ao painel multi-condominio. */}
+        {mostrarBanner && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between bg-wave-800 px-4 py-2.5 sm:px-6 text-white">
+            <div className="flex items-center gap-2 min-w-0">
+              <Building2 className="w-4 h-4 flex-shrink-0 text-wave-200" />
+              <span className="text-sm truncate">
+                Gerenciando <strong className="font-medium">{condAtivo?.nome}</strong>
+              </span>
+            </div>
+            <button
+              onClick={handleTrocarCondominio}
+              disabled={saindo}
+              className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/20 disabled:opacity-60"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              {saindo ? 'Voltando...' : 'Trocar condomínio'}
+            </button>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto bg-wave-50">
           {children}

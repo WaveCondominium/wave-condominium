@@ -139,21 +139,22 @@ export function Login({ onLogin }: LoginProps) {
 
           <div className="mt-8 pt-6 border-t border-wave-100">
             <p className="text-wave-400 text-xs text-center italic font-serif">
-              Use qualquer email e senha para acessar a demonstração
+              Contas de demonstração · senha <strong>Senha@12345</strong>
             </p>
             <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
               {[
-                { label: 'Síndico', hint: 'sindico@...' },
-                { label: 'Admin',   hint: 'admin@...' },
-                { label: 'Morador', hint: 'qualquer' },
+                { label: 'Síndico',        email: 'sindico@wave.com' },
+                { label: 'Morador',        email: 'morador@wave.com' },
+                { label: 'Administradora', email: 'administradora@wave.com' },
               ].map((item, i) => (
                 <button
                   key={i}
-                  onClick={() => setFormData({ email: `${item.label.toLowerCase()}@wave.com`, password: '123456' })}
+                  type="button"
+                  onClick={() => setFormData({ email: item.email, password: 'Senha@12345' })}
                   className="px-2 py-1.5 bg-wave-50 border border-wave-100 rounded-lg text-wave-500 hover:border-wave-300 hover:text-wave-700 transition-all text-center"
                 >
                   <p className="font-medium text-xs">{item.label}</p>
-                  <p className="text-wave-400 text-xs italic font-serif">{item.hint}</p>
+                  <p className="text-wave-400 text-[10px] italic font-serif truncate">{item.email}</p>
                 </button>
               ))}
             </div>

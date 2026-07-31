@@ -1,0 +1,57 @@
+// ---------------------------------------------------------------------------
+// src/server/repositories/condominiumRepository.ts
+//
+// Repositorio dos condominios sob uma Administradora (canal B2B2C
+// multi-condominio). Fornece a listagem escopada por administradora, a
+// verificacao de vinculo (isolamento multi-tenant) e as metricas usadas no
+// painel consolidado.
+//
+// Requer `prisma generate` (models Condominium/Administradora).
+// ---------------------------------------------------------------------------
+
+import { prisma } from "@/server/db";
+
+export interface CondominioMetrics {
+  totalMoradores: number;
+  boletosEmAberto: number;
+  propostasAtivas: number;
+}
+
+export const condominiumRepository = {
+  /** Lista os condominios geridos por uma administradora (ordem alfabetica). */
+  listByAdministradora(administradoraId: string) {
+    return prisma.condominium.findMany({
+      where: { administradoraId },
+      orderBy: { name: "asc" },
+    });
+  },
+
+  /**
+   * Confirma que o condominio pertence a administradora informada.
+   * Base do isolamento multi-tenant ao selecionar o condominio ativo.
+   */
+  belongsToAdministradora(condominiumId: string, administradoraId: string) {
+    return prisma.condominium.findFirst({
+      where: { id: condominiumId, administradoraId },
+      select: { id: true },
+    });
+  },
+
+  findById(condominiumId: string) {
+    return prisma.condominium.findUnique({ where: { id: condominiumId } });
+  },
+
+  /** Metricas agregadas de um condominio para o painel da administradora. */
+  async metrics(condominiumId: string): Promise<CondominioMetrics> {
+    const [totalMoradores, boletosEmAberto, propostasAtivas] = await Promise.all([
+      prisma.user.count({ where: { condominiumId, role: "MORADOR" } }),
+      prisma.boleto.count({
+        where: { condominiumId, status: { in: ["PENDING", "OVERDUE"] } },
+      }),
+      prisma.proposta.count({
+        where: { condominiumId, status: "VOTACAO_ABERTA" },
+      }),
+    ]);
+    return { totalMoradores, boletosEmAberto, propostasAtivas };
+  },
+};
