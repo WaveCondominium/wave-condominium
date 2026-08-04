@@ -286,7 +286,7 @@ export function Boletos({ userProfile }: BoletosProps) {
         );
       case 'blockchain_registered':
         return (
-          <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+          <span className="flex items-center gap-1 px-3 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-sm">
             <CheckCircle className="w-4 h-4" />
             Pago
           </span>
@@ -310,7 +310,11 @@ export function Boletos({ userProfile }: BoletosProps) {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">
         <div>
-          <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Boletos de Condomínio</h1>
+          <span className="inline-flex items-center gap-2 mb-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-brand-teal">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
+            Cobranças
+          </span>
+          <h1 className="font-display font-normal text-brand-navy text-2xl sm:text-3xl mb-2">Boletos de Condomínio</h1>
           <p className="text-wave-500">
             Gestão completa de cobranças e pagamentos do condomínio
           </p>
@@ -333,7 +337,7 @@ export function Boletos({ userProfile }: BoletosProps) {
             <div className="p-3 bg-orange-100 rounded-xl">
               <Clock className="w-6 h-6 text-orange-600" />
             </div>
-            <span className="text-3xl text-wave-800">
+            <span className="font-mono text-3xl text-brand-ink">
               R$ {totalPending.toFixed(2).replace('.', ',')}
             </span>
           </div>
@@ -343,10 +347,10 @@ export function Boletos({ userProfile }: BoletosProps) {
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-6 shadow-lg">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-brand-teal/15 rounded-xl">
+              <CheckCircle className="w-6 h-6 text-brand-teal" />
             </div>
-            <span className="text-3xl text-wave-800">
+            <span className="font-mono text-3xl text-brand-ink">
               R$ {totalPaid.toFixed(2).replace('.', ',')}
             </span>
           </div>
@@ -359,7 +363,7 @@ export function Boletos({ userProfile }: BoletosProps) {
             <div className="p-3 bg-red-100 rounded-xl">
               <AlertCircle className="w-6 h-6 text-red-600" />
             </div>
-            <span className="text-3xl text-wave-800">{totalOverdue}</span>
+            <span className="font-mono text-3xl text-brand-ink">{totalOverdue}</span>
           </div>
           <h3 className="text-wave-800">Vencidos</h3>
           <p className="text-wave-500 text-sm">Requer atenção</p>
@@ -370,7 +374,7 @@ export function Boletos({ userProfile }: BoletosProps) {
             <div className="p-3 bg-wave-100 rounded-xl">
               <Receipt className="w-6 h-6 text-wave-500" />
             </div>
-            <span className="text-3xl text-wave-800">{unitBoletos.length}</span>
+            <span className="font-mono text-3xl text-brand-ink">{unitBoletos.length}</span>
           </div>
           <h3 className="text-wave-800">Total de Boletos</h3>
           <p className="text-wave-500 text-sm">Histórico completo</p>

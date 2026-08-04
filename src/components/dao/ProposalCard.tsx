@@ -73,12 +73,12 @@ export function ProposalCard({
           <span className="font-medium text-wave-800">{ap.percentAprovacao}%</span>
         </div>
         <div className="flex h-3 w-full overflow-hidden rounded-full bg-wave-100">
-          <div className="h-full bg-green-500" style={{ width: `${pctBar(ap.aprovo)}%` }} />
+          <div className="h-full bg-brand-teal" style={{ width: `${pctBar(ap.aprovo)}%` }} />
           <div className="h-full bg-red-500" style={{ width: `${pctBar(ap.reprovo)}%` }} />
           <div className="h-full bg-slate-400" style={{ width: `${pctBar(ap.abstencao)}%` }} />
         </div>
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-          <span className="text-green-600">✓ {ap.aprovo} aprovam</span>
+          <span className="text-brand-teal">✓ {ap.aprovo} aprovam</span>
           <span className="text-red-600">✗ {ap.reprovo} reprovam</span>
           <span className="text-slate-500">• {ap.abstencao} abstencoes</span>
           <span className="text-wave-500">{ap.total} votos no total</span>
@@ -90,7 +90,7 @@ export function ProposalCard({
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <button
             onClick={() => onVotar(proposta.id, 'aprovo')}
-            className="flex items-center justify-center gap-2 rounded-xl bg-green-500 py-2.5 text-sm text-white transition-colors hover:bg-green-600"
+            className="flex items-center justify-center gap-2 rounded-xl bg-brand-teal py-2.5 text-sm text-white transition-colors hover:opacity-90"
           >
             <CheckCircle className="h-4 w-4" /> Aprovo
           </button>

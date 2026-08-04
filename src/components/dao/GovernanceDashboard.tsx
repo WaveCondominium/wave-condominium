@@ -11,7 +11,7 @@ export function GovernanceDashboard({ stats }: { stats: GovernanceStats }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Metric icon={<Vote className="h-5 w-5 text-wave-600" />} label="Em votacao" value={stats.emVotacao} tint="bg-wave-100" />
-        <Metric icon={<CheckCircle className="h-5 w-5 text-green-600" />} label="Aprovadas" value={stats.aprovadas} tint="bg-green-100" />
+        <Metric icon={<CheckCircle className="h-5 w-5 text-brand-teal" />} label="Aprovadas" value={stats.aprovadas} tint="bg-brand-teal/15" />
         <Metric icon={<XCircle className="h-5 w-5 text-red-600" />} label="Rejeitadas" value={stats.rejeitadas} tint="bg-red-100" />
         <Metric icon={<Users className="h-5 w-5 text-purple-600" />} label="Participantes" value={stats.totalParticipantes} tint="bg-purple-100" />
         <Metric icon={<Activity className="h-5 w-5 text-amber-600" />} label="Participacao" value={`${stats.taxaParticipacao}%`} tint="bg-amber-100" />
@@ -32,7 +32,7 @@ export function GovernanceDashboard({ stats }: { stats: GovernanceStats }) {
                     {i + 1}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm text-wave-800">{p.titulo}</span>
-                  <span className="shrink-0 text-sm font-medium text-green-600">{ap.percentAprovacao}%</span>
+                  <span className="shrink-0 text-sm font-medium text-brand-teal">{ap.percentAprovacao}%</span>
                   <span className="shrink-0 text-xs text-wave-500">{ap.aprovo} votos</span>
                 </li>
               );
@@ -48,7 +48,7 @@ function Metric({ icon, label, value, tint }: { icon: React.ReactNode; label: st
   return (
     <div className="rounded-2xl border border-wave-100 bg-white/80 p-4 shadow-sm backdrop-blur-sm">
       <div className={`mb-2 inline-flex rounded-xl p-2 ${tint}`}>{icon}</div>
-      <p className="text-2xl text-wave-800">{value}</p>
+      <p className="font-mono text-2xl text-brand-ink">{value}</p>
       <p className="text-xs text-wave-500">{label}</p>
     </div>
   );

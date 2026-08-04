@@ -22,6 +22,20 @@ const config: Config = {
           800: '#1E2761',
           900: '#131A47',
         },
+        // Tokens de marca extraídos da landing (Design System harmonizado).
+        // Aditivos: novas classes brand-* sem alterar as classes wave-* existentes.
+        brand: {
+          abyss:  '#0A131C',
+          deep:   '#101C29',
+          navy:   '#1A2A3A',
+          steel:  '#3A6EA0',
+          blue:   '#7AA8D0',
+          chrome: '#C0CFE0',
+          teal:   '#5DCAA5',
+          light:  '#F4F7FC',
+          ink:    '#22303F',
+          grey:   '#5A6B7C',
+        },
         background:  'hsl(var(--background))',
         foreground:  'hsl(var(--foreground))',
         card: {
@@ -64,8 +78,11 @@ const config: Config = {
         },
       },
       fontFamily: {
-        serif: ['Playfair Display', 'Georgia', 'serif'],
-        sans:  ['Inter', 'system-ui', 'sans-serif'],
+        serif:   ['Playfair Display', 'Georgia', 'serif'],
+        sans:    ['Inter', 'system-ui', 'sans-serif'],
+        // Fontes da landing (harmonização): títulos em Montserrat, dados em mono.
+        display: ['var(--font-montserrat)', 'Montserrat', 'system-ui', 'sans-serif'],
+        mono:    ['var(--font-plex-mono)', 'IBM Plex Mono', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
         lg: 'var(--radius)',

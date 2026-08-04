@@ -81,7 +81,7 @@ function Field({ label, value, strong = false }: { label: string; value: string;
   return (
     <div>
       <p className="text-xs text-wave-500">{label}</p>
-      <p className={strong ? 'text-lg text-wave-800' : 'text-wave-800'}>{value}</p>
+      <p className={strong ? 'font-mono text-lg text-brand-ink' : 'text-wave-800'}>{value}</p>
     </div>
   );
 }

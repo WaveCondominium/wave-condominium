@@ -65,13 +65,17 @@ export function GovernanceView({ onViewProposal }: GovernanceViewProps) {
       {/* Header */}
       <header className="relative z-10 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="mb-1 text-2xl text-wave-800 sm:text-3xl">Governanca DAO</h1>
-          <p className="text-sm text-wave-500">Decisoes do condominio de forma transparente e participativa</p>
+          <span className="inline-flex items-center gap-2 mb-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-brand-teal">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
+            Governança
+          </span>
+          <h1 className="mb-1 font-display font-normal text-brand-navy text-2xl sm:text-3xl">Governanca DAO</h1>
+          <p className="text-sm text-brand-grey">Decisoes do condominio de forma transparente e participativa</p>
         </div>
         {/* Qualquer morador pode criar uma proposta (vai direto para votacao inicial). */}
         <button
           onClick={() => setShowCreate(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 px-4 py-2.5 text-sm text-white shadow-lg transition-all hover:opacity-95"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel px-4 py-2.5 text-sm text-white shadow-lg transition-all hover:opacity-95"
         >
           <Plus className="h-4 w-4" /> Nova Proposta
         </button>

@@ -151,8 +151,12 @@ function GestorDashboard() {
       
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-20">
         <div>
-          <h1 className="text-2xl sm:text-3xl text-wave-800">Visão Geral</h1>
-          <p className="text-wave-500">Bem-vindo ao painel de gestão do seu condomínio</p>
+          <span className="inline-flex items-center gap-2 mb-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-brand-teal">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
+            Painel de gestão
+          </span>
+          <h1 className="font-display font-normal text-2xl sm:text-3xl text-brand-navy">Visão Geral</h1>
+          <p className="text-brand-grey">Bem-vindo ao painel de gestão do seu condomínio</p>
         </div>
         
         <div className="flex gap-3">
@@ -229,7 +233,7 @@ function GestorDashboard() {
           className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-wave-100 shadow-sm hover:shadow-md hover:border-wave-300 transition-all group block cursor-pointer"
         >
           <div className="flex items-start justify-between mb-4">
-            <div className="p-3 rounded-xl bg-green-100 text-green-600 group-hover:scale-110 transition-transform">
+            <div className="p-3 rounded-xl bg-brand-teal/15 text-brand-teal group-hover:scale-110 transition-transform">
               <DollarSign className="w-6 h-6" />
             </div>
           </div>
@@ -237,21 +241,21 @@ function GestorDashboard() {
           <div className="space-y-1.5 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-wave-500">Saldo</span>
-              <span className="text-wave-800 font-medium">{formatBRL(saldoAtual)}</span>
+              <span className="font-mono text-brand-ink font-medium">{formatBRL(saldoAtual)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-wave-500">Fundo de Reserva</span>
-              <span className="text-wave-800 font-medium">{formatBRL(fundoReserva)}</span>
+              <span className="font-mono text-brand-ink font-medium">{formatBRL(fundoReserva)}</span>
             </div>
             {canViewFinancialCompliance && (
               <>
                 <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-wave-50">
                   <span className="text-wave-500">Adimplência</span>
-                  <span className="text-green-600 font-medium">{percentualAdimplencia}%</span>
+                  <span className="font-mono text-brand-teal font-medium">{percentualAdimplencia}%</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-wave-500">Inadimplência</span>
-                  <span className="text-orange-600 font-medium">{percentualInadimplencia}%</span>
+                  <span className="font-mono text-orange-600 font-medium">{percentualInadimplencia}%</span>
                 </div>
               </>
             )}
@@ -263,10 +267,10 @@ function GestorDashboard() {
           className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-wave-100 shadow-sm hover:shadow-md hover:border-wave-300 transition-all group block cursor-pointer"
         >
           <div className="flex items-start justify-between mb-4">
-            <div className={`p-3 rounded-xl ${abertas > 0 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'} group-hover:scale-110 transition-transform`}>
+            <div className={`p-3 rounded-xl ${abertas > 0 ? 'bg-orange-100 text-orange-600' : 'bg-brand-teal/15 text-brand-teal'} group-hover:scale-110 transition-transform`}>
               <Wrench className="w-6 h-6" />
             </div>
-            <span className={`text-2xl font-bold ${abertas > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+            <span className={`font-mono text-2xl font-bold ${abertas > 0 ? 'text-orange-600' : 'text-brand-teal'}`}>
               {abertas}
             </span>
           </div>
@@ -295,10 +299,10 @@ function GestorDashboard() {
           return (
             <div key={index} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-wave-100 shadow-sm hover:shadow-md transition-all group">
               <div className="flex items-start justify-between mb-4">
-                <div className="p-3 rounded-xl bg-green-100 text-green-600 group-hover:scale-110 transition-transform">
+                <div className="p-3 rounded-xl bg-brand-teal/15 text-brand-teal group-hover:scale-110 transition-transform">
                   <Icon className="w-6 h-6" />
                 </div>
-                <span className="text-2xl font-bold text-green-600">
+                <span className="font-mono text-2xl font-bold text-brand-teal">
                   {metric.value}
                 </span>
               </div>
@@ -317,7 +321,7 @@ function GestorDashboard() {
               <div className="p-2 bg-orange-100 rounded-lg">
                 <AlertTriangle className="w-5 h-5 text-orange-600" />
               </div>
-              <h2 className="text-xl text-wave-800">Atenção Necessária</h2>
+              <h2 className="font-display font-normal text-xl text-brand-navy">Atenção Necessária</h2>
             </div>
             
             <div className="space-y-4">
@@ -386,8 +390,8 @@ function GestorDashboard() {
         </div>
 
         <div className="space-y-8">
-          <div className="bg-gradient-to-br from-wave-700 to-wave-500 rounded-2xl p-6 text-white shadow-lg">
-            <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
+          <div className="bg-gradient-to-br from-brand-deep to-brand-steel rounded-2xl p-6 text-white shadow-lg">
+            <h2 className="font-display text-lg font-medium mb-4 flex items-center gap-2">
               <Zap className="w-5 h-5" />
               Ações Rápidas
             </h2>
@@ -421,7 +425,7 @@ function GestorDashboard() {
           </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-sm p-6">
-            <h2 className="text-xl text-wave-800 mb-6">Próximos Eventos</h2>
+            <h2 className="font-display font-normal text-xl text-brand-navy mb-6">Próximos Eventos</h2>
             {upcomingEvents.length === 0 ? (
               <p className="text-wave-400 text-sm italic text-center py-6">Nenhum evento agendado</p>
             ) : (

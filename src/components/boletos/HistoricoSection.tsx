@@ -34,8 +34,8 @@ export function HistoricoSection({ boletos, onVerComprovante, onVerDetalhes }: H
           <div key={b.id} className="rounded-2xl border border-wave-100 bg-white/80 p-5 shadow-sm backdrop-blur-sm sm:p-6">
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-green-100 p-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                <div className="rounded-xl bg-brand-teal/15 p-2">
+                  <CheckCircle className="h-5 w-5 text-brand-teal" />
                 </div>
                 <div>
                   <h3 className="text-wave-800">{b.description}</h3>
@@ -84,7 +84,7 @@ export function HistoricoSection({ boletos, onVerComprovante, onVerDetalhes }: H
               </button>
               <button
                 onClick={() => onVerComprovante(b)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 py-2.5 text-white shadow-lg transition-all hover:opacity-95"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-teal to-brand-steel py-2.5 text-white shadow-lg transition-all hover:opacity-95"
               >
                 <FileCheck2 className="h-5 w-5" />
                 Ver comprovante
@@ -114,7 +114,7 @@ function Field({
         {icon}
         {label}
       </p>
-      <p className={strong ? 'text-lg text-wave-800' : 'text-wave-800'}>{value}</p>
+      <p className={strong ? 'font-mono text-lg text-brand-ink' : 'text-wave-800'}>{value}</p>
     </div>
   );
 }
