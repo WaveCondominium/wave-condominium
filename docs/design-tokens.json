@@ -1,0 +1,110 @@
+{
+  "$description": "Wave Condominium — Design Tokens. Importe pelo plugin Tokens Studio for Figma (Import → File) para gerar Variables/Styles automaticamente. Valores extraídos da landing e do app (tailwind.config.ts + landing.html).",
+  "color": {
+    "brand": {
+      "abyss":  { "value": "#0A131C", "type": "color", "description": "Navy mais escuro — fundos premium" },
+      "deep":   { "value": "#101C29", "type": "color", "description": "Navy escuro — gradientes/CTA" },
+      "navy":   { "value": "#1A2A3A", "type": "color", "description": "Navy — títulos" },
+      "steel":  { "value": "#3A6EA0", "type": "color", "description": "Azul-aço — fim de gradiente/links" },
+      "blue":   { "value": "#7AA8D0", "type": "color", "description": "Azul primário (botão landing)" },
+      "chrome": { "value": "#C0CFE0", "type": "color", "description": "Azul claro — bordas/detalhes" },
+      "teal":   { "value": "#5DCAA5", "type": "color", "description": "Verde-água — acento/sucesso (assinatura da marca)" },
+      "light":  { "value": "#F4F7FC", "type": "color", "description": "Fundo claro" },
+      "ink":    { "value": "#22303F", "type": "color", "description": "Texto principal" },
+      "grey":   { "value": "#5A6B7C", "type": "color", "description": "Texto secundário" }
+    },
+    "wave": {
+      "50":  { "value": "#F0F4FF", "type": "color" },
+      "100": { "value": "#E8EEFF", "type": "color" },
+      "200": { "value": "#DDE3FF", "type": "color" },
+      "300": { "value": "#C0C8EE", "type": "color" },
+      "400": { "value": "#8A91C7", "type": "color" },
+      "500": { "value": "#4A5FC1", "type": "color" },
+      "600": { "value": "#3730A3", "type": "color" },
+      "700": { "value": "#2D3A8C", "type": "color" },
+      "800": { "value": "#1E2761", "type": "color" },
+      "900": { "value": "#131A47", "type": "color" }
+    },
+    "semantic": {
+      "primary":       { "value": "{color.brand.steel}", "type": "color" },
+      "secondary":     { "value": "{color.brand.blue}", "type": "color" },
+      "background":    { "value": "{color.brand.light}", "type": "color" },
+      "surface":       { "value": "#FFFFFF", "type": "color" },
+      "text":          { "value": "{color.brand.ink}", "type": "color" },
+      "textSecondary": { "value": "{color.brand.grey}", "type": "color" },
+      "border":        { "value": "#E5E9F5", "type": "color" },
+      "success":       { "value": "{color.brand.teal}", "type": "color" },
+      "warning":       { "value": "#EA580C", "type": "color" },
+      "error":         { "value": "#DC2626", "type": "color" },
+      "info":          { "value": "{color.brand.blue}", "type": "color" },
+      "disabled":      { "value": "#B4B2A9", "type": "color" }
+    }
+  },
+  "fontFamily": {
+    "display": { "value": "Montserrat", "type": "fontFamilies", "description": "Títulos" },
+    "body":    { "value": "Inter", "type": "fontFamilies", "description": "Corpo/UI" },
+    "mono":    { "value": "IBM Plex Mono", "type": "fontFamilies", "description": "Números/dados" }
+  },
+  "fontWeight": {
+    "light":   { "value": "300", "type": "fontWeights" },
+    "regular": { "value": "400", "type": "fontWeights" },
+    "medium":  { "value": "500", "type": "fontWeights" },
+    "semibold":{ "value": "600", "type": "fontWeights" }
+  },
+  "fontSize": {
+    "h1":      { "value": "30", "type": "fontSizes" },
+    "h2":      { "value": "24", "type": "fontSizes" },
+    "h3":      { "value": "20", "type": "fontSizes" },
+    "h4":      { "value": "18", "type": "fontSizes" },
+    "body":    { "value": "16", "type": "fontSizes" },
+    "bodySm":  { "value": "14", "type": "fontSizes" },
+    "caption": { "value": "12", "type": "fontSizes" },
+    "label":   { "value": "11", "type": "fontSizes" }
+  },
+  "lineHeight": {
+    "tight":   { "value": "120%", "type": "lineHeights" },
+    "normal":  { "value": "150%", "type": "lineHeights" },
+    "relaxed": { "value": "165%", "type": "lineHeights" }
+  },
+  "spacing": {
+    "xs":  { "value": "4",  "type": "spacing" },
+    "sm":  { "value": "8",  "type": "spacing" },
+    "md":  { "value": "16", "type": "spacing" },
+    "lg":  { "value": "24", "type": "spacing" },
+    "xl":  { "value": "32", "type": "spacing" },
+    "xxl": { "value": "48", "type": "spacing" }
+  },
+  "borderRadius": {
+    "sharp": { "value": "2",  "type": "borderRadius", "description": "Cantos retos (landing)" },
+    "md":    { "value": "8",  "type": "borderRadius" },
+    "lg":    { "value": "12", "type": "borderRadius", "description": "Padrão de card (rounded-xl)" },
+    "xl":    { "value": "16", "type": "borderRadius", "description": "Card grande (rounded-2xl)" },
+    "full":  { "value": "9999", "type": "borderRadius", "description": "Pílula/círculo" }
+  },
+  "boxShadow": {
+    "sm": {
+      "value": { "x": "0", "y": "1", "blur": "2", "spread": "0", "color": "rgba(16,28,41,0.06)", "type": "dropShadow" },
+      "type": "boxShadow"
+    },
+    "md": {
+      "value": { "x": "0", "y": "8", "blur": "24", "spread": "-8", "color": "rgba(16,28,41,0.12)", "type": "dropShadow" },
+      "type": "boxShadow"
+    },
+    "lg": {
+      "value": { "x": "0", "y": "24", "blur": "60", "spread": "-24", "color": "rgba(10,19,28,0.35)", "type": "dropShadow" },
+      "type": "boxShadow"
+    }
+  },
+  "typography": {
+    "h1": { "value": { "fontFamily": "{fontFamily.display}", "fontWeight": "{fontWeight.regular}", "fontSize": "{fontSize.h1}", "lineHeight": "{lineHeight.tight}" }, "type": "typography" },
+    "h2": { "value": { "fontFamily": "{fontFamily.display}", "fontWeight": "{fontWeight.regular}", "fontSize": "{fontSize.h2}", "lineHeight": "{lineHeight.tight}" }, "type": "typography" },
+    "h3": { "value": { "fontFamily": "{fontFamily.display}", "fontWeight": "{fontWeight.medium}",  "fontSize": "{fontSize.h3}", "lineHeight": "{lineHeight.tight}" }, "type": "typography" },
+    "h4": { "value": { "fontFamily": "{fontFamily.display}", "fontWeight": "{fontWeight.medium}",  "fontSize": "{fontSize.h4}", "lineHeight": "{lineHeight.normal}" }, "type": "typography" },
+    "body":    { "value": { "fontFamily": "{fontFamily.body}", "fontWeight": "{fontWeight.regular}", "fontSize": "{fontSize.body}",   "lineHeight": "{lineHeight.relaxed}" }, "type": "typography" },
+    "bodySm":  { "value": { "fontFamily": "{fontFamily.body}", "fontWeight": "{fontWeight.regular}", "fontSize": "{fontSize.bodySm}", "lineHeight": "{lineHeight.normal}" }, "type": "typography" },
+    "caption": { "value": { "fontFamily": "{fontFamily.body}", "fontWeight": "{fontWeight.regular}", "fontSize": "{fontSize.caption}", "lineHeight": "{lineHeight.normal}" }, "type": "typography" },
+    "button":  { "value": { "fontFamily": "{fontFamily.body}", "fontWeight": "{fontWeight.medium}",  "fontSize": "{fontSize.bodySm}", "lineHeight": "{lineHeight.normal}" }, "type": "typography" },
+    "label":   { "value": { "fontFamily": "{fontFamily.mono}", "fontWeight": "{fontWeight.medium}",  "fontSize": "{fontSize.label}",  "lineHeight": "{lineHeight.normal}", "letterSpacing": "0.18em", "textCase": "uppercase" }, "type": "typography" },
+    "number":  { "value": { "fontFamily": "{fontFamily.mono}", "fontWeight": "{fontWeight.medium}",  "fontSize": "{fontSize.h3}",     "lineHeight": "{lineHeight.tight}" }, "type": "typography", "description": "Valores financeiros / métricas (estilo ledger)" }
+  }
+}
