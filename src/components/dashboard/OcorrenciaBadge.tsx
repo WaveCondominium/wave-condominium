@@ -5,7 +5,7 @@ import { type StatusOcorrencia, STATUS_OCORRENCIA_LABEL } from './moradorDashboa
 const META: Record<StatusOcorrencia, { cls: string; Icon: typeof Clock }> = {
   aberta: { cls: 'bg-orange-100 text-orange-700 border-orange-200', Icon: Clock },
   em_andamento: { cls: 'bg-wave-100 text-wave-600 border-wave-200', Icon: Loader },
-  concluida: { cls: 'bg-green-100 text-green-700 border-green-200', Icon: CheckCircle },
+  concluida: { cls: 'bg-brand-teal/15 text-brand-teal border-brand-teal/30', Icon: CheckCircle },
   cancelada: { cls: 'bg-slate-100 text-slate-600 border-slate-200', Icon: XCircle },
 };
 

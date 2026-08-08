@@ -155,7 +155,7 @@ export function SolicitarReservaModal({
             <button
               type="submit"
               disabled={conflito}
-              className="flex-1 rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 py-3 text-white shadow-lg transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel py-3 text-white shadow-lg transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Solicitar
             </button>

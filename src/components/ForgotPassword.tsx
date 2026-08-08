@@ -131,8 +131,8 @@ export function ForgotPassword() {
           ) : (
             <>
               <div className="mb-6 text-center">
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
+                <div className="w-12 h-12 rounded-full bg-brand-teal/15 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-6 h-6 text-brand-teal" />
                 </div>
                 <h2 className="font-serif text-2xl text-wave-800 font-normal mb-1">Senha provisória gerada</h2>
                 <p className="text-wave-500 text-sm">

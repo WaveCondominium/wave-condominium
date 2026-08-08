@@ -44,7 +44,7 @@ export function ProposalDetails({ proposalId, onBack }: ProposalDetailsProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-wave-700 to-wave-500 p-6">
+      <div className="min-h-screen bg-brand-light p-6">
         <button onClick={onBack} className="mb-6 inline-flex items-center gap-2 text-wave-700 hover:text-wave-800">
           <ArrowLeft className="h-5 w-5" /> Voltar
         </button>
@@ -57,7 +57,7 @@ export function ProposalDetails({ proposalId, onBack }: ProposalDetailsProps) {
 
   if (!proposta) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-wave-700 to-wave-500 p-6">
+      <div className="min-h-screen bg-brand-light p-6">
         <button onClick={onBack} className="mb-6 inline-flex items-center gap-2 text-wave-700 hover:text-wave-800">
           <ArrowLeft className="h-5 w-5" /> Voltar
         </button>
@@ -91,7 +91,7 @@ export function ProposalDetails({ proposalId, onBack }: ProposalDetailsProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-wave-700 to-wave-500 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
       <button onClick={onBack} className="mb-6 inline-flex items-center gap-2 text-wave-700 hover:text-wave-800">
         <ArrowLeft className="h-5 w-5" /> Voltar
       </button>
@@ -130,12 +130,12 @@ export function ProposalDetails({ proposalId, onBack }: ProposalDetailsProps) {
             <span className="text-sm text-wave-500">{ap.total} votos</span>
           </div>
           <div className="mb-3 flex h-4 w-full overflow-hidden rounded-full bg-wave-100">
-            <div className="h-full bg-green-500" style={{ width: `${pctBar(ap.aprovo)}%` }} />
+            <div className="h-full bg-brand-teal" style={{ width: `${pctBar(ap.aprovo)}%` }} />
             <div className="h-full bg-red-500" style={{ width: `${pctBar(ap.reprovo)}%` }} />
             <div className="h-full bg-slate-400" style={{ width: `${pctBar(ap.abstencao)}%` }} />
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
-            <Tally icon={<CheckCircle className="h-4 w-4 text-green-600" />} label="Aprovo" n={ap.aprovo} pct={ap.percentAprovacao} />
+            <Tally icon={<CheckCircle className="h-4 w-4 text-brand-teal" />} label="Aprovo" n={ap.aprovo} pct={ap.percentAprovacao} />
             <Tally icon={<XCircle className="h-4 w-4 text-red-600" />} label="Reprovo" n={ap.reprovo} pct={ap.percentReprovacao} />
             <Tally icon={<MinusCircle className="h-4 w-4 text-slate-500" />} label="Abstencao" n={ap.abstencao} pct={ap.percentAbstencao} />
           </div>
@@ -155,7 +155,7 @@ export function ProposalDetails({ proposalId, onBack }: ProposalDetailsProps) {
               <li key={i} className="flex items-start gap-3">
                 <span
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${
-                    e.done ? 'bg-green-100 text-green-700' : 'bg-wave-100 text-wave-400'
+                    e.done ? 'bg-brand-teal/15 text-brand-teal' : 'bg-wave-100 text-wave-400'
                   }`}
                 >
                   {e.done ? '✓' : i + 1}

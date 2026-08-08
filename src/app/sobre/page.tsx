@@ -49,7 +49,7 @@ export default function Sobre() {
             Transparência real para o seu condomínio
           </h1>
           <p className="text-wave-400 text-base leading-relaxed mb-10 max-w-md">
-            Governança auditável, documentos protegidos e decisões registradas de forma segura e permanente — sem complicação para moradores e síndicos.
+            Governança auditável, documentos protegidos e decisões registradas de forma segura e permanente, sem complicação para moradores e síndicos.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
@@ -124,7 +124,7 @@ export default function Sobre() {
             Pronto para transformar a gestão do seu condomínio?
           </h2>
           <p className="text-wave-300 max-w-xl mx-auto mb-8 leading-relaxed">
-            Governança simples, decisões seguras e moradores mais satisfeitos — tudo em uma plataforma.
+            Governança simples, decisões seguras e moradores mais satisfeitos, tudo em uma plataforma.
           </p>
           <Link
             href="/login"

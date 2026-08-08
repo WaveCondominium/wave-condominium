@@ -23,7 +23,7 @@ const MONTHS = [
 ];
 
 const CELL_STYLES: Record<DiaStatus, string> = {
-  disponivel: 'bg-white border-green-200 text-wave-800 hover:bg-green-50 hover:border-green-300 cursor-pointer',
+  disponivel: 'bg-white border-brand-teal/30 text-wave-800 hover:bg-brand-teal/10 hover:border-brand-teal/40 cursor-pointer',
   reservada: 'bg-purple-50 border-purple-300 text-purple-700 cursor-pointer',
   bloqueada: 'bg-slate-100 border-slate-300 text-slate-400 cursor-pointer',
   passado: 'bg-transparent border-transparent text-slate-300 cursor-default',
@@ -79,7 +79,7 @@ export function ReservaCalendar({
               onClick={() => onEspacoChange(id)}
               className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm transition-all ${
                 active
-                  ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow'
+                  ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow'
                   : 'bg-wave-50 text-wave-600 hover:bg-wave-100'
               }`}
             >
@@ -152,7 +152,7 @@ export function ReservaCalendar({
 
       {/* Legenda */}
       <div className="mt-4 flex flex-wrap gap-4 border-t border-wave-100 pt-4 text-xs text-wave-500">
-        <LegendItem className="border-green-300 bg-white" label="Disponivel" />
+        <LegendItem className="border-brand-teal/40 bg-white" label="Disponivel" />
         <LegendItem className="border-purple-300 bg-purple-50" label="Reservada" />
         <LegendItem className="border-slate-300 bg-slate-100" label="Bloqueada" />
         <span className="inline-flex items-center gap-1.5">

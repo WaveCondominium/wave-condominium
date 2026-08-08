@@ -61,7 +61,7 @@ export function GovernanceView({ onViewProposal }: GovernanceViewProps) {
   };
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-wave-700 to-wave-500 p-4 sm:p-6 lg:p-8">
+    <div className="relative min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <header className="relative z-10 mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -160,7 +160,7 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
       aria-selected={active}
       onClick={onClick}
       className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm transition-all ${
-        active ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg' : 'bg-transparent text-wave-500 hover:bg-wave-50'
+        active ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg' : 'bg-transparent text-wave-500 hover:bg-wave-50'
       }`}
     >
       {icon}
@@ -174,7 +174,7 @@ function Chip({ active, onClick, label }: { active: boolean; onClick: () => void
     <button
       onClick={onClick}
       className={`rounded-lg px-3 py-1.5 text-sm transition-all ${
-        active ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow' : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
+        active ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow' : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
       }`}
     >
       {label}

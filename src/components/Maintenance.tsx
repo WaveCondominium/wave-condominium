@@ -89,7 +89,7 @@ export function Maintenance() {
       case 'progress':
         return <span className="px-3 py-1 bg-wave-100 text-wave-600 rounded-full text-sm">Em Andamento</span>;
       case 'completed':
-        return <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">Concluída</span>;
+        return <span className="px-3 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-sm">Concluída</span>;
       default:
         return null;
     }
@@ -168,16 +168,16 @@ export function Maintenance() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
       
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">
         <div>
-          <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Manutenção Preditiva</h1>
+          <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2">Manutenção Preditiva</h1>
           <p className="text-wave-500">Gestão inteligente de garantias, manutenções e conformidade</p>
         </div>
-        <button onClick={() => setShowCreateModal(true)} className="px-4 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2">
+        <button onClick={() => setShowCreateModal(true)} className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2">
           <Plus className="w-5 h-5" />
           Nova OS
         </button>
@@ -209,7 +209,7 @@ export function Maintenance() {
                   ) : statusType === 'warning' ? (
                     <Bell className="w-5 h-5 text-orange-500" />
                   ) : (
-                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <CheckCircle className="w-5 h-5 text-brand-teal" />
                   )}
                 </div>
 
@@ -231,7 +231,7 @@ export function Maintenance() {
                 <div className={`p-3 rounded-xl text-center ${
                   statusType === 'critical' ? 'bg-red-100 text-red-900' :
                   statusType === 'warning' ? 'bg-orange-100 text-orange-900' :
-                  'bg-green-100 text-green-900'
+                  'bg-brand-teal/15 text-brand-navy'
                 }`}>
                   <p className="text-2xl font-bold mb-1">{warranty.daysRemaining}</p>
                   <p className="text-sm">dias restantes</p>
@@ -239,7 +239,7 @@ export function Maintenance() {
 
                 {statusType !== 'good' && (
                   <button
-                    className="w-full mt-4 py-2 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-lg hover:from-wave-700 hover:to-wave-500 transition-all text-sm shadow-lg"
+                    className="w-full mt-4 py-2 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-lg hover:from-wave-700 hover:to-wave-500 transition-all text-sm shadow-lg"
                     onClick={() => handleOpenInspectionModal(warranty)}
                   >
                     Abrir OS de Vistoria
@@ -272,7 +272,7 @@ export function Maintenance() {
                 </div>
                 <div className="text-right">
                   <p className={`text-2xl font-bold mb-1 ${
-                    item.status === 'warning' ? 'text-orange-600' : 'text-green-600'
+                    item.status === 'warning' ? 'text-orange-600' : 'text-brand-teal'
                   }`}>
                     {item.daysRemaining}
                   </p>
@@ -298,7 +298,7 @@ export function Maintenance() {
               onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-xl transition-all ${
                 filter === 'all'
-                  ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                  ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                   : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
               }`}
             >
@@ -308,7 +308,7 @@ export function Maintenance() {
               onClick={() => setFilter('pending')}
               className={`px-4 py-2 rounded-xl transition-all ${
                 filter === 'pending'
-                  ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                  ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                   : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
               }`}
             >
@@ -318,7 +318,7 @@ export function Maintenance() {
               onClick={() => setFilter('progress')}
               className={`px-4 py-2 rounded-xl transition-all ${
                 filter === 'progress'
-                  ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                  ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                   : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
               }`}
             >
@@ -328,7 +328,7 @@ export function Maintenance() {
               onClick={() => setFilter('completed')}
               className={`px-4 py-2 rounded-xl transition-all ${
                 filter === 'completed'
-                  ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                  ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                   : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
               }`}
             >
@@ -349,7 +349,7 @@ export function Maintenance() {
                     <h3 className="text-wave-800 text-lg">{order.title}</h3>
                     {getPriorityBadge(order.priority)}
                     {order.isInspection && (
-                      <span className="px-3 py-1 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-full text-xs flex items-center gap-1 shadow-lg">
+                      <span className="px-3 py-1 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-full text-xs flex items-center gap-1 shadow-lg">
                         <Shield className="w-3 h-3" />
                         Vistoria
                       </span>
@@ -392,7 +392,7 @@ export function Maintenance() {
                       setMaintenanceOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: nextStatus } : o));
                       toast.success(`OS ${order.id} atualizada para: ${label}`);
                     }}
-                    className="flex-1 py-2 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:opacity-90 transition-all shadow-lg text-sm"
+                    className="flex-1 py-2 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg text-sm"
                   >
                     {order.status === 'pending' ? 'Iniciar OS' : 'Concluir OS'}
                   </button>
@@ -404,7 +404,7 @@ export function Maintenance() {
       </div>
 
       {/* Blockchain Info */}
-      <div className="mt-8 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
+      <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
           <Shield className="w-6 h-6 text-wave-500 shrink-0 mt-1" />
           <div>

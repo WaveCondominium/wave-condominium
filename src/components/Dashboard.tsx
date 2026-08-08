@@ -165,7 +165,7 @@ export function Dashboard({ onViewProposal, onNavigate }: DashboardProps) {
   ];
 
   const getStatusIcon = (status: string) => {
-    if (status === 'good') return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+    if (status === 'good') return <CheckCircle className="w-4 h-4 text-brand-teal" />;
     if (status === 'warning') return <AlertTriangle className="w-4 h-4 text-amber-500" />;
     return <Activity className="w-4 h-4 text-wave-400" />;
   };
@@ -182,7 +182,7 @@ export function Dashboard({ onViewProposal, onNavigate }: DashboardProps) {
       {/* Header */}
       <div className="mb-8">
         <p className="text-wave-400 text-sm italic font-serif mb-1">Visão geral</p>
-        <h1 className="font-serif text-2xl sm:text-3xl text-wave-800 font-normal">Residencial Aurora</h1>
+        <h1 className="font-display text-2xl sm:text-3xl text-brand-navy font-normal">Residencial Aurora</h1>
       </div>
 
       {/* Métricas principais */}

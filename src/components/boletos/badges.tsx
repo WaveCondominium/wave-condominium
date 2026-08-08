@@ -23,7 +23,7 @@ export function StatusAbertoBadge({ status, className = '' }: { status: StatusAb
 /** Badge fixo "Pago" para o historico de pagamentos. */
 export function PagoBadge({ className = '' }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-100 px-3 py-1 text-xs font-medium text-green-700 ${className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border border-brand-teal/30 bg-brand-teal/15 px-3 py-1 text-xs font-medium text-brand-teal ${className}`}>
       <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" />
       Pago
     </span>

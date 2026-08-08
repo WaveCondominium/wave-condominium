@@ -26,7 +26,7 @@ export function Communication() {
   const [activeTab, setActiveTab] = useState<Tab>('avisos');
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-wave-700 to-wave-500 p-4 sm:p-6 lg:p-8">
+    <div className="relative min-h-screen bg-brand-light p-4 sm:p-6 lg:p-8">
       <header className="relative z-10 mb-6">
         <h1 className="mb-1 text-2xl text-wave-800 sm:text-3xl">Comunicacao</h1>
         <p className="text-sm text-wave-500 sm:text-base">
@@ -73,7 +73,7 @@ function TabButton({ active, onClick, icon, label }: TabButtonProps) {
       onClick={onClick}
       className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm transition-all sm:text-base ${
         active
-          ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+          ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
           : 'bg-transparent text-wave-500 hover:bg-wave-50'
       }`}
     >

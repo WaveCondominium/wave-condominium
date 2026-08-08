@@ -81,7 +81,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-wave-700 to-wave-500 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-gradient-to-br from-brand-deep to-brand-steel z-50 overflow-y-auto">
       
       
       <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
@@ -89,7 +89,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl flex items-center justify-center">
                 <Home className="w-7 h-7 text-white" />
               </div>
               <h1 className="text-wave-800 text-3xl">Wave</h1>
@@ -116,7 +116,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   key={s}
                   className={`flex items-center justify-center w-10 h-10 rounded-full ${
                     s <= step
-                      ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white'
+                      ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white'
                       : 'bg-wave-100 text-wave-400'
                   }`}
                 >
@@ -130,7 +130,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             </div>
             <div className="h-2 bg-wave-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-wave-700 to-wave-500 transition-all duration-300"
+                className="h-full bg-gradient-to-r from-brand-deep to-brand-steel transition-all duration-300"
                 style={{ width: `${(step / totalSteps) * 100}%` }}
               />
             </div>
@@ -277,7 +277,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           {step === 4 && (
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-6">
-                <CheckCircle className="w-8 h-8 text-green-500" />
+                <CheckCircle className="w-8 h-8 text-brand-teal" />
                 <h3 className="text-wave-800 text-xl">Revisão Final</h3>
               </div>
 
@@ -318,7 +318,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-wave-700 to-wave-500 rounded-xl p-4 border border-wave-200">
+              <div className="bg-gradient-to-r from-brand-deep to-brand-steel rounded-xl p-4 border border-wave-200">
                 <div className="flex items-start gap-3">
                   <Shield className="w-5 h-5 text-wave-500 shrink-0 mt-1" />
                   <div>
@@ -346,7 +346,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             )}
             <button
               onClick={handleNext}
-              className="flex-1 py-3 px-6 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center justify-center gap-2"
+              className="flex-1 py-3 px-6 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center justify-center gap-2"
             >
               {step === totalSteps ? 'Finalizar' : 'Próximo'}
               {step < totalSteps && <ArrowRight className="w-5 h-5" />}

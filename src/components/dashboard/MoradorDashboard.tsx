@@ -33,7 +33,7 @@ export function MoradorDashboard() {
       <header>
         <h2 className="text-xl text-wave-800 sm:text-2xl">Documentos e Comunicados da Minha Unidade</h2>
         <p className="text-sm text-wave-500">
-          {userProfile.unit ? `${userProfile.unit} — ` : ''}apenas o que pertence a sua unidade e os comunicados do condominio.
+          {userProfile.unit ? `${userProfile.unit}: ` : ''}apenas o que pertence a sua unidade e os comunicados do condominio.
         </p>
       </header>
 

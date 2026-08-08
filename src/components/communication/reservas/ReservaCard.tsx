@@ -88,7 +88,7 @@ export function ReservaCard({
               </button>
               <button
                 onClick={() => onAprovar(reserva)}
-                className="rounded-lg bg-green-100 px-3 py-1.5 text-sm text-green-700 transition-colors hover:bg-green-200"
+                className="rounded-lg bg-brand-teal/15 px-3 py-1.5 text-sm text-brand-teal transition-colors hover:bg-brand-teal/20"
               >
                 Aprovar
               </button>

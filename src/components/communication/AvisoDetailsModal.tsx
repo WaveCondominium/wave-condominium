@@ -123,7 +123,7 @@ export function AvisoDetailsModal({ aviso, onClose, onAddComment }: AvisoDetails
               <button
                 onClick={handleEnviar}
                 disabled={!texto.trim()}
-                className="rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 px-6 py-3 text-white shadow-lg transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel px-6 py-3 text-white shadow-lg transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Enviar
               </button>

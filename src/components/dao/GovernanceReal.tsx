@@ -191,7 +191,7 @@ export function GovernanceReal({ onViewProposal }: GovernanceProps) {
     }
 
     return proposal.approved ? (
-      <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+      <span className="flex items-center gap-1 px-3 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-sm">
         <CheckCircle className="w-4 h-4" />
         Aprovada
       </span>
@@ -386,12 +386,12 @@ export function GovernanceReal({ onViewProposal }: GovernanceProps) {
                       </div>
                       <div className="w-full h-3 bg-blue-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-green-400 to-emerald-400 transition-all"
+                          className="h-full bg-gradient-to-r from-brand-teal to-brand-steel transition-all"
                           style={{ width: `${approvalRate}%` }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-sm mt-2">
-                        <span className="text-green-600">
+                        <span className="text-brand-teal">
                           ✓ {proposal.votesFor} a favor
                         </span>
                         <span className="text-red-600">
@@ -408,7 +408,7 @@ export function GovernanceReal({ onViewProposal }: GovernanceProps) {
                           disabled={!isConnected || voting === `${proposal.id}-true`}
                           className={`flex-1 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
                             isConnected
-                              ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg'
+                              ? 'bg-gradient-to-r from-brand-teal to-brand-steel text-white hover:opacity-90 shadow-lg'
                               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           }`}
                         >

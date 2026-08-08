@@ -304,7 +304,7 @@ export function Boletos({ userProfile }: BoletosProps) {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
       
 
       {/* Header */}
@@ -322,7 +322,7 @@ export function Boletos({ userProfile }: BoletosProps) {
         {canIssueBoleto && (
           <button
             onClick={() => setShowIssueModal(true)}
-            className="px-4 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
+            className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
             Emitir Boleto
@@ -387,7 +387,7 @@ export function Boletos({ userProfile }: BoletosProps) {
           onClick={() => setActiveTab('abertos')}
           className={`flex-1 px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
             activeTab === 'abertos'
-              ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+              ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
               : 'bg-transparent text-wave-500 hover:bg-wave-50'
           }`}
         >
@@ -398,7 +398,7 @@ export function Boletos({ userProfile }: BoletosProps) {
           onClick={() => setActiveTab('historico')}
           className={`flex-1 px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
             activeTab === 'historico'
-              ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+              ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
               : 'bg-transparent text-wave-500 hover:bg-wave-50'
           }`}
         >
@@ -429,7 +429,7 @@ export function Boletos({ userProfile }: BoletosProps) {
       </div>
 
       {/* Info Box */}
-      <div className="mt-8 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
+      <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
           <Receipt className="w-6 h-6 text-wave-500 shrink-0 mt-1" />
           <div>

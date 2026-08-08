@@ -34,7 +34,7 @@ const INITIAL_UNITS: Unit[] = [
 ];
 
 const statusColors: Record<string, string> = {
-  'Ocupado': 'bg-green-100 text-green-700',
+  'Ocupado': 'bg-brand-teal/15 text-brand-teal',
   'Alugado': 'bg-blue-100 text-blue-700',
   'Vago': 'bg-gray-100 text-gray-600',
 };
@@ -92,15 +92,15 @@ export function Units() {
   const totalResidents = units.reduce((s, u) => s + u.residents, 0);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">
         <div>
-          <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Unidades</h1>
+          <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2">Unidades</h1>
           <p className="text-wave-500">Gestão de apartamentos e moradores do condomínio</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="px-4 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl shadow-lg flex items-center gap-2 hover:opacity-90 transition-all">
+        <button onClick={() => setShowAddModal(true)} className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl shadow-lg flex items-center gap-2 hover:opacity-90 transition-all">
           <Plus className="w-5 h-5" /> Nova Unidade
         </button>
       </div>
@@ -109,7 +109,7 @@ export function Units() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-10">
         {[
           { label: 'Total', value: units.length, color: 'bg-wave-100', text: 'text-wave-600' },
-          { label: 'Ocupadas', value: units.filter(u => u.status === 'Ocupado').length, color: 'bg-green-100', text: 'text-green-700' },
+          { label: 'Ocupadas', value: units.filter(u => u.status === 'Ocupado').length, color: 'bg-brand-teal/15', text: 'text-brand-teal' },
           { label: 'Alugadas', value: units.filter(u => u.status === 'Alugado').length, color: 'bg-blue-100', text: 'text-blue-700' },
           { label: 'Moradores', value: totalResidents, color: 'bg-purple-100', text: 'text-purple-700' },
         ].map(s => (

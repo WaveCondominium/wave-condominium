@@ -22,7 +22,7 @@ export function AvisosEmptyState({ canManage, onCreate }: AvisosEmptyStateProps)
       {canManage && onCreate && (
         <button
           onClick={onCreate}
-          className="mt-6 rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 px-5 py-2.5 text-sm text-white shadow-lg transition-all hover:opacity-95"
+          className="mt-6 rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel px-5 py-2.5 text-sm text-white shadow-lg transition-all hover:opacity-95"
         >
           Publicar comunicado
         </button>

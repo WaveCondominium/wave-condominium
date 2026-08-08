@@ -69,7 +69,7 @@ export function ProjectPriorities() {
     switch (status) {
       case 'approved':
         return (
-          <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+          <span className="flex items-center gap-1 px-3 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-sm">
             <CheckCircle className="w-4 h-4" />
             Aprovada - Aguardando Propostas
           </span>
@@ -117,7 +117,7 @@ export function ProjectPriorities() {
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'Sustentabilidade':
-        return 'bg-green-100 text-green-700';
+        return 'bg-brand-teal/15 text-brand-teal';
       case 'Segurança':
         return 'bg-red-100 text-red-700';
       case 'Infraestrutura':
@@ -236,7 +236,7 @@ export function ProjectPriorities() {
                   {project.estimatedCost && (
                     <div className={`p-4 rounded-xl mb-4 ${
                       budgetStatus 
-                        ? 'bg-green-50 border border-green-200' 
+                        ? 'bg-brand-teal/10 border border-brand-teal/30' 
                         : 'bg-orange-50 border border-orange-200'
                     }`}>
                       <div className="flex items-center justify-between">
@@ -248,8 +248,8 @@ export function ProjectPriorities() {
                         </div>
                         {budgetStatus ? (
                           <div className="text-right">
-                            <CheckCircle className="w-8 h-8 text-green-600 mb-1" />
-                            <p className="text-sm text-green-700">Orçamento OK</p>
+                            <CheckCircle className="w-8 h-8 text-brand-teal mb-1" />
+                            <p className="text-sm text-brand-teal">Orçamento OK</p>
                           </div>
                         ) : (
                           <div className="text-right">
@@ -297,7 +297,7 @@ export function ProjectPriorities() {
                     )}
 
                     {project.status === 'ready' && (
-                      <button className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg">
+                      <button className="flex-1 py-3 bg-gradient-to-r from-brand-teal to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg">
                         Iniciar Execução do Projeto
                       </button>
                     )}

@@ -184,7 +184,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
         );
       case 'ongoing':
         return (
-          <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm animate-pulse">
+          <span className="flex items-center gap-1 px-3 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-sm animate-pulse">
             <Video className="w-4 h-4" />
             Ao Vivo
           </span>
@@ -202,19 +202,19 @@ export function Meetings({ userProfile }: MeetingsProps) {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
       
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">
         <div>
-          <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Reuniões & Assembleias</h1>
+          <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2">Reuniões & Assembleias</h1>
           <p className="text-wave-500">Participe das decisões do condomínio online via Google Meets</p>
         </div>
         {canCreateMeeting && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
+            className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
             Agendar Reunião
@@ -237,8 +237,8 @@ export function Meetings({ userProfile }: MeetingsProps) {
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-6 shadow-lg">
           <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-100 rounded-xl">
-              <Users className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-brand-teal/15 rounded-xl">
+              <Users className="w-6 h-6 text-brand-teal" />
             </div>
             <span className="text-3xl text-wave-800">
               {upcomingMeetings.reduce((acc, m) => acc + m.participants, 0)}
@@ -267,7 +267,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-xl transition-all ${
               filter === 'all'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                 : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
             }`}
           >
@@ -277,7 +277,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
             onClick={() => setFilter('scheduled')}
             className={`px-4 py-2 rounded-xl transition-all ${
               filter === 'scheduled'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                 : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
             }`}
           >
@@ -287,7 +287,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
             onClick={() => setFilter('completed')}
             className={`px-4 py-2 rounded-xl transition-all ${
               filter === 'completed'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                 : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
             }`}
           >
@@ -309,7 +309,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
           {canCreateMeeting && filter !== 'completed' && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg"
+              className="px-6 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg"
             >
               Agendar Primeira Reunião
             </button>
@@ -382,7 +382,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
                       href={meeting.meetLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg flex items-center justify-center gap-2"
+                      className="flex-1 py-3 bg-gradient-to-r from-brand-teal to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2"
                     >
                       <Video className="w-5 h-5" />
                       Entrar na Reunião (Google Meets)
@@ -398,7 +398,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
                       </button>
                     )}
                     {isConfirmed && (
-                      <div className="px-6 py-3 bg-green-100 text-green-700 rounded-xl flex items-center gap-2">
+                      <div className="px-6 py-3 bg-brand-teal/15 text-brand-teal rounded-xl flex items-center gap-2">
                         <CheckCircle className="w-5 h-5" />
                         Presença Confirmada
                       </div>
@@ -457,7 +457,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
       )}
 
       {/* Info Box */}
-      <div className="mt-8 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
+      <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
           <Video className="w-6 h-6 text-wave-500 shrink-0 mt-1" />
           <div>
@@ -534,7 +534,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
               </button>
               <button
                 onClick={handleSaveAta}
-                className="flex-1 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg"
+                className="flex-1 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg"
               >
                 Salvar Ata
               </button>

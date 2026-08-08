@@ -150,14 +150,14 @@ export function AdminPanel() {
   const pendingDocumentsCount = pendingDocuments.filter(d => d.status === 'pending' || d.status === 'pending_approval').length;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
       
 
       {/* Header */}
       <div className="mb-8 relative z-10">
         <div className="flex items-center gap-3 mb-2">
           <Shield className="w-8 h-8 text-wave-500" />
-          <h1 className="text-wave-800 text-2xl sm:text-3xl">Painel Administrativo</h1>
+          <h1 className="font-display text-brand-navy text-2xl sm:text-3xl">Painel Administrativo</h1>
         </div>
         <p className="text-wave-500">
           Gerencie aprovações de propostas/documentos e a ancoragem de hashes na Stellar
@@ -167,22 +167,22 @@ export function AdminPanel() {
       {/* Operator Account Status */}
       <div className={`mb-8 p-6 rounded-2xl border-2 shadow-lg relative z-10 ${
         isConnected 
-          ? 'bg-green-50 border-green-300' 
+          ? 'bg-brand-teal/10 border-brand-teal/40' 
           : 'bg-orange-50 border-orange-300'
       }`}>
         <div className="flex items-start gap-3">
           {isConnected ? (
-            <CheckCircle className="w-6 h-6 text-green-600 mt-1" />
+            <CheckCircle className="w-6 h-6 text-brand-teal mt-1" />
           ) : (
             <AlertCircle className="w-6 h-6 text-orange-600 mt-1" />
           )}
           <div className="flex-1">
-            <h3 className={`mb-2 ${isConnected ? 'text-green-900' : 'text-orange-900'}`}>
+            <h3 className={`mb-2 ${isConnected ? 'text-brand-navy' : 'text-orange-900'}`}>
               {isConnected ? '✅ Sessão de Administrador Ativa' : '⚠️ Login Necessário'}
             </h3>
             {isConnected ? (
-              <div className="text-sm text-green-700">
-                <p>Você pode aprovar propostas e documentos. O hash de cada aprovação é ancorado automaticamente na Stellar pela conta operacional da Wave — não é necessário conectar nenhuma carteira pessoal.</p>
+              <div className="text-sm text-brand-teal">
+                <p>Você pode aprovar propostas e documentos. O hash de cada aprovação é ancorado automaticamente na Stellar pela conta operacional da Wave. Não é necessário conectar nenhuma carteira pessoal.</p>
               </div>
             ) : (
               <div className="text-sm text-orange-700">
@@ -204,7 +204,7 @@ export function AdminPanel() {
               <h3 className="text-wave-800 mb-2">Configurar Conta Operacional Stellar</h3>
               <p className="text-wave-600 text-sm mb-4">
                 Antes de aprovar propostas e documentos, configure a conta da Wave na rede Stellar.
-                Não há contratos para deployar — apenas uma conta que assina as ancoragens de hash.
+                Não há contratos para deployar, apenas uma conta que assina as ancoragens de hash.
               </p>
               <div className="bg-white rounded-xl p-4 mb-4">
                 <h4 className="text-wave-800 mb-2">Passos para Configurar:</h4>
@@ -227,7 +227,7 @@ export function AdminPanel() {
                 </a>
                 <button
                   onClick={() => setContractsDeployed(true)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all text-sm"
+                  className="px-4 py-2 bg-brand-teal text-white rounded-xl hover:opacity-90 transition-all text-sm"
                 >
                   Marcar como Configurado
                 </button>
@@ -270,7 +270,7 @@ export function AdminPanel() {
         
         {pendingProposals.filter(p => p.status === 'pending' || p.status === 'pending_approval').length === 0 ? (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-12 text-center shadow-lg">
-            <CheckCircle className="w-16 h-16 text-green-300 mx-auto mb-4" />
+            <CheckCircle className="w-16 h-16 text-brand-teal mx-auto mb-4" />
             <p className="text-wave-500">Nenhuma proposta aguardando aprovação</p>
           </div>
         ) : (
@@ -306,7 +306,7 @@ export function AdminPanel() {
                       disabled={deploying === proposal.id}
                       className={`flex-1 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
                         deploying !== proposal.id
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg'
+                          ? 'bg-gradient-to-r from-brand-teal to-brand-steel text-white hover:opacity-90 shadow-lg'
                           : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       }`}
                     >
@@ -343,7 +343,7 @@ export function AdminPanel() {
         
         {pendingDocuments.filter(d => d.status === 'pending' || d.status === 'pending_approval').length === 0 ? (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-12 text-center shadow-lg">
-            <CheckCircle className="w-16 h-16 text-green-300 mx-auto mb-4" />
+            <CheckCircle className="w-16 h-16 text-brand-teal mx-auto mb-4" />
             <p className="text-wave-500">Nenhum documento aguardando aprovação</p>
           </div>
         ) : (
@@ -383,7 +383,7 @@ export function AdminPanel() {
                       disabled={deploying === document.id}
                       className={`flex-1 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
                         deploying !== document.id
-                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg'
+                          ? 'bg-gradient-to-r from-brand-teal to-brand-steel text-white hover:opacity-90 shadow-lg'
                           : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       }`}
                     >
@@ -415,7 +415,7 @@ export function AdminPanel() {
       </div>
 
       {/* Blockchain Info */}
-      <div className="mt-8 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
+      <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
           <Shield className="w-6 h-6 text-wave-500 shrink-0 mt-1" />
           <div>

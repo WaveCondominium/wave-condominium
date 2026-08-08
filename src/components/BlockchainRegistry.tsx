@@ -9,7 +9,7 @@ import { useUser } from '@/contexts/UserContext';
 type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document';
 
 const TYPE_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string }> = {
-  financial: { label: 'Pagamento',  icon: DollarSign, color: 'text-emerald-700', bg: 'bg-emerald-100' },
+  financial: { label: 'Pagamento',  icon: DollarSign, color: 'text-brand-teal', bg: 'bg-brand-teal/15' },
   proposal:  { label: 'Proposta',   icon: Vote,       color: 'text-purple-700',  bg: 'bg-purple-100'  },
   vote:      { label: 'Voto',       icon: Vote,       color: 'text-blue-700',    bg: 'bg-blue-100'    },
   document:  { label: 'Documento',  icon: FileText,   color: 'text-amber-700',   bg: 'bg-amber-100'   },
@@ -41,17 +41,17 @@ export function BlockchainRegistry() {
   const pending   = records.filter(r => r.status === 'pending').length;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
 
       {/* Header */}
       <div className="mb-6 relative z-10">
-        <h1 className="text-wave-800 text-2xl sm:text-3xl mb-1">
+        <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-1">
           {userProfile.role === 'Morador' ? 'Meus Comprovantes' : 'Auditoria Stellar'}
         </h1>
         <p className="text-wave-500 text-sm">
           {userProfile.role === 'Morador'
-            ? 'Comprovantes dos seus pagamentos — verificáveis de forma independente'
-            : 'Trilha de auditoria completa — todos os eventos registrados na rede Stellar'}
+            ? 'Comprovantes dos seus pagamentos, verificáveis de forma independente'
+            : 'Trilha de auditoria completa, com todos os eventos registrados na rede Stellar'}
         </p>
       </div>
 
@@ -59,7 +59,7 @@ export function BlockchainRegistry() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-10">
         {[
           { label: 'Total de registros',  value: records.length,           icon: Shield,       bg: 'bg-wave-100',    color: 'text-wave-600'    },
-          { label: 'Confirmados',          value: confirmed,                 icon: CheckCircle,  bg: 'bg-emerald-100', color: 'text-emerald-600' },
+          { label: 'Confirmados',          value: confirmed,                 icon: CheckCircle,  bg: 'bg-brand-teal/15', color: 'text-brand-teal' },
           { label: 'Pendentes',            value: pending,                   icon: Clock,        bg: 'bg-amber-100',   color: 'text-amber-600'   },
           { label: 'Pagamentos verificados', value: boletosRegistrados.length, icon: DollarSign, bg: 'bg-blue-100',    color: 'text-blue-600'    },
         ].map(s => (
@@ -77,12 +77,12 @@ export function BlockchainRegistry() {
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-6 mb-8 shadow-lg relative z-10">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-emerald-600" />
+            <DollarSign className="w-5 h-5 text-brand-teal" />
             <h2 className="text-wave-800 text-lg font-medium">Pagamentos Condominiais</h2>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-emerald-700 text-xs font-medium">Verificável publicamente</span>
+          <div className="flex items-center gap-2 px-3 py-1 bg-brand-teal/10 border border-brand-teal/30 rounded-full">
+            <div className="w-2 h-2 bg-brand-teal/100 rounded-full animate-pulse" />
+            <span className="text-brand-teal text-xs font-medium">Verificável publicamente</span>
           </div>
         </div>
 
@@ -103,7 +103,7 @@ export function BlockchainRegistry() {
                   : null);
 
               return (
-                <div key={boleto.id} className="border border-emerald-200 bg-emerald-50/60 rounded-xl p-4">
+                <div key={boleto.id} className="border border-brand-teal/30 bg-brand-teal/10 rounded-xl p-4">
                   {/* Cabeçalho do pagamento */}
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -121,7 +121,7 @@ export function BlockchainRegistry() {
                         </p>
                       )}
                     </div>
-                    <span className="flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium shrink-0">
+                    <span className="flex items-center gap-1 px-2.5 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-xs font-medium shrink-0">
                       <CheckCircle className="w-3 h-3" /> Verificado
                     </span>
                   </div>
@@ -155,7 +155,7 @@ export function BlockchainRegistry() {
                         href={explorerUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2 flex items-center justify-center gap-2 w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors text-xs font-medium"
+                        className="mt-2 flex items-center justify-center gap-2 w-full py-2.5 bg-brand-teal hover:opacity-90 text-white rounded-lg transition-colors text-xs font-medium"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
                         Verificar transação na rede Stellar
@@ -209,7 +209,7 @@ export function BlockchainRegistry() {
                     </td>
                     <td className="py-2 px-3">
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
+                        <span className="px-2 py-0.5 bg-brand-teal/15 text-brand-teal rounded-full text-xs font-medium">
                           STELLAR_CONFIRMED
                         </span>
                         {explorerUrl && (
@@ -324,7 +324,7 @@ export function BlockchainRegistry() {
       )}
 
       {/* Info box */}
-      <div className="bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
+      <div className="bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
           <Shield className="w-6 h-6 text-wave-300 shrink-0 mt-1" />
           <div>
@@ -332,7 +332,7 @@ export function BlockchainRegistry() {
             <p className="text-wave-600 text-sm mb-3">
               Cada pagamento gera um comprovante em hash SHA-256 registrado permanentemente
               na rede Stellar via campo <code className="bg-wave-100 px-1 rounded text-xs font-mono">memo_hash</code>.
-              Qualquer pessoa — morador, síndico ou auditor externo — pode clicar em
+              Qualquer pessoa (morador, síndico ou auditor externo) pode clicar em
               "Verificar transação" e confirmar o registro diretamente no Stellar Explorer,
               sem depender da plataforma Wave.
             </p>
@@ -361,7 +361,7 @@ export function BlockchainRegistry() {
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'confirmed') return (
-    <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs shrink-0">
+    <span className="flex items-center gap-1 px-2 py-0.5 bg-brand-teal/15 text-brand-teal rounded-full text-xs shrink-0">
       <CheckCircle className="w-3 h-3" /> Confirmado
     </span>
   );

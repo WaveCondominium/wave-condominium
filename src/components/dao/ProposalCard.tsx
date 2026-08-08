@@ -112,7 +112,7 @@ export function ProposalCard({
       {meuVoto && (
         <div className="rounded-xl bg-wave-50 py-2.5 text-center text-sm text-wave-600">
           Voce votou: <strong>{meuVoto === 'aprovo' ? 'Aprovo' : meuVoto === 'reprovo' ? 'Reprovo' : 'Abstencao'}</strong>
-          {' '}— seu voto nao pode ser alterado.
+          {' '}(seu voto nao pode ser alterado).
         </div>
       )}
 

@@ -41,7 +41,7 @@ export function Profile({ userProfile }: ProfileProps) {
 
   const achievements = [
     { title: 'Participação Ativa', description: 'Votou em mais de 10 propostas', icon: Award, color: 'bg-yellow-100 text-yellow-600' },
-    { title: 'Pagador Pontual', description: '12 meses sem atraso', icon: Shield, color: 'bg-green-100 text-green-600' },
+    { title: 'Pagador Pontual', description: '12 meses sem atraso', icon: Shield, color: 'bg-brand-teal/15 text-brand-teal' },
     { title: 'Membro Fundador', description: 'Desde o início da plataforma', icon: Key, color: 'bg-wave-100 text-wave-500' }
   ];
 
@@ -192,7 +192,7 @@ export function Profile({ userProfile }: ProfileProps) {
                   </div>
                   <span className={`px-3 py-1 rounded-full text-sm ${
                     vote.vote === 'A favor'
-                      ? 'bg-green-100 text-green-700'
+                      ? 'bg-brand-teal/15 text-brand-teal'
                       : 'bg-red-100 text-red-700'
                   }`}>
                     {vote.vote}
@@ -208,7 +208,7 @@ export function Profile({ userProfile }: ProfileProps) {
           {/* Payment History */}
           <div className="bg-white rounded-xl border border-slate-200 p-6">
             <div className="flex items-center gap-2 mb-6">
-              <Shield className="w-5 h-5 text-green-500" />
+              <Shield className="w-5 h-5 text-brand-teal" />
               <h3 className="text-slate-900 text-lg">Histórico de Pagamentos</h3>
             </div>
             <div className="overflow-x-auto">
@@ -228,7 +228,7 @@ export function Profile({ userProfile }: ProfileProps) {
                       <td className="px-4 py-3 text-slate-900">{payment.amount}</td>
                       <td className="px-4 py-3 text-slate-600 text-sm">{payment.date}</td>
                       <td className="px-4 py-3">
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                        <span className="px-2 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-xs">
                           {payment.status}
                         </span>
                       </td>
@@ -305,7 +305,7 @@ export function Profile({ userProfile }: ProfileProps) {
               </button>
               <button className="w-full p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors text-left" onClick={handleTwoFactorAuth}>
                 <p className="text-slate-900 mb-1">Autenticação em Duas Etapas</p>
-                <p className="text-green-600 text-sm">Ativo</p>
+                <p className="text-brand-teal text-sm">Ativo</p>
               </button>
               <button className="w-full p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors text-left" onClick={handleActiveSessions}>
                 <p className="text-slate-900 mb-1">Sessões Ativas</p>

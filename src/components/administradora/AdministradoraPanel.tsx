@@ -56,14 +56,14 @@ export function AdministradoraPanel() {
   const totais = data?.totais;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
       {/* Header */}
       <div className="mb-6 sm:mb-8 relative z-10">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-9 h-9 rounded-xl bg-wave-500 flex items-center justify-center flex-shrink-0">
             <Building2 className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-wave-800 text-2xl sm:text-3xl">Painel da Administradora</h1>
+          <h1 className="font-display text-brand-navy text-2xl sm:text-3xl">Painel da Administradora</h1>
         </div>
         <p className="text-wave-500">
           Visao consolidada dos condominios sob sua gestao. Selecione um para gerenciar.
@@ -121,7 +121,7 @@ export function AdministradoraPanel() {
                 <button
                   onClick={() => handleGerenciar(c.id)}
                   disabled={entrando !== null}
-                  className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 text-white text-sm font-medium transition-all hover:from-wave-700 hover:to-wave-600 disabled:opacity-60"
+                  className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel text-white text-sm font-medium transition-all hover:from-wave-700 hover:to-wave-600 disabled:opacity-60"
                 >
                   {entrando === c.id ? (
                     <>
@@ -181,7 +181,7 @@ function MiniStat({
     tone === 'alerta'
       ? 'text-amber-700 bg-amber-50 border-amber-100'
       : tone === 'ok'
-        ? 'text-green-700 bg-green-50 border-green-100'
+        ? 'text-brand-teal bg-brand-teal/10 border-brand-teal/20'
         : 'text-wave-700 bg-wave-50 border-wave-100';
   return (
     <div className={`rounded-xl border px-3 py-2 ${toneClass}`}>

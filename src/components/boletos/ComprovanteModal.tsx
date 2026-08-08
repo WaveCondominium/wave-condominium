@@ -50,7 +50,7 @@ export function ComprovanteModal({ boleto, onClose }: ComprovanteModalProps) {
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-wave-100 bg-white p-6 shadow-2xl">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 p-2">
+            <div className="rounded-xl bg-gradient-to-br from-brand-teal to-brand-steel p-2">
               <ShieldCheck className="h-5 w-5 text-white" />
             </div>
             <h2 className="text-2xl text-wave-800">Comprovante</h2>
@@ -63,19 +63,19 @@ export function ComprovanteModal({ boleto, onClose }: ComprovanteModalProps) {
         {/* Status da transacao */}
         <div
           className={`mb-6 flex items-center gap-3 rounded-xl border p-4 ${
-            registrado ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
+            registrado ? 'border-brand-teal/30 bg-brand-teal/10' : 'border-amber-200 bg-amber-50'
           }`}
         >
           {registrado ? (
-            <CheckCircle className="h-6 w-6 text-emerald-600" />
+            <CheckCircle className="h-6 w-6 text-brand-teal" />
           ) : (
             <Clock className="h-6 w-6 text-amber-600" />
           )}
           <div>
-            <p className={`font-medium ${registrado ? 'text-emerald-800' : 'text-amber-800'}`}>
+            <p className={`font-medium ${registrado ? 'text-brand-teal' : 'text-amber-800'}`}>
               {registrado ? 'Pagamento confirmado e registrado' : 'Pagamento em processamento'}
             </p>
-            <p className={`text-xs ${registrado ? 'text-emerald-600' : 'text-amber-600'}`}>
+            <p className={`text-xs ${registrado ? 'text-brand-teal' : 'text-amber-600'}`}>
               Status da transacao: {registrado ? 'Confirmada na rede Stellar' : 'Aguardando registro'}
             </p>
           </div>
@@ -96,22 +96,22 @@ export function ComprovanteModal({ boleto, onClose }: ComprovanteModalProps) {
         </div>
 
         {/* Transacao Stellar */}
-        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-emerald-800">
+        <div className="mb-6 rounded-xl border border-brand-teal/30 bg-brand-teal/10 p-4">
+          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-medium text-brand-teal">
             <ShieldCheck className="h-4 w-4" />
             Transacao na blockchain Stellar
           </h3>
           {registrado ? (
             <>
-              <p className="mb-1 text-xs text-emerald-600">Hash da transacao</p>
+              <p className="mb-1 text-xs text-brand-teal">Hash da transacao</p>
               <div className="flex items-center gap-2">
-                <p className="flex-1 break-all font-mono text-xs text-emerald-700">{boleto.blockchainHash}</p>
+                <p className="flex-1 break-all font-mono text-xs text-brand-teal">{boleto.blockchainHash}</p>
                 <button
                   onClick={() => copy(boleto.blockchainHash!, 'Hash')}
-                  className="shrink-0 rounded bg-emerald-100 p-1.5 transition-colors hover:bg-emerald-200"
+                  className="shrink-0 rounded bg-brand-teal/15 p-1.5 transition-colors hover:bg-brand-teal/25"
                   aria-label="Copiar hash"
                 >
-                  <Copy className="h-3.5 w-3.5 text-emerald-700" />
+                  <Copy className="h-3.5 w-3.5 text-brand-teal" />
                 </button>
               </div>
               {link && (
@@ -119,7 +119,7 @@ export function ComprovanteModal({ boleto, onClose }: ComprovanteModalProps) {
                   href={link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-emerald-100 py-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-200"
+                  className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-brand-teal/15 py-2 text-xs font-medium text-brand-teal transition-colors hover:bg-brand-teal/25"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   Consultar transacao na blockchain
@@ -127,7 +127,7 @@ export function ComprovanteModal({ boleto, onClose }: ComprovanteModalProps) {
               )}
             </>
           ) : (
-            <p className="text-xs text-emerald-700">
+            <p className="text-xs text-brand-teal">
               A transacao sera registrada na Stellar assim que a compensacao bancaria for concluida.
             </p>
           )}

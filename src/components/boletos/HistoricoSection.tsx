@@ -62,12 +62,12 @@ export function HistoricoSection({ boletos, onVerComprovante, onVerDetalhes }: H
 
             {/* Hash da transacao na Stellar */}
             {b.blockchainHash ? (
-              <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+              <div className="mb-4 rounded-xl border border-brand-teal/30 bg-brand-teal/10 p-3">
+                <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-brand-teal">
                   <ShieldCheck className="h-3.5 w-3.5" />
                   Registrado na Stellar
                 </div>
-                <p className="break-all font-mono text-xs text-emerald-700">{b.blockchainHash}</p>
+                <p className="break-all font-mono text-xs text-brand-teal">{b.blockchainHash}</p>
               </div>
             ) : (
               <div className="mb-4 rounded-xl border border-wave-200 bg-wave-50 p-3 text-xs text-wave-500">

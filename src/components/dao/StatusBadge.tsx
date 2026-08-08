@@ -6,10 +6,10 @@ import { type StatusProposta, type StatusFila, STATUS_LABEL, STATUS_FILA_LABEL }
 const META: Record<StatusProposta, { cls: string; Icon: ComponentType<{ className?: string }> }> = {
   votacao_aberta: { cls: 'bg-wave-100 text-wave-600 border-wave-200', Icon: Vote },
   votacao_encerrada: { cls: 'bg-slate-100 text-slate-600 border-slate-200', Icon: Clock },
-  aprovada_comunidade: { cls: 'bg-green-100 text-green-700 border-green-200', Icon: CheckCircle },
-  fila_prioridades: { cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', Icon: ListOrdered },
+  aprovada_comunidade: { cls: 'bg-brand-teal/15 text-brand-teal border-brand-teal/30', Icon: CheckCircle },
+  fila_prioridades: { cls: 'bg-brand-teal/15 text-brand-teal border-brand-teal/30', Icon: ListOrdered },
   em_assembleia: { cls: 'bg-purple-100 text-purple-700 border-purple-200', Icon: Users },
-  aprovada_assembleia: { cls: 'bg-green-100 text-green-700 border-green-200', Icon: Trophy },
+  aprovada_assembleia: { cls: 'bg-brand-teal/15 text-brand-teal border-brand-teal/30', Icon: Trophy },
   em_execucao: { cls: 'bg-amber-100 text-amber-700 border-amber-200', Icon: Hammer },
   concluida: { cls: 'bg-teal-100 text-teal-700 border-teal-200', Icon: Flag },
   rejeitada: { cls: 'bg-red-100 text-red-700 border-red-200', Icon: XCircle },
@@ -29,7 +29,7 @@ export function StatusBadge({ status, className = '' }: { status: StatusProposta
 const FILA_META: Record<StatusFila, { cls: string; emoji: string }> = {
   aguardando: { cls: 'bg-amber-100 text-amber-700 border-amber-200', emoji: '⏳' },
   em_execucao: { cls: 'bg-wave-100 text-wave-600 border-wave-200', emoji: '🔄' },
-  concluida: { cls: 'bg-green-100 text-green-700 border-green-200', emoji: '✅' },
+  concluida: { cls: 'bg-brand-teal/15 text-brand-teal border-brand-teal/30', emoji: '✅' },
 };
 
 /** Badge do status simplificado da Fila/Deliberacoes (Aguardando/Em Execucao/Concluida). */

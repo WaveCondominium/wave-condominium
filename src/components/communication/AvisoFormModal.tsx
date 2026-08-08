@@ -235,7 +235,7 @@ export function AvisoFormModal({ avisoParaEditar, onClose, onSubmit }: AvisoForm
             </button>
             <button
               type="submit"
-              className="flex-1 rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 py-3 text-white shadow-lg transition-all hover:opacity-95"
+              className="flex-1 rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel py-3 text-white shadow-lg transition-all hover:opacity-95"
             >
               {editando ? 'Salvar' : 'Publicar'}
             </button>

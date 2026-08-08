@@ -102,11 +102,11 @@ export function DocumentsReal() {
   });
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
 
       {/* Header */}
       <div className="mb-8 relative z-10">
-        <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Documentos</h1>
+        <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2">Documentos</h1>
         <p className="text-wave-500">
           Registro imutável de documentos com verificação criptográfica na rede Stellar
         </p>
@@ -126,7 +126,7 @@ export function DocumentsReal() {
               type="text"
               value={uploadForm.title}
               onChange={e => setUploadForm({ ...uploadForm, title: e.target.value })}
-              placeholder="Ex: Ata da Assembleia — Janeiro 2026"
+              placeholder="Ex: Ata da Assembleia de Janeiro 2026"
               className="w-full px-4 py-3 bg-wave-50 border border-wave-200 rounded-xl text-wave-800 placeholder-wave-300 focus:outline-none focus:ring-2 focus:ring-wave-300"
             />
           </div>
@@ -156,7 +156,7 @@ export function DocumentsReal() {
               file:bg-wave-100 file:text-wave-600 hover:file:bg-wave-200 cursor-pointer"
           />
           <p className="text-wave-400 text-xs mt-2">
-            O arquivo é convertido em hash SHA-256 localmente — o conteúdo nunca é enviado à rede.
+            O arquivo é convertido em hash SHA-256 localmente. O conteúdo nunca é enviado à rede.
             Apenas o hash é registrado como prova de autenticidade.
           </p>
         </div>
@@ -169,9 +169,9 @@ export function DocumentsReal() {
         )}
 
         {uploadSuccess && (
-          <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-            <p className="text-emerald-700 text-sm">{uploadSuccess}</p>
+          <div className="mb-4 bg-brand-teal/10 border border-brand-teal/30 rounded-xl p-3 flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-brand-teal shrink-0 mt-0.5" />
+            <p className="text-brand-teal text-sm">{uploadSuccess}</p>
           </div>
         )}
 
@@ -180,7 +180,7 @@ export function DocumentsReal() {
           disabled={uploading || !uploadForm.title || !uploadForm.file}
           className={`w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
             !uploading && uploadForm.title && uploadForm.file
-              ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white hover:opacity-90 shadow-lg'
+              ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white hover:opacity-90 shadow-lg'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
         >
@@ -261,7 +261,7 @@ export function DocumentsReal() {
                     <span>Por: {doc.registeredBy}</span>
                   </div>
                 </div>
-                <span className="flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs shrink-0">
+                <span className="flex items-center gap-1 px-3 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-xs shrink-0">
                   <CheckCircle className="w-3 h-3" />
                   Verificado
                 </span>
@@ -285,7 +285,7 @@ export function DocumentsReal() {
                   href={doc.explorerUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-2 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 text-sm"
+                  className="flex-1 py-2 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 text-sm"
                 >
                   <ExternalLink className="w-4 h-4" />
                   Ver prova na Stellar
@@ -297,7 +297,7 @@ export function DocumentsReal() {
       )}
 
       {/* Info Box */}
-      <div className="mt-8 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
+      <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
           <Shield className="w-6 h-6 text-wave-300 shrink-0 mt-1" />
           <div>

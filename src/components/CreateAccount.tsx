@@ -66,7 +66,7 @@ export function CreateAccount() {
             <ArrowLeft className="w-4 h-4" />
             Voltar ao Dashboard
           </Link>
-          <h1 className="font-serif text-3xl text-wave-800 font-normal mb-1">Criar Nova Conta</h1>
+          <h1 className="font-display text-3xl text-brand-navy font-normal mb-1">Criar Nova Conta</h1>
           <p className="text-wave-500 text-sm">
             Cadastre um novo usuário na plataforma Wave Condominium.
           </p>

@@ -370,7 +370,7 @@ function GestorDashboard() {
               {[40, 70, 45, 90, 60, 80, 50].map((height, i) => (
                 <div key={i} className="w-full bg-wave-100 rounded-t-lg relative group overflow-hidden">
                   <div 
-                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-wave-700 to-wave-500 transition-all duration-500 group-hover:opacity-80"
+                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-brand-deep to-brand-steel transition-all duration-500 group-hover:opacity-80"
                     style={{ height: `${height}%` }}
                   />
                 </div>

@@ -177,9 +177,9 @@ export function ProposalCollectionModal({
                 <p className="text-blue-600 text-sm mb-1">Propostas Recebidas</p>
                 <p className="text-blue-900 text-2xl">{proposals.length}</p>
               </div>
-              <div className="bg-green-50 rounded-xl p-4 border border-green-200">
-                <p className="text-green-600 text-sm mb-1">Menor Valor</p>
-                <p className="text-green-900 text-xl">R$ {lowestValue.toLocaleString('pt-BR')}</p>
+              <div className="bg-brand-teal/10 rounded-xl p-4 border border-brand-teal/30">
+                <p className="text-brand-teal text-sm mb-1">Menor Valor</p>
+                <p className="text-brand-navy text-xl">R$ {lowestValue.toLocaleString('pt-BR')}</p>
               </div>
               <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
                 <p className="text-orange-600 text-sm mb-1">Maior Valor</p>
@@ -196,17 +196,17 @@ export function ProposalCollectionModal({
           {proposals.length >= project.requiredProposals && (
             <div className={`p-4 rounded-xl mb-6 border-2 ${
               averageValue <= availableBudget
-                ? 'bg-green-50 border-green-300'
+                ? 'bg-brand-teal/10 border-brand-teal/40'
                 : 'bg-orange-50 border-orange-300'
             }`}>
               <div className="flex items-start gap-3">
                 {averageValue <= availableBudget ? (
-                  <CheckCircle className="w-6 h-6 text-green-600 mt-1" />
+                  <CheckCircle className="w-6 h-6 text-brand-teal mt-1" />
                 ) : (
                   <AlertCircle className="w-6 h-6 text-orange-600 mt-1" />
                 )}
                 <div className="flex-1">
-                  <h3 className={`mb-2 ${averageValue <= availableBudget ? 'text-green-900' : 'text-orange-900'}`}>
+                  <h3 className={`mb-2 ${averageValue <= availableBudget ? 'text-brand-navy' : 'text-orange-900'}`}>
                     Análise de Viabilidade Financeira
                   </h3>
                   <div className="grid grid-cols-2 gap-4 text-sm mb-3">
@@ -220,7 +220,7 @@ export function ProposalCollectionModal({
                     </div>
                   </div>
                   {averageValue <= availableBudget ? (
-                    <p className="text-green-700">
+                    <p className="text-brand-teal">
                       ✅ Orçamento disponível é suficiente para execução do projeto!
                     </p>
                   ) : (

@@ -85,7 +85,7 @@ export function BoletoDetailsModal({
       <div className="bg-white rounded-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl border border-wave-100">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-wave-700 to-wave-500 rounded-xl">
+            <div className="p-2 bg-gradient-to-br from-brand-deep to-brand-steel rounded-xl">
               <Receipt className="w-5 h-5 text-white" />
             </div>
             <h2 className="text-wave-800 text-2xl">Detalhes do Boleto</h2>
@@ -99,7 +99,7 @@ export function BoletoDetailsModal({
         </div>
 
         {/* Boleto Visual */}
-        <div className="bg-gradient-to-br from-wave-700 to-wave-500 rounded-2xl p-6 border-2 border-wave-200 mb-6">
+        <div className="bg-gradient-to-br from-brand-deep to-brand-steel rounded-2xl p-6 border-2 border-wave-200 mb-6">
           <div className="bg-white rounded-xl p-6 border-2 border-dashed border-wave-300">
             {/* Header */}
             <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-wave-200">
@@ -231,7 +231,7 @@ export function BoletoDetailsModal({
 
             {boleto.paidAt && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-green-500 rounded-full">
+                <div className="p-2 bg-brand-teal rounded-full">
                   <DollarSign className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1">
@@ -259,7 +259,7 @@ export function BoletoDetailsModal({
 
             {boleto.blockchainHash && (
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-gradient-to-r from-wave-700 to-wave-500 rounded-full">
+                <div className="p-2 bg-gradient-to-r from-brand-deep to-brand-steel rounded-full">
                   <CheckCircle className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1">
@@ -300,7 +300,7 @@ export function BoletoDetailsModal({
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={downloadPDF}
-            className="flex-1 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:opacity-95 transition-all shadow-lg flex items-center justify-center gap-2"
+            className="flex-1 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:opacity-95 transition-all shadow-lg flex items-center justify-center gap-2"
           >
             <Download className="w-5 h-5" />
             Baixar PDF
@@ -356,9 +356,9 @@ export function BoletoDetailsModal({
               automaticamente pelo sistema e registrado na blockchain Stellar, garantindo transparência,
               rastreabilidade e imutabilidade do registro.
             </p>
-            <div className="mt-3 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-              <p className="text-xs text-emerald-700">
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-brand-teal/30 bg-brand-teal/10 p-2.5">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-teal" />
+              <p className="text-xs text-brand-teal">
                 Assim que o pagamento for compensado, o boleto passa para o <strong>Histórico de Pagamentos</strong>{' '}
                 com o comprovante rastreável e o hash da transação.
               </p>
@@ -367,8 +367,8 @@ export function BoletoDetailsModal({
         )}
 
         {boleto.blockchainHash && (
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl">
-            <p className="text-green-700 text-sm">
+          <div className="mt-4 p-4 bg-brand-teal/10 border border-brand-teal/30 rounded-xl">
+            <p className="text-brand-teal text-sm">
               ✅ <strong>Pagamento Confirmado:</strong> Este pagamento está registrado de forma imutável na rede Stellar,
               garantindo transparência e auditabilidade permanente.
             </p>

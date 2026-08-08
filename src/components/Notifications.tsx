@@ -47,9 +47,9 @@ export function Notifications({ onNavigate }: NotificationsProps) {
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'blockchain':
-        return 'from-green-400 to-emerald-400';
+        return 'from-brand-teal to-brand-steel';
       case 'payment':
-        return 'from-wave-700 to-wave-500';
+        return 'from-brand-deep to-brand-steel';
       case 'proposal':
         return 'from-purple-400 to-pink-400';
       case 'document':
@@ -150,14 +150,14 @@ export function Notifications({ onNavigate }: NotificationsProps) {
   const totalNotifications = Object.values(groupedNotifications).reduce((sum, group) => sum + group.length, 0);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
       
 
       {/* Header */}
       <div className="mb-8 relative z-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-4">
           <div>
-            <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2 flex items-center gap-3">
+            <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2 flex items-center gap-3">
               <Bell className="w-8 h-8" />
               Central de Notificações
             </h1>
@@ -178,7 +178,7 @@ export function Notifications({ onNavigate }: NotificationsProps) {
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg flex items-center gap-2"
+                className="px-4 py-2 bg-gradient-to-r from-brand-teal to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg flex items-center gap-2"
               >
                 <CheckCircle className="w-5 h-5" />
                 Marcar Todas como Lidas
@@ -233,15 +233,15 @@ export function Notifications({ onNavigate }: NotificationsProps) {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-green-100 p-4 shadow-lg">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-brand-teal/20 p-4 shadow-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-600 text-sm">Stellar</p>
-                <p className="text-green-900 text-2xl">
+                <p className="text-brand-teal text-sm">Stellar</p>
+                <p className="text-brand-navy text-2xl">
                   {Object.values(groupedNotifications).flat().filter(n => n.type === 'blockchain').length}
                 </p>
               </div>
-              <Shield className="w-8 h-8 text-green-400" />
+              <Shield className="w-8 h-8 text-brand-teal" />
             </div>
           </div>
         </div>
@@ -259,7 +259,7 @@ export function Notifications({ onNavigate }: NotificationsProps) {
             onClick={() => setFilter('all')}
             className={`px-4 py-2 rounded-xl transition-all ${
               filter === 'all'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                 : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
             }`}
           >
@@ -269,7 +269,7 @@ export function Notifications({ onNavigate }: NotificationsProps) {
             onClick={() => setFilter('unread')}
             className={`px-4 py-2 rounded-xl transition-all ${
               filter === 'unread'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                 : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
             }`}
           >
@@ -279,7 +279,7 @@ export function Notifications({ onNavigate }: NotificationsProps) {
             onClick={() => setFilter('read')}
             className={`px-4 py-2 rounded-xl transition-all ${
               filter === 'read'
-                ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow-lg'
+                ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
                 : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
             }`}
           >
@@ -396,8 +396,8 @@ export function Notifications({ onNavigate }: NotificationsProps) {
 
                           {/* Metadata */}
                           {notification.metadata?.blockchainHash && (
-                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                              <p className="text-green-700 text-xs font-mono break-all">
+                            <div className="mt-2 p-2 bg-brand-teal/10 border border-brand-teal/30 rounded-lg">
+                              <p className="text-brand-teal text-xs font-mono break-all">
                                 Hash: {notification.metadata.blockchainHash.substring(0, 20)}...
                               </p>
                             </div>
@@ -414,7 +414,7 @@ export function Notifications({ onNavigate }: NotificationsProps) {
       )}
 
       {/* Info Box */}
-      <div className="mt-8 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
+      <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
           <Bell className="w-6 h-6 text-wave-500 shrink-0 mt-1" />
           <div>

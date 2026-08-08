@@ -174,7 +174,7 @@ export function ReservasCalendar({
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-blue-900">{getEspacoName(reserva.espaco)}</h5>
-                      <span className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                      <span className="flex items-center gap-1 px-2 py-1 bg-brand-teal/15 text-brand-teal rounded-full text-xs">
                         <CheckCircle className="w-3 h-3" />
                         Aprovada
                       </span>

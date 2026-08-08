@@ -54,7 +54,7 @@ export function FilaPrioridades({ fila }: { fila: Proposta[] }) {
             </div>
 
             <div className="shrink-0 text-right">
-              <p className="text-2xl font-semibold text-green-600">{ap.percentAprovacao}%</p>
+              <p className="text-2xl font-semibold text-brand-teal">{ap.percentAprovacao}%</p>
               <p className="text-xs text-wave-500">aprovacao</p>
             </div>
           </div>

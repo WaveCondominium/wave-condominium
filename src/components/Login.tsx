@@ -49,8 +49,7 @@ export function Login({ onLogin }: LoginProps) {
             <span className="text-brand-blue">prova de integridade</span>
           </h1>
           <p className="text-brand-chrome leading-relaxed mb-12">
-            Cada decisão registrada, cada voto auditável, cada documento protegido
-            sem precisar confiar apenas no síndico.
+            Cada decisão registrada, cada voto auditável e todos os documentos protegidos.
           </p>
 
           <div className="space-y-4">

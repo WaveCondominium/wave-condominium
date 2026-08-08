@@ -198,7 +198,7 @@ export function AdministradorForm() {
             <input type="text" value={form.permissaoAcesso} onChange={(e) => update('permissaoAcesso', e.target.value)}
               placeholder="Ex: Administrador geral"
               className="w-full px-4 py-2.5 bg-white border border-wave-200 rounded-xl text-wave-800 placeholder-wave-300 focus:outline-none focus:ring-2 focus:ring-wave-300 focus:border-wave-400 transition-all text-sm" />
-            <p className="text-wave-400 text-xs mt-1">Campo livre por enquanto — granularidade de permissões será definida com o time.</p>
+            <p className="text-wave-400 text-xs mt-1">Campo livre por enquanto. A granularidade de permissões será definida com o time.</p>
           </div>
         </div>
       </section>

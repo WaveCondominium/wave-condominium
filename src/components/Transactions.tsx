@@ -99,7 +99,7 @@ export function Transactions() {
       case 'sell':
         return <ArrowUpRight className="w-5 h-5 text-orange-500" />;
       case 'income':
-        return <ArrowUpRight className="w-5 h-5 text-green-500" />;
+        return <ArrowUpRight className="w-5 h-5 text-brand-teal" />;
       default:
         return null;
     }
@@ -125,7 +125,7 @@ export function Transactions() {
       case 'sell':
         return 'bg-orange-50 text-orange-600';
       case 'income':
-        return 'bg-green-50 text-green-600';
+        return 'bg-brand-teal/10 text-brand-teal';
       default:
         return 'bg-slate-50 text-slate-600';
     }
@@ -149,7 +149,7 @@ export function Transactions() {
         
         <div className="bg-white rounded-xl p-6 border border-slate-200">
           <p className="text-slate-600 text-sm mb-2">Total Recebido</p>
-          <p className="text-green-600 text-2xl mb-1">R$ 10.300,00</p>
+          <p className="text-brand-teal text-2xl mb-1">R$ 10.300,00</p>
           <p className="text-slate-600 text-sm">Rendimentos</p>
         </div>
         
@@ -257,7 +257,7 @@ export function Transactions() {
                   <td className="px-6 py-4">
                     <p className={`${
                       tx.type === 'income' || tx.type === 'sell'
-                        ? 'text-green-600'
+                        ? 'text-brand-teal'
                         : 'text-slate-900'
                     }`}>
                       {tx.amount}
@@ -272,7 +272,7 @@ export function Transactions() {
                     <p className="text-slate-600 text-sm">{tx.date}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-green-50 text-green-600 rounded-full text-xs">
+                    <span className="px-2 py-1 bg-brand-teal/10 text-brand-teal rounded-full text-xs">
                       Concluído
                     </span>
                   </td>

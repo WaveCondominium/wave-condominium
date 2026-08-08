@@ -29,7 +29,7 @@ interface EspacoMeta {
 export const ESPACOS: Record<EspacoId, EspacoMeta> = {
   salao: { label: 'Salao de Festas', Icon: PartyPopper, accentClass: 'text-purple-600' },
   churrasqueira: { label: 'Churrasqueira', Icon: Flame, accentClass: 'text-orange-600' },
-  quadra: { label: 'Quadra Poliesportiva', Icon: Trophy, accentClass: 'text-emerald-600' },
+  quadra: { label: 'Quadra Poliesportiva', Icon: Trophy, accentClass: 'text-brand-teal' },
   gourmet: { label: 'Espaco Gourmet', Icon: UtensilsCrossed, accentClass: 'text-rose-600' },
 };
 
@@ -50,7 +50,7 @@ export const STATUS_RESERVA: Record<StatusReserva, StatusMeta> = {
   aprovada: {
     label: 'Aprovada',
     Icon: CheckCircle,
-    badgeClass: 'bg-green-100 text-green-700 border-green-200',
+    badgeClass: 'bg-brand-teal/15 text-brand-teal border-brand-teal/30',
   },
   rejeitada: {
     label: 'Rejeitada',

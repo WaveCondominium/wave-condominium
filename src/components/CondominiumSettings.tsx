@@ -98,7 +98,7 @@ export function CondominiumSettings() {
             <ArrowLeft className="w-4 h-4" />
             Voltar ao Dashboard
           </Link>
-          <h1 className="font-serif text-3xl text-wave-800 font-normal mb-1">Configurações do Condomínio</h1>
+          <h1 className="font-display text-3xl text-brand-navy font-normal mb-1">Configurações do Condomínio</h1>
           <p className="text-wave-500 text-sm">
             Gerencie as configurações gerais visíveis para todos os moradores.
           </p>
@@ -106,8 +106,8 @@ export function CondominiumSettings() {
 
         <div className="bg-white rounded-2xl border border-wave-100 shadow-sm p-6 md:p-8">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center shrink-0">
-              <MessageCircle className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 rounded-xl bg-brand-teal/15 flex items-center justify-center shrink-0">
+              <MessageCircle className="w-5 h-5 text-brand-teal" />
             </div>
             <div>
               <h2 className="text-wave-800 font-medium">Grupo do WhatsApp</h2>
@@ -118,9 +118,9 @@ export function CondominiumSettings() {
           </div>
 
           {hasLink && (
-            <div className="flex items-center gap-2 mb-4 px-4 py-2.5 bg-green-50 border border-green-100 rounded-xl text-green-700 text-sm">
+            <div className="flex items-center gap-2 mb-4 px-4 py-2.5 bg-brand-teal/10 border border-brand-teal/20 rounded-xl text-brand-teal text-sm">
               <Check className="w-4 h-4 shrink-0" />
-              Link ativo — o botão &quot;Grupo do Condomínio&quot; está visível no Dashboard.
+              Link ativo: o botão &quot;Grupo do Condomínio&quot; está visível no Dashboard.
             </div>
           )}
 

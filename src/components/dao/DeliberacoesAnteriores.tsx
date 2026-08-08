@@ -45,7 +45,7 @@ export function DeliberacoesAnteriores({ aprovadas, rejeitadas, config, onVerDet
               return (
                 <Card key={p.id} onVer={() => onVerDetalhes(p.id)}>
                   <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <CheckCircle className="h-4 w-4 text-brand-teal" />
                     <h4 className="text-wave-800">{p.titulo}</h4>
                     <Chip>{CATEGORIA_LABEL[p.categoria]}</Chip>
                     <StatusFilaBadge status={statusFila(p)} />
@@ -91,7 +91,7 @@ function SubTab({ active, onClick, label }: { active: boolean; onClick: () => vo
     <button
       onClick={onClick}
       className={`rounded-xl px-4 py-2 text-sm transition-all ${
-        active ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow' : 'text-wave-500 hover:bg-wave-50'
+        active ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow' : 'text-wave-500 hover:bg-wave-50'
       }`}
     >
       {label}

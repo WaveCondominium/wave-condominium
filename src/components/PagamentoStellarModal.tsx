@@ -220,9 +220,9 @@ export function PagamentoStellarModal({
               </div>
             </div>
 
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2">
-              <Shield className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-              <p className="text-emerald-700 text-xs">
+            <div className="bg-brand-teal/10 border border-brand-teal/30 rounded-xl p-3 flex items-start gap-2">
+              <Shield className="w-4 h-4 text-brand-teal mt-0.5 flex-shrink-0" />
+              <p className="text-brand-teal text-xs">
                 Pagamento protegido. O comprovante será registrado automaticamente com verificação de autenticidade.
               </p>
             </div>
@@ -261,8 +261,8 @@ export function PagamentoStellarModal({
         {step === 'success' && result && (
           <div className="p-6 space-y-4">
             <div className="text-center mb-2">
-              <div className="w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                <CheckCircle className="w-8 h-8 text-emerald-500" />
+              <div className="w-14 h-14 bg-brand-teal/10 rounded-full flex items-center justify-center mx-auto mb-3">
+                <CheckCircle className="w-8 h-8 text-brand-teal" />
               </div>
               <h3 className="font-serif text-lg text-wave-800">Pagamento confirmado!</h3>
               <p className="text-wave-400 text-sm mt-1">
@@ -293,15 +293,15 @@ export function PagamentoStellarModal({
 
             {/* Link verificável na Stellar — visível apenas no painel de auditoria, aqui mostramos de forma amigável */}
             {result.settlement?.explorerUrl && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+              <div className="bg-brand-teal/10 border border-brand-teal/30 rounded-xl p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-emerald-600" />
-                    <span className="text-emerald-700 text-xs font-medium">Comprovante gerado</span>
+                    <Shield className="w-4 h-4 text-brand-teal" />
+                    <span className="text-brand-teal text-xs font-medium">Comprovante gerado</span>
                   </div>
-<span className="text-emerald-600 text-xs">✓ Autenticado</span>
+<span className="text-brand-teal text-xs">✓ Autenticado</span>
                 </div>
-                <p className="text-emerald-600 text-xs mt-1 font-mono break-all">
+                <p className="text-brand-teal text-xs mt-1 font-mono break-all">
                   {result.settlement.stellarTxHash?.slice(0, 32)}...
                 </p>
               </div>
@@ -363,28 +363,28 @@ function StepRow({ number, label, sublabel, state }: {
 }) {
   return (
     <div className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
-      state === 'done'    ? 'bg-emerald-50 border-emerald-200' :
+      state === 'done'    ? 'bg-brand-teal/10 border-brand-teal/30' :
       state === 'loading' ? 'bg-wave-50 border-wave-200' :
       state === 'error'   ? 'bg-red-50 border-red-200' : 'bg-white border-wave-100'
     }`}>
       <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-        state === 'done'    ? 'bg-emerald-100' :
+        state === 'done'    ? 'bg-brand-teal/15' :
         state === 'loading' ? 'bg-wave-100' :
         state === 'error'   ? 'bg-red-100' : 'bg-wave-50'
       }`}>
-        {state === 'done'    && <CheckCircle className="w-5 h-5 text-emerald-500" />}
+        {state === 'done'    && <CheckCircle className="w-5 h-5 text-brand-teal" />}
         {state === 'loading' && <Loader className="w-5 h-5 text-wave-500 animate-spin" />}
         {state === 'error'   && <AlertCircle className="w-5 h-5 text-red-400" />}
         {state === 'idle'    && <span className="text-wave-400 text-sm font-serif">{number}</span>}
       </div>
       <div className="flex-1 min-w-0">
         <p className={`text-sm font-medium ${
-          state === 'done' ? 'text-emerald-700' : state === 'loading' ? 'text-wave-700' :
+          state === 'done' ? 'text-brand-teal' : state === 'loading' ? 'text-wave-700' :
           state === 'error' ? 'text-red-600' : 'text-wave-400'
         }`}>{label}</p>
         <p className="text-xs text-wave-400 italic font-serif">{sublabel}</p>
       </div>
-      {state === 'done' && <span className="text-emerald-600 text-xs font-medium">✓</span>}
+      {state === 'done' && <span className="text-brand-teal text-xs font-medium">✓</span>}
     </div>
   );
 }

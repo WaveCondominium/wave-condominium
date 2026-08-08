@@ -114,7 +114,7 @@ export function ReservasPanel() {
         ) : (
           <button
             onClick={() => setSolicitarModal({ espaco, data: '' })}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 px-4 py-2.5 text-sm text-white shadow-lg transition-all hover:opacity-95"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel px-4 py-2.5 text-sm text-white shadow-lg transition-all hover:opacity-95"
           >
             <Plus className="h-4 w-4" />
             Solicitar reserva
@@ -229,7 +229,7 @@ function FiltroChip({ label, active, onClick }: FiltroChipProps) {
     <button
       onClick={onClick}
       className={`rounded-lg px-3 py-1.5 text-sm transition-all ${
-        active ? 'bg-gradient-to-r from-wave-700 to-wave-500 text-white shadow' : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
+        active ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow' : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
       }`}
     >
       {label}

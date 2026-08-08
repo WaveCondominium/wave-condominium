@@ -100,7 +100,7 @@ export function CreatePropostaModal({ onClose, onCreate }: CreatePropostaModalPr
             <button type="button" onClick={onClose} className="flex-1 rounded-xl bg-wave-100 py-3 text-wave-600 transition-colors hover:bg-wave-200">
               Cancelar
             </button>
-            <button type="submit" className="flex-1 rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 py-3 text-white shadow-lg transition-all hover:opacity-95">
+            <button type="submit" className="flex-1 rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel py-3 text-white shadow-lg transition-all hover:opacity-95">
               Enviar para Votação Inicial
             </button>
           </div>

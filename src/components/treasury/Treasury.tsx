@@ -184,18 +184,18 @@ export function Treasury({ userProfile }: TreasuryProps) {
   ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-wave-700 to-wave-500 min-h-screen relative">
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
       
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">
         <div>
-          <h1 className="text-wave-800 text-2xl sm:text-3xl mb-2">Gestão Financeira</h1>
+          <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2">Gestão Financeira</h1>
           <p className="text-wave-500">Transparência total com registros auditáveis</p>
         </div>
         <button 
           onClick={() => window.location.href = '/dashboard/boletos'}
-          className="px-4 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
+          className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
         >
           <DollarSign className="w-5 h-5" />
           Ir para Boletos
@@ -204,7 +204,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
 
       {/* Balance Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 relative z-10">
-        <div className="bg-gradient-to-br from-wave-700 to-wave-500 rounded-2xl p-6 text-white shadow-lg border border-wave-400">
+        <div className="bg-gradient-to-br from-brand-deep to-brand-steel rounded-2xl p-6 text-white shadow-lg border border-wave-400">
           <div className="flex items-center gap-2 mb-2">
             <Wallet className="w-5 h-5 text-wave-100" />
             <p className="text-wave-100 text-sm">Saldo Atual</p>
@@ -216,19 +216,19 @@ export function Treasury({ userProfile }: TreasuryProps) {
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-wave-100 shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <p className="text-wave-500 text-sm">Fundo de Reserva</p>
-            <TrendingUp className="w-5 h-5 text-green-500" />
+            <TrendingUp className="w-5 h-5 text-brand-teal" />
           </div>
           <p className="text-wave-800 text-2xl mb-1">{formatBRL(fundoReserva)}</p>
           <div className="w-full bg-wave-100 rounded-full h-2 mt-3">
-            <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full" style={{ width: `${percentualMeta}%` }} />
+            <div className="bg-gradient-to-r from-brand-teal to-brand-steel h-2 rounded-full" style={{ width: `${percentualMeta}%` }} />
           </div>
-          <p className="text-green-600 text-sm mt-2">{percentualMeta}% da meta ({formatBRL(metaFundoReserva)})</p>
+          <p className="text-brand-teal text-sm mt-2">{percentualMeta}% da meta ({formatBRL(metaFundoReserva)})</p>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-wave-100 shadow-lg">
           <div className="flex items-center justify-between mb-2">
             <p className="text-wave-500 text-sm">Receitas ({formatMonthLabel(currentMonthKey)})</p>
-            <TrendingUp className="w-5 h-5 text-green-500" />
+            <TrendingUp className="w-5 h-5 text-brand-teal" />
           </div>
           <p className="text-wave-800 text-2xl mb-1">{formatBRL(receitasDoMes)}</p>
           <p className="text-wave-500 text-sm">
@@ -254,7 +254,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
           <div className="p-6 border-b border-wave-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-wave-700 to-wave-500 rounded-xl">
+                <div className="p-2 bg-gradient-to-br from-brand-deep to-brand-steel rounded-xl">
                   <Receipt className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -264,7 +264,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
               </div>
               <button
                 onClick={() => setShowGenerateBoletoModal(true)}
-                className="px-4 py-3 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
+                className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
               >
                 <Receipt className="w-5 h-5" />
                 Gerar Boletos
@@ -297,15 +297,15 @@ export function Treasury({ userProfile }: TreasuryProps) {
                 <p className="text-red-700 text-sm">{formatBRL(totalInadimplencia)} em atraso</p>
               </div>
 
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+              <div className="bg-gradient-to-br from-brand-teal/10 to-brand-teal/15 rounded-xl p-4 border border-brand-teal/30">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="p-2 bg-green-200 rounded-lg">
-                    <Receipt className="w-5 h-5 text-green-700" />
+                  <div className="p-2 bg-brand-teal/20 rounded-lg">
+                    <Receipt className="w-5 h-5 text-brand-teal" />
                   </div>
-                  <span className="text-2xl text-green-900">{boletosPagosNoAno.length}</span>
+                  <span className="text-2xl text-brand-navy">{boletosPagosNoAno.length}</span>
                 </div>
-                <h4 className="text-green-900">Boletos Pagos ({anoAtual})</h4>
-                <p className="text-green-700 text-sm">Taxa de adimplência: {taxaAdimplenciaAno}%</p>
+                <h4 className="text-brand-navy">Boletos Pagos ({anoAtual})</h4>
+                <p className="text-brand-teal text-sm">Taxa de adimplência: {taxaAdimplenciaAno}%</p>
               </div>
             </div>
 
@@ -363,7 +363,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
             </div>
 
             {/* Info sobre processo */}
-            <div className="mt-6 p-4 bg-gradient-to-r from-wave-700 to-wave-500 rounded-xl border border-wave-200">
+            <div className="mt-6 p-4 bg-gradient-to-r from-brand-deep to-brand-steel rounded-xl border border-wave-200">
               <div className="flex gap-3">
                 <Receipt className="w-5 h-5 text-wave-500 shrink-0 mt-0.5" />
                 <div>
@@ -496,7 +496,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
               </button>
               <button
                 onClick={handleExport}
-                className="px-3 py-2 bg-gradient-to-r from-wave-700 to-wave-500 text-white rounded-lg hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
+                className="px-3 py-2 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-lg hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
                 Exportar
@@ -530,7 +530,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-xs ${
                       tx.type === 'receita'
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-brand-teal/15 text-brand-teal'
                         : 'bg-wave-100 text-wave-600'
                     }`}>
                       {tx.category}
@@ -538,13 +538,13 @@ export function Treasury({ userProfile }: TreasuryProps) {
                   </td>
                   <td className="px-6 py-4">
                     <p className={`${
-                      tx.type === 'receita' ? 'text-green-600' : 'text-wave-800'
+                      tx.type === 'receita' ? 'text-brand-teal' : 'text-wave-800'
                     }`}>
                       {tx.value}
                     </p>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-green-50 text-green-600 rounded-full text-xs">
+                    <span className="px-2 py-1 bg-brand-teal/10 text-brand-teal rounded-full text-xs">
                       {tx.status}
                     </span>
                   </td>
@@ -565,7 +565,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
       </div>
 
       {/* Blockchain Info */}
-      <div className="mt-8 bg-gradient-to-r from-wave-700 to-wave-500 rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
+      <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
           <Wallet className="w-6 h-6 text-wave-500 shrink-0 mt-1" />
           <div>

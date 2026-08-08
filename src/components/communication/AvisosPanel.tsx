@@ -107,7 +107,7 @@ export function AvisosPanel() {
         {canManage ? (
           <button
             onClick={abrirCriacao}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-wave-700 to-wave-500 px-4 py-2.5 text-sm text-white shadow-lg transition-all hover:opacity-95"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-deep to-brand-steel px-4 py-2.5 text-sm text-white shadow-lg transition-all hover:opacity-95"
           >
             <Plus className="h-4 w-4" />
             Novo Aviso

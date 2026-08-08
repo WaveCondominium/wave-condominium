@@ -16,7 +16,7 @@ export function MetricCard({ label, value, change, trend, icon: Icon }: MetricCa
           <Icon className="w-5 h-5 text-blue-500" />
         </div>
         <div className={`flex items-center gap-1 text-sm ${
-          trend === 'up' ? 'text-green-600' : 'text-red-600'
+          trend === 'up' ? 'text-brand-teal' : 'text-red-600'
         }`}>
           {trend === 'up' ? (
             <TrendingUp className="w-4 h-4" />
