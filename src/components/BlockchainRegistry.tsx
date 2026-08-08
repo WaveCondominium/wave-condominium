@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Shield, ExternalLink, Search, CheckCircle, XCircle, Clock,
   DollarSign, FileText, Vote, User, AlertCircle, Receipt, Filter,
+  AlertTriangle, Wrench, ChevronRight, ShieldCheck, ShieldAlert, Loader2, X,
 } from 'lucide-react';
 import { useBlockchainAutoRegistry } from '@/hooks/useBlockchainAutoRegistry';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useUser } from '@/contexts/UserContext';
+import { verifyDocumentOnChain } from '@/app/actions/blockchain';
 
 // ---------------------------------------------------------------------------
 // Tipos internos
@@ -62,6 +64,7 @@ function MoradorAuditView() {
   const [proposals] = useLocalStorage<any[]>('wave_proposals_v2', []);
   const [proposalsLegacy] = useLocalStorage<any[]>('wave_proposals', []);
   const [documents] = useLocalStorage<any[]>('wave_documents_stellar', []);
+  const [maintenanceRequests] = useLocalStorage<any[]>('wave_maintenance_requests', []);
   const { records: blockchainRecords } = useBlockchainAutoRegistry();
 
   // ── Pagamentos: boletos da unidade do morador ──
@@ -116,6 +119,8 @@ function MoradorAuditView() {
         status: r.status,
         category: r.metadata?.category || 'Geral',
         source: 'blockchain' as const,
+        txHash: r.txHash || '',
+        contentHash: r.metadata?.contentHash || '',
       }));
 
     // Documentos do storage
@@ -127,12 +132,88 @@ function MoradorAuditView() {
       status: 'available',
       category: d.category || 'Geral',
       source: 'storage' as const,
+      txHash: d.stellarTxHash || d.blockchainHash || '',
+      contentHash: d.contentHash || '',
     }));
 
     return [...blockchainDocs, ...storageDocs].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [blockchainRecords, documents]);
+
+  // ── Pendências: itens que exigem ação do morador ──
+  const pendencias = useMemo(() => {
+    const items: { type: string; icon: React.ElementType; label: string; description: string; date: string; status: string; color: string; bg: string }[] = [];
+
+    // Boletos pendentes ou vencidos da unidade
+    meusPagamentos
+      .filter((b: any) => {
+        const isPaid = b.status === 'pago' || b.status === 'blockchain_registered' || b.paidAt;
+        return !isPaid && (b.status === 'pendente' || b.status === 'vencido' || !b.status);
+      })
+      .forEach((b: any) => {
+        const isOverdue = b.status === 'vencido' || (b.dueDate && new Date(b.dueDate) < new Date());
+        items.push({
+          type: 'pagamento',
+          icon: DollarSign,
+          label: 'Pagamento pendente',
+          description: b.description || b.referenceMonth || 'Boleto condominial',
+          date: b.dueDate || b.createdAt || '',
+          status: isOverdue ? 'Vencido' : 'Pendente',
+          color: isOverdue ? 'text-red-600' : 'text-amber-600',
+          bg: isOverdue ? 'bg-red-100' : 'bg-amber-100',
+        });
+      });
+
+    // Votações abertas nas quais o morador ainda não votou
+    const allProposals = [...(proposals || []), ...(proposalsLegacy || [])];
+    const seenIds = new Set<string>();
+    allProposals.forEach((p: any) => {
+      if (seenIds.has(p.id)) return;
+      seenIds.add(p.id);
+      if (p.status !== 'votacao_aberta') return;
+      // Verifica se já votou
+      const votos = p.votos || {};
+      const alreadyVoted = Object.keys(votos).some(v =>
+        v === userProfile.id ||
+        v === userProfile.name ||
+        v.toLowerCase() === userProfile.name?.toLowerCase()
+      );
+      if (alreadyVoted) return;
+      items.push({
+        type: 'votacao',
+        icon: Vote,
+        label: 'Votação aberta',
+        description: p.titulo || p.title || 'Proposta em votação',
+        date: p.criadaEm || p.createdAt || '',
+        status: 'Aguardando voto',
+        color: 'text-blue-600',
+        bg: 'bg-blue-100',
+      });
+    });
+
+    // Solicitações de manutenção pendentes da unidade
+    (maintenanceRequests || [])
+      .filter((r: any) => {
+        const matchUnit = r.unit === userUnit || r.unitNumber === userUnit;
+        const isPending = r.status === 'pendente' || r.status === 'aberta' || r.status === 'em_analise';
+        return matchUnit && isPending;
+      })
+      .forEach((r: any) => {
+        items.push({
+          type: 'solicitacao',
+          icon: Wrench,
+          label: 'Solicitação em andamento',
+          description: r.title || r.description || 'Manutenção solicitada',
+          date: r.createdAt || r.requestedAt || '',
+          status: r.status === 'em_analise' ? 'Em análise' : 'Pendente',
+          color: 'text-purple-600',
+          bg: 'bg-purple-100',
+        });
+      });
+
+    return items;
+  }, [meusPagamentos, proposals, proposalsLegacy, maintenanceRequests, userProfile.id, userProfile.name, userUnit]);
 
   // Contadores para badges nas tabs
   const counts = {
@@ -167,6 +248,55 @@ function MoradorAuditView() {
           </div>
         ))}
       </div>
+
+      {/* Pendências */}
+      {pendencias.length > 0 ? (
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-amber-200 shadow-lg mb-6 overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-amber-100 bg-amber-50/50">
+            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <h2 className="text-wave-800 text-sm font-semibold">Pendências</h2>
+            <span className="ml-auto px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+              {pendencias.length}
+            </span>
+          </div>
+          <div className="divide-y divide-wave-100">
+            {pendencias.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div key={`${item.type}-${idx}`} className="px-5 py-3.5 hover:bg-wave-50/50 transition-colors flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg ${item.bg} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`w-4 h-4 ${item.color}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-wave-800 text-sm font-medium">{item.description}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-wave-400 text-xs">{item.label}</span>
+                      {item.date && (
+                        <span className="text-wave-400 text-xs">
+                          · {new Date(item.date).toLocaleDateString('pt-BR')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${item.bg} ${item.color} shrink-0`}>
+                    {item.status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-brand-teal/30 shadow-lg mb-6 px-5 py-4 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-brand-teal/15 flex items-center justify-center flex-shrink-0">
+            <CheckCircle className="w-4 h-4 text-brand-teal" />
+          </div>
+          <div>
+            <p className="text-wave-800 text-sm font-medium">Nenhuma pendência no momento</p>
+            <p className="text-wave-400 text-xs">Você está em dia com suas obrigações condominiais.</p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
@@ -219,6 +349,35 @@ function MoradorAuditView() {
         {activeTab === 'documentos' && (
           <DocumentosTab documentos={meusDocumentos} search={search} />
         )}
+      </div>
+
+      {/* Como funciona a verificação */}
+      <div className="bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-5 sm:p-6 border border-wave-200 shadow-lg mt-6">
+        <div className="flex items-start gap-3">
+          <Shield className="w-5 h-5 text-wave-300 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-wave-800 text-sm font-semibold mb-2">Como funciona a verificação</h3>
+            <p className="text-wave-600 text-sm leading-relaxed mb-3">
+              Cada documento e pagamento registrado na plataforma recebe uma assinatura digital
+              única que garante sua autenticidade. Você pode verificar a qualquer momento se
+              um documento é autêntico e se não foi alterado desde o registro original.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-wave-500">
+              <div className="bg-white/10 rounded-lg p-3">
+                <p className="text-wave-300 font-medium mb-1">Segurança</p>
+                <p>Registro permanente e imutável</p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-3">
+                <p className="text-wave-300 font-medium mb-1">Transparência</p>
+                <p>Verificação independente da plataforma</p>
+              </div>
+              <div className="bg-white/10 rounded-lg p-3">
+                <p className="text-wave-300 font-medium mb-1">Integridade</p>
+                <p>Detecção de qualquer alteração</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );
@@ -402,10 +561,71 @@ function VotacoesTab({ propostas, search, userName, userId }: {
 }
 
 // ---------------------------------------------------------------------------
-// Tab: Documentos
+// Tab: Documentos (com verificação de autenticidade)
 // ---------------------------------------------------------------------------
 
+interface VerificationResult {
+  verified: boolean;
+  reason: string;
+  ledger?: number;
+  createdAt?: string;
+}
+
 function DocumentosTab({ documentos, search }: { documentos: any[]; search: string }) {
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [verificationResult, setVerificationResult] = useState<{
+    doc: any;
+    result: VerificationResult | null;
+    error: string | null;
+    loading: boolean;
+  } | null>(null);
+
+  const handleVerify = useCallback(async (doc: any) => {
+    const txHash = doc.txHash;
+    const contentHash = doc.contentHash;
+
+    if (!txHash) {
+      setVerificationResult({
+        doc,
+        result: null,
+        error: 'Este documento ainda não possui registro de verificação.',
+        loading: false,
+      });
+      return;
+    }
+
+    setVerifyingId(doc.id);
+    setVerificationResult({ doc, result: null, error: null, loading: true });
+
+    try {
+      const result = await verifyDocumentOnChain(txHash, contentHash || '');
+      setVerificationResult({
+        doc,
+        result: {
+          verified: result.verified,
+          reason: result.reason,
+          ledger: result.ledger,
+          createdAt: result.createdAt,
+        },
+        error: null,
+        loading: false,
+      });
+    } catch {
+      setVerificationResult({
+        doc,
+        result: null,
+        error: 'Não foi possível realizar a verificação no momento. Tente novamente mais tarde.',
+        loading: false,
+      });
+    } finally {
+      setVerifyingId(null);
+    }
+  }, []);
+
+  const closeVerification = useCallback(() => {
+    setVerificationResult(null);
+  }, []);
+
   const filtered = documentos.filter((d: any) => {
     if (!search) return true;
     const s = search.toLowerCase();
@@ -427,35 +647,228 @@ function DocumentosTab({ documentos, search }: { documentos: any[]; search: stri
   }
 
   return (
-    <div className="divide-y divide-wave-100">
-      {filtered.map((doc: any, idx: number) => (
-        <div key={doc.id || idx} className="p-4 sm:p-5 hover:bg-wave-50/50 transition-colors">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-              <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <FileText className="w-4 h-4 text-amber-600" />
+    <>
+      <div className="divide-y divide-wave-100">
+        {filtered.map((doc: any, idx: number) => {
+          const canVerify = !!doc.txHash;
+          const isVerifying = verifyingId === doc.id;
+
+          return (
+            <div key={doc.id || idx} className="p-4 sm:p-5 hover:bg-wave-50/50 transition-colors">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <FileText className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-wave-800 text-sm font-medium">{doc.title}</p>
+                    <p className="text-wave-500 text-xs mt-0.5">{doc.description}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-wave-400 text-xs">
+                      {doc.date && (
+                        <span>{new Date(doc.date).toLocaleDateString('pt-BR')}</span>
+                      )}
+                      {doc.category && <span>· {doc.category}</span>}
+                      {canVerify && (
+                        <span className="text-brand-teal font-medium">Registro disponível</span>
+                      )}
+                    </div>
+                    {/* Botão de verificação */}
+                    <button
+                      onClick={() => handleVerify(doc)}
+                      disabled={isVerifying}
+                      className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        canVerify
+                          ? 'bg-brand-teal/10 text-brand-teal hover:bg-brand-teal/20 border border-brand-teal/30'
+                          : 'bg-wave-50 text-wave-400 hover:bg-wave-100 border border-wave-200'
+                      } disabled:opacity-50`}
+                    >
+                      {isVerifying ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Verificando...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Verificar autenticidade
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <StatusPill
+                  label={doc.status === 'confirmed' ? 'Confirmado' : doc.status === 'available' ? 'Disponível' : doc.status || '—'}
+                  variant={doc.status === 'confirmed' || doc.status === 'available' ? 'success' : 'neutral'}
+                />
               </div>
-              <div className="min-w-0">
-                <p className="text-wave-800 text-sm font-medium">{doc.title}</p>
-                <p className="text-wave-500 text-xs mt-0.5">{doc.description}</p>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-wave-400 text-xs">
-                  {doc.date && (
-                    <span>{new Date(doc.date).toLocaleDateString('pt-BR')}</span>
-                  )}
-                  {doc.category && <span>· {doc.category}</span>}
-                  {doc.source === 'blockchain' && (
-                    <span className="text-brand-teal font-medium">Verificado</span>
-                  )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Modal de resultado da verificação */}
+      {verificationResult && (
+        <VerificationModal
+          doc={verificationResult.doc}
+          result={verificationResult.result}
+          error={verificationResult.error}
+          loading={verificationResult.loading}
+          onClose={closeVerification}
+        />
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Modal: Resultado da Verificação de Autenticidade
+// ---------------------------------------------------------------------------
+
+function VerificationModal({ doc, result, error, loading, onClose }: {
+  doc: any;
+  result: VerificationResult | null;
+  error: string | null;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 bg-brand-navy/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Resultado da verificação de autenticidade"
+    >
+      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-wave-100 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-wave-100">
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-wave-500" />
+            <h3 className="text-wave-800 font-semibold text-sm">Verificação de Autenticidade</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-wave-100 flex items-center justify-center transition-colors"
+            aria-label="Fechar"
+          >
+            <X className="w-4 h-4 text-wave-400" />
+          </button>
+        </div>
+
+        {/* Conteúdo */}
+        <div className="p-5">
+          {loading ? (
+            <div className="text-center py-8">
+              <Loader2 className="w-10 h-10 text-brand-teal animate-spin mx-auto mb-4" />
+              <p className="text-wave-700 text-sm font-medium">Verificando autenticidade...</p>
+              <p className="text-wave-400 text-xs mt-1">Consultando registro de integridade do documento.</p>
+            </div>
+          ) : error ? (
+            /* Erro na verificação */
+            <div className="text-center py-6">
+              <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                <ShieldAlert className="w-7 h-7 text-amber-600" />
+              </div>
+              <p className="text-wave-800 font-semibold mb-1">Verificação indisponível</p>
+              <p className="text-wave-500 text-sm leading-relaxed">{error}</p>
+            </div>
+          ) : result?.verified ? (
+            /* Documento autenticado */
+            <div>
+              <div className="text-center mb-5">
+                <div className="w-14 h-14 rounded-full bg-brand-teal/15 flex items-center justify-center mx-auto mb-4">
+                  <ShieldCheck className="w-7 h-7 text-brand-teal" />
+                </div>
+                <p className="text-brand-teal font-semibold text-lg">Documento autenticado</p>
+                <p className="text-wave-500 text-sm mt-1 leading-relaxed">
+                  A autenticidade e a integridade deste documento foram verificadas com sucesso.
+                </p>
+              </div>
+
+              <div className="bg-wave-50 rounded-xl p-4 space-y-3">
+                <div>
+                  <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Documento</p>
+                  <p className="text-wave-800 text-sm mt-0.5">{doc.title}</p>
+                </div>
+                {doc.date && (
+                  <div>
+                    <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Data do documento</p>
+                    <p className="text-wave-800 text-sm mt-0.5">{new Date(doc.date).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Data da verificação</p>
+                  <p className="text-wave-800 text-sm mt-0.5">{new Date().toLocaleString('pt-BR')}</p>
+                </div>
+                {result.createdAt && (
+                  <div>
+                    <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Data do registro</p>
+                    <p className="text-wave-800 text-sm mt-0.5">{new Date(result.createdAt).toLocaleString('pt-BR')}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Status</p>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-teal/15 text-brand-teal rounded-full text-xs font-medium mt-0.5">
+                    <CheckCircle className="w-3 h-3" />
+                    Documento não alterado
+                  </span>
+                </div>
+                {doc.txHash && (
+                  <div>
+                    <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Identificador do registro</p>
+                    <p className="text-wave-600 text-xs font-mono mt-0.5 break-all leading-relaxed">
+                      {doc.txHash.slice(0, 16)}...{doc.txHash.slice(-8)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Documento não verificado */
+            <div>
+              <div className="text-center mb-5">
+                <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                  <ShieldAlert className="w-7 h-7 text-red-500" />
+                </div>
+                <p className="text-red-600 font-semibold text-lg">Não foi possível confirmar a autenticidade</p>
+                <p className="text-wave-500 text-sm mt-1 leading-relaxed">
+                  {result?.reason?.includes('nao encontrada') || result?.reason?.includes('NAO corresponde')
+                    ? 'O conteúdo deste documento pode ter sido alterado após o registro original, ou o registro não foi localizado. Recomendamos entrar em contato com a administração do condomínio para esclarecimentos.'
+                    : 'A verificação não pôde ser concluída. Recomendamos entrar em contato com a administração do condomínio.'}
+                </p>
+              </div>
+
+              <div className="bg-red-50 rounded-xl p-4 space-y-3">
+                <div>
+                  <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Documento</p>
+                  <p className="text-wave-800 text-sm mt-0.5">{doc.title}</p>
+                </div>
+                <div>
+                  <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Data da verificação</p>
+                  <p className="text-wave-800 text-sm mt-0.5">{new Date().toLocaleString('pt-BR')}</p>
+                </div>
+                <div>
+                  <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">Status</p>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-xs font-medium mt-0.5">
+                    <XCircle className="w-3 h-3" />
+                    Autenticidade não confirmada
+                  </span>
                 </div>
               </div>
             </div>
-            <StatusPill
-              label={doc.status === 'confirmed' ? 'Confirmado' : doc.status === 'available' ? 'Disponível' : doc.status || '—'}
-              variant={doc.status === 'confirmed' || doc.status === 'available' ? 'success' : 'neutral'}
-            />
-          </div>
+          )}
         </div>
-      ))}
+
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-wave-100 bg-wave-50/50">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 bg-wave-700 text-white rounded-xl hover:bg-wave-800 transition-colors text-sm font-medium"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
