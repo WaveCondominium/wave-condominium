@@ -1,14 +1,20 @@
 'use client';
 
-import { Home, User, Key, Users, Plus, X, Search, Edit2, CheckCircle } from 'lucide-react';
-import { useState } from 'react';
+import {
+  Home, User, Key, Users, Plus, X, Search, Edit2, CheckCircle,
+  Building2, Ruler, AlertCircle, Layers, Dumbbell, PartyPopper,
+  Waves, TreePine, Flame, Trophy, UtensilsCrossed, Car, ShieldCheck,
+} from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useUser } from '@/contexts/UserContext';
 import { toast } from 'sonner';
 
 interface Unit {
   id: string;
   number: string;
   floor: number;
+  block?: string;
   status: 'Ocupado' | 'Alugado' | 'Vago';
   owner: string;
   tenant?: string;
@@ -40,6 +46,278 @@ const statusColors: Record<string, string> = {
 };
 
 export function Units() {
+  const { userProfile } = useUser();
+  const isMorador = userProfile.role === 'Morador';
+
+  if (isMorador) {
+    return <MoradorUnitView />;
+  }
+
+  return <AdminUnitsView />;
+}
+
+// ===========================================================================
+// MORADOR — Visualização somente leitura da própria unidade
+// ===========================================================================
+
+// Áreas comuns do condomínio — dados agregados, sem informação pessoal
+const COMMON_AREAS: { label: string; icon: React.ElementType; color: string; bg: string }[] = [
+  { label: 'Salão de Festas',      icon: PartyPopper,       color: 'text-purple-600', bg: 'bg-purple-100' },
+  { label: 'Churrasqueira',        icon: Flame,             color: 'text-orange-600', bg: 'bg-orange-100' },
+  { label: 'Quadra Poliesportiva', icon: Trophy,            color: 'text-brand-teal', bg: 'bg-brand-teal/15' },
+  { label: 'Espaço Gourmet',       icon: UtensilsCrossed,   color: 'text-rose-600',   bg: 'bg-rose-100' },
+  { label: 'Academia',             icon: Dumbbell,          color: 'text-blue-600',   bg: 'bg-blue-100' },
+  { label: 'Piscina',              icon: Waves,             color: 'text-cyan-600',   bg: 'bg-cyan-100' },
+  { label: 'Playground',           icon: TreePine,          color: 'text-green-600',  bg: 'bg-green-100' },
+  { label: 'Estacionamento',       icon: Car,               color: 'text-gray-600',   bg: 'bg-gray-100' },
+];
+
+function MoradorUnitView() {
+  const { userProfile } = useUser();
+  const [units] = useLocalStorage<Unit[]>('wave_units', INITIAL_UNITS);
+
+  // Normaliza o número da unidade do perfil (ex: "Apto 203" → "203")
+  const normalizedUnit = useMemo(() => {
+    return (userProfile.unit ?? '').replace(/[^0-9]/g, '').trim();
+  }, [userProfile.unit]);
+
+  // Busca a unidade correspondente
+  const myUnit = useMemo(() => {
+    if (!normalizedUnit) return null;
+    return units.find(u => u.number === normalizedUnit) ?? null;
+  }, [units, normalizedUnit]);
+
+  // Dados agregados do condomínio (sem informação pessoal)
+  const condoStats = useMemo(() => {
+    const totalUnits = units.length;
+    const floors = new Set(units.map(u => u.floor));
+    const blocks = new Set(units.map(u => u.block).filter(Boolean));
+    return {
+      totalUnits,
+      totalFloors: floors.size,
+      totalBlocks: blocks.size,
+      blockNames: Array.from(blocks).sort() as string[],
+    };
+  }, [units]);
+
+  // Extrai bloco do formato "Apto 203" ou da unit.block
+  const blockLabel = myUnit?.block || null;
+  const floorLabel = myUnit ? `${myUnit.floor}º andar` : null;
+
+  // Campos para exibição da unidade
+  const infoFields: { label: string; value: string | null; icon: React.ElementType }[] = [
+    {
+      label: 'Unidade',
+      value: myUnit?.number ? `Apto ${myUnit.number}` : userProfile.unit || null,
+      icon: Home,
+    },
+    {
+      label: 'Bloco',
+      value: blockLabel,
+      icon: Building2,
+    },
+    {
+      label: 'Andar',
+      value: floorLabel,
+      icon: Building2,
+    },
+    {
+      label: 'Metragem',
+      value: myUnit?.area || null,
+      icon: Ruler,
+    },
+    {
+      label: 'Proprietário',
+      value: myUnit?.owner || null,
+      icon: User,
+    },
+  ];
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-1">Unidades</h1>
+        <p className="text-wave-500 text-sm">
+          Informações da sua unidade e do condomínio
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* ────────────────────────────────────────────────────────────── */}
+        {/* Coluna 1: Minha Unidade                                      */}
+        {/* ────────────────────────────────────────────────────────────── */}
+        <div>
+          <h2 className="text-wave-800 text-sm font-semibold uppercase tracking-wide mb-3 flex items-center gap-2">
+            <Home className="w-4 h-4 text-wave-400" />
+            Minha Unidade
+          </h2>
+
+          {!myUnit && !normalizedUnit ? (
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-lg p-8 text-center">
+              <AlertCircle className="w-12 h-12 text-wave-300 mx-auto mb-4" />
+              <p className="text-wave-700 font-medium mb-1">Nenhuma unidade vinculada</p>
+              <p className="text-wave-400 text-sm">
+                Seu perfil ainda não está vinculado a uma unidade. Entre em contato com o síndico ou a administração para realizar o vínculo.
+              </p>
+            </div>
+          ) : !myUnit ? (
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-lg p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-wave-100 rounded-xl flex items-center justify-center">
+                  <Home className="w-6 h-6 text-wave-500" />
+                </div>
+                <div>
+                  <p className="text-wave-800 text-lg font-semibold">{userProfile.unit}</p>
+                  <p className="text-wave-400 text-xs">Unidade vinculada ao seu perfil</p>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-amber-800 text-sm font-medium">Informações em atualização</p>
+                  <p className="text-amber-600 text-xs mt-0.5">
+                    Os dados detalhados desta unidade ainda não foram cadastrados. Entre em contato com o síndico para mais informações.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-lg overflow-hidden">
+              {/* Destaque da unidade */}
+              <div className="bg-gradient-to-r from-brand-deep to-brand-steel p-5 sm:p-6 flex items-center gap-4">
+                <div className="w-14 h-14 bg-white/15 rounded-xl flex items-center justify-center">
+                  <Home className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <p className="text-white text-xl font-semibold">Apto {myUnit.number}</p>
+                  <p className="text-wave-300 text-sm">
+                    {floorLabel}{blockLabel ? ` · ${blockLabel}` : ''}
+                  </p>
+                </div>
+                {myUnit.status && (
+                  <span className={`ml-auto px-3 py-1 rounded-full text-xs font-medium ${statusColors[myUnit.status] || 'bg-wave-100 text-wave-600'}`}>
+                    {myUnit.status}
+                  </span>
+                )}
+              </div>
+
+              {/* Campos */}
+              <div className="divide-y divide-wave-100">
+                {infoFields.map(field => {
+                  const Icon = field.icon;
+                  return (
+                    <div key={field.label} className="flex items-center gap-4 px-5 sm:px-6 py-4">
+                      <div className="w-9 h-9 bg-wave-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-4 h-4 text-wave-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-wave-400 text-xs font-medium uppercase tracking-wide">{field.label}</p>
+                        {field.value ? (
+                          <p className="text-wave-800 text-sm font-medium mt-0.5">{field.value}</p>
+                        ) : (
+                          <p className="text-wave-300 text-sm italic mt-0.5">Informação não cadastrada</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Nota informativa */}
+          <p className="text-wave-400 text-xs mt-3">
+            Caso alguma informação esteja incorreta, entre em contato com o síndico ou a administração.
+          </p>
+        </div>
+
+        {/* ────────────────────────────────────────────────────────────── */}
+        {/* Coluna 2: Informações do Condomínio                          */}
+        {/* ────────────────────────────────────────────────────────────── */}
+        <div>
+          <h2 className="text-wave-800 text-sm font-semibold uppercase tracking-wide mb-3 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-wave-400" />
+            Informações do Condomínio
+          </h2>
+
+          {/* Stats agregados */}
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {[
+              { label: 'Unidades', value: condoStats.totalUnits, icon: Home, color: 'text-wave-600', bg: 'bg-wave-100' },
+              { label: 'Andares', value: condoStats.totalFloors, icon: Layers, color: 'text-blue-600', bg: 'bg-blue-100' },
+              { label: 'Áreas comuns', value: COMMON_AREAS.length, icon: ShieldCheck, color: 'text-brand-teal', bg: 'bg-brand-teal/15' },
+            ].map(s => (
+              <div key={s.label} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-4 shadow-lg text-center">
+                <div className={`inline-flex p-2 rounded-lg ${s.bg} mb-2`}>
+                  <s.icon className={`w-4 h-4 ${s.color}`} />
+                </div>
+                <p className="text-xl font-semibold text-wave-800">{s.value}</p>
+                <p className="text-wave-500 text-xs">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Blocos */}
+          {condoStats.totalBlocks > 0 && (
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-lg p-5 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="w-4 h-4 text-wave-400" />
+                <h3 className="text-wave-700 text-sm font-medium">Blocos</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {condoStats.blockNames.map(block => (
+                  <span key={block} className="px-3 py-1.5 bg-wave-50 border border-wave-200 rounded-lg text-wave-700 text-sm">
+                    {block}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Áreas comuns */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-5 py-4 border-b border-wave-100">
+              <PartyPopper className="w-4 h-4 text-wave-400" />
+              <h3 className="text-wave-700 text-sm font-medium">Áreas Comuns</h3>
+              <span className="ml-auto text-wave-400 text-xs">{COMMON_AREAS.length} disponíveis</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 divide-wave-100">
+              {COMMON_AREAS.map((area, idx) => {
+                const Icon = area.icon;
+                return (
+                  <div
+                    key={area.label}
+                    className={`flex items-center gap-3 px-5 py-3.5 ${
+                      idx % 2 === 0 && idx < COMMON_AREAS.length - 1 ? 'sm:border-r sm:border-wave-100' : ''
+                    } ${idx >= 2 ? 'sm:border-t sm:border-wave-100' : ''}`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg ${area.bg} flex items-center justify-center flex-shrink-0`}>
+                      <Icon className={`w-4 h-4 ${area.color}`} />
+                    </div>
+                    <p className="text-wave-700 text-sm">{area.label}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Nota de privacidade */}
+          <div className="flex items-start gap-2 mt-3 text-wave-400 text-xs">
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <p>Apenas informações gerais do condomínio são exibidas. Dados pessoais de outros moradores são protegidos.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+// SÍNDICO / ADMIN — Gestão completa de unidades
+// ===========================================================================
+
+function AdminUnitsView() {
   const [units, setUnits] = useLocalStorage<Unit[]>('wave_units', INITIAL_UNITS);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
