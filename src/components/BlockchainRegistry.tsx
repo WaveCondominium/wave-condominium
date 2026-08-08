@@ -1,34 +1,479 @@
 'use client';
 
-import { useState } from 'react';
-import { Shield, ExternalLink, Search, CheckCircle, XCircle, Clock, DollarSign, FileText, Vote, User, AlertCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import {
+  Shield, ExternalLink, Search, CheckCircle, XCircle, Clock,
+  DollarSign, FileText, Vote, User, AlertCircle, Receipt, Filter,
+} from 'lucide-react';
 import { useBlockchainAutoRegistry } from '@/hooks/useBlockchainAutoRegistry';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useUser } from '@/contexts/UserContext';
 
-type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document';
+// ---------------------------------------------------------------------------
+// Tipos internos
+// ---------------------------------------------------------------------------
 
-const TYPE_CONFIG: Record<string, { label: string; icon: any; color: string; bg: string }> = {
-  financial: { label: 'Pagamento',  icon: DollarSign, color: 'text-brand-teal', bg: 'bg-brand-teal/15' },
-  proposal:  { label: 'Proposta',   icon: Vote,       color: 'text-purple-700',  bg: 'bg-purple-100'  },
-  vote:      { label: 'Voto',       icon: Vote,       color: 'text-blue-700',    bg: 'bg-blue-100'    },
-  document:  { label: 'Documento',  icon: FileText,   color: 'text-amber-700',   bg: 'bg-amber-100'   },
-  user:      { label: 'Usuário',    icon: User,       color: 'text-gray-700',    bg: 'bg-gray-100'    },
+type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document';
+type MoradorTab = 'pagamentos' | 'votacoes' | 'documentos';
+
+const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
+  financial: { label: 'Pagamento', icon: DollarSign, color: 'text-brand-teal', bg: 'bg-brand-teal/15' },
+  proposal:  { label: 'Proposta',  icon: Vote,       color: 'text-purple-700', bg: 'bg-purple-100'  },
+  vote:      { label: 'Voto',      icon: Vote,       color: 'text-blue-700',   bg: 'bg-blue-100'    },
+  document:  { label: 'Documento', icon: FileText,   color: 'text-amber-700',  bg: 'bg-amber-100'   },
+  user:      { label: 'Usuário',   icon: User,       color: 'text-gray-700',   bg: 'bg-gray-100'    },
 };
+
+const MORADOR_TABS: { key: MoradorTab; label: string; icon: React.ElementType }[] = [
+  { key: 'pagamentos', label: 'Pagamentos', icon: Receipt },
+  { key: 'votacoes',   label: 'Votações',   icon: Vote },
+  { key: 'documentos', label: 'Documentos', icon: FileText },
+];
+
+// ---------------------------------------------------------------------------
+// Componente principal
+// ---------------------------------------------------------------------------
 
 export function BlockchainRegistry() {
   const { records } = useBlockchainAutoRegistry();
   const { userProfile } = useUser();
+  const isMorador = userProfile.role === 'Morador';
+
+  return (
+    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
+      {isMorador ? <MoradorAuditView /> : <AdminAuditView records={records} />}
+    </div>
+  );
+}
+
+// ===========================================================================
+// MORADOR — Auditoria da própria unidade
+// ===========================================================================
+
+function MoradorAuditView() {
+  const { userProfile } = useUser();
+  const [activeTab, setActiveTab] = useState<MoradorTab>('pagamentos');
+  const [search, setSearch] = useState('');
+
+  // Fontes de dados — filtradas pela unidade do morador
+  const userUnit = userProfile.unit;
+
+  const [boletos] = useLocalStorage<any[]>('wave_boletos', []);
+  const [proposals] = useLocalStorage<any[]>('wave_proposals_v2', []);
+  const [proposalsLegacy] = useLocalStorage<any[]>('wave_proposals', []);
+  const [documents] = useLocalStorage<any[]>('wave_documents_stellar', []);
+  const { records: blockchainRecords } = useBlockchainAutoRegistry();
+
+  // ── Pagamentos: boletos da unidade do morador ──
+  const meusPagamentos = useMemo(() => {
+    return boletos
+      .filter((b: any) => b.unitNumber === userUnit || b.unit === userUnit)
+      .sort((a: any, b: any) => {
+        const da = a.paidAt || a.createdAt || a.dueDate || '';
+        const db = b.paidAt || b.createdAt || b.dueDate || '';
+        return new Date(db).getTime() - new Date(da).getTime();
+      });
+  }, [boletos, userUnit]);
+
+  // ── Votações: propostas onde o morador participou ──
+  const minhasVotacoes = useMemo(() => {
+    const allProposals = [...(proposals || []), ...(proposalsLegacy || [])];
+    // Deduplica por id
+    const seen = new Set<string>();
+    const unique = allProposals.filter((p: any) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+
+    // Filtra propostas nas quais o morador votou (por nome ou id)
+    return unique
+      .filter((p: any) => {
+        if (!p.votos) return false;
+        const voters = Object.keys(p.votos);
+        return voters.some(v =>
+          v === userProfile.id ||
+          v === userProfile.name ||
+          v.toLowerCase() === userProfile.name?.toLowerCase()
+        );
+      })
+      .sort((a: any, b: any) =>
+        new Date(b.criadaEm || b.createdAt || '').getTime() -
+        new Date(a.criadaEm || a.createdAt || '').getTime()
+      );
+  }, [proposals, proposalsLegacy, userProfile.id, userProfile.name]);
+
+  // ── Documentos: registros blockchain de documentos + documentos reais ──
+  const meusDocumentos = useMemo(() => {
+    // Documentos registrados na blockchain que pertencem à unidade
+    const blockchainDocs = blockchainRecords
+      .filter((r: any) => r.type === 'document')
+      .map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        date: r.timestamp,
+        status: r.status,
+        category: r.metadata?.category || 'Geral',
+        source: 'blockchain' as const,
+      }));
+
+    // Documentos do storage
+    const storageDocs = (documents || []).map((d: any) => ({
+      id: d.id || d.hash || Math.random().toString(),
+      title: d.fileName || d.name || d.title || 'Documento',
+      description: d.description || `Categoria: ${d.category || 'Geral'}`,
+      date: d.uploadedAt || d.createdAt || d.timestamp || '',
+      status: 'available',
+      category: d.category || 'Geral',
+      source: 'storage' as const,
+    }));
+
+    return [...blockchainDocs, ...storageDocs].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  }, [blockchainRecords, documents]);
+
+  // Contadores para badges nas tabs
+  const counts = {
+    pagamentos: meusPagamentos.length,
+    votacoes: minhasVotacoes.length,
+    documentos: meusDocumentos.length,
+  };
+
+  return (
+    <>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-1">Auditoria</h1>
+        <p className="text-wave-500 text-sm">
+          Histórico de ações relacionadas à sua unidade{userUnit ? ` (${userUnit})` : ''}
+        </p>
+      </div>
+
+      {/* Stats resumo */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        {[
+          { label: 'Pagamentos', value: counts.pagamentos, icon: DollarSign, bg: 'bg-brand-teal/15', color: 'text-brand-teal' },
+          { label: 'Votações',   value: counts.votacoes,   icon: Vote,       bg: 'bg-blue-100',      color: 'text-blue-600' },
+          { label: 'Documentos', value: counts.documentos, icon: FileText,   bg: 'bg-amber-100',     color: 'text-amber-600' },
+        ].map(s => (
+          <div key={s.label} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-4 sm:p-5 shadow-lg">
+            <div className={`inline-flex p-2 rounded-lg ${s.bg} mb-2`}>
+              <s.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${s.color}`} />
+            </div>
+            <p className="text-xl sm:text-2xl font-semibold text-wave-800">{s.value}</p>
+            <p className="text-wave-500 text-xs sm:text-sm">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        {MORADOR_TABS.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+                isActive
+                  ? 'bg-wave-700 text-white shadow'
+                  : 'bg-white border border-wave-200 text-wave-500 hover:bg-wave-50'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+              {counts[tab.key] > 0 && (
+                <span className={`px-1.5 py-0.5 rounded-full text-xs ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-wave-100 text-wave-600'
+                }`}>
+                  {counts[tab.key]}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Busca */}
+      <div className="relative mb-5">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-wave-400" />
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar no histórico..."
+          className="w-full pl-9 pr-4 py-2.5 bg-white border border-wave-200 rounded-xl text-wave-800 text-sm focus:outline-none focus:ring-2 focus:ring-wave-300"
+        />
+      </div>
+
+      {/* Conteúdo da tab ativa */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-lg relative z-10">
+        {activeTab === 'pagamentos' && (
+          <PagamentosTab boletos={meusPagamentos} search={search} />
+        )}
+        {activeTab === 'votacoes' && (
+          <VotacoesTab propostas={minhasVotacoes} search={search} userName={userProfile.name} userId={userProfile.id} />
+        )}
+        {activeTab === 'documentos' && (
+          <DocumentosTab documentos={meusDocumentos} search={search} />
+        )}
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab: Pagamentos
+// ---------------------------------------------------------------------------
+
+function PagamentosTab({ boletos, search }: { boletos: any[]; search: string }) {
+  const filtered = boletos.filter((b: any) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      (b.description || '').toLowerCase().includes(s) ||
+      (b.referenceMonth || '').toLowerCase().includes(s) ||
+      (b.unitNumber || '').toLowerCase().includes(s) ||
+      String(b.amount || '').includes(s)
+    );
+  });
+
+  if (filtered.length === 0) {
+    return (
+      <EmptyState
+        icon={DollarSign}
+        title="Nenhum pagamento encontrado"
+        description={search ? 'Tente outro termo de busca.' : 'Seus pagamentos aparecerão aqui conforme forem registrados.'}
+      />
+    );
+  }
+
+  return (
+    <div className="divide-y divide-wave-100">
+      {filtered.map((boleto: any, idx: number) => {
+        const isPaid = boleto.status === 'pago' || boleto.status === 'blockchain_registered' || boleto.paidAt;
+        const statusLabel = isPaid ? 'Pago' : boleto.status === 'vencido' ? 'Vencido' : boleto.status === 'pendente' ? 'Pendente' : (boleto.status || 'Registrado');
+
+        return (
+          <div key={boleto.id || idx} className="p-4 sm:p-5 hover:bg-wave-50/50 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="w-9 h-9 rounded-lg bg-brand-teal/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <DollarSign className="w-4 h-4 text-brand-teal" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-wave-800 text-sm font-medium">
+                    {boleto.description || boleto.referenceMonth || 'Pagamento condominial'}
+                  </p>
+                  <p className="text-wave-500 text-xs mt-0.5">
+                    {boleto.referenceMonth && `Competência: ${boleto.referenceMonth}`}
+                    {boleto.amount != null && ` · R$ ${Number(boleto.amount).toFixed(2).replace('.', ',')}`}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-wave-400 text-xs">
+                    {boleto.paidAt && (
+                      <span>Pago em: {new Date(boleto.paidAt).toLocaleDateString('pt-BR')}</span>
+                    )}
+                    {boleto.dueDate && !boleto.paidAt && (
+                      <span>Vencimento: {new Date(boleto.dueDate).toLocaleDateString('pt-BR')}</span>
+                    )}
+                    {boleto.blockchainHash && (
+                      <span className="font-mono text-wave-300">
+                        TX: {boleto.blockchainHash.slice(0, 8)}...
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <StatusPill
+                label={statusLabel}
+                variant={isPaid ? 'success' : boleto.status === 'vencido' ? 'danger' : 'warning'}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab: Votações
+// ---------------------------------------------------------------------------
+
+function VotacoesTab({ propostas, search, userName, userId }: {
+  propostas: any[];
+  search: string;
+  userName: string;
+  userId: string;
+}) {
+  const filtered = propostas.filter((p: any) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      (p.titulo || p.title || '').toLowerCase().includes(s) ||
+      (p.descricao || p.description || '').toLowerCase().includes(s) ||
+      (p.categoria || p.category || '').toLowerCase().includes(s)
+    );
+  });
+
+  if (filtered.length === 0) {
+    return (
+      <EmptyState
+        icon={Vote}
+        title="Nenhuma votação encontrada"
+        description={search ? 'Tente outro termo de busca.' : 'Suas participações em votações aparecerão aqui.'}
+      />
+    );
+  }
+
+  const VOTE_LABEL: Record<string, { text: string; color: string; bg: string }> = {
+    aprovo:    { text: 'Aprovei',   color: 'text-brand-teal', bg: 'bg-brand-teal/15' },
+    reprovo:   { text: 'Reprovei',  color: 'text-red-600',    bg: 'bg-red-100' },
+    abstencao: { text: 'Abstenção', color: 'text-wave-500',   bg: 'bg-wave-100' },
+  };
+
+  return (
+    <div className="divide-y divide-wave-100">
+      {filtered.map((p: any, idx: number) => {
+        // Descobre o voto do morador
+        const votos = p.votos || {};
+        const myVoteKey = Object.keys(votos).find(v =>
+          v === userId || v === userName || v.toLowerCase() === userName?.toLowerCase()
+        );
+        const myVote = myVoteKey ? votos[myVoteKey] : null;
+        const voteInfo = myVote ? VOTE_LABEL[myVote] : null;
+
+        const STATUS_MAP: Record<string, string> = {
+          votacao_aberta: 'Em votação',
+          votacao_encerrada: 'Encerrada',
+          aprovada_comunidade: 'Aprovada',
+          rejeitada: 'Rejeitada',
+          fila_prioridades: 'Na fila',
+          em_execucao: 'Em execução',
+          concluida: 'Concluída',
+        };
+
+        return (
+          <div key={p.id || idx} className="p-4 sm:p-5 hover:bg-wave-50/50 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Vote className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-wave-800 text-sm font-medium">{p.titulo || p.title}</p>
+                  <p className="text-wave-500 text-xs mt-0.5 line-clamp-2">
+                    {p.descricao || p.description}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {voteInfo && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${voteInfo.bg} ${voteInfo.color}`}>
+                        <CheckCircle className="w-3 h-3" />
+                        {voteInfo.text}
+                      </span>
+                    )}
+                    <span className="text-wave-400 text-xs">
+                      {p.criadaEm || p.createdAt
+                        ? new Date(p.criadaEm || p.createdAt).toLocaleDateString('pt-BR')
+                        : ''}
+                    </span>
+                    {p.categoria && (
+                      <span className="text-wave-400 text-xs">· {p.categoria}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <StatusPill
+                label={STATUS_MAP[p.status] || p.status || '—'}
+                variant={
+                  p.status === 'aprovada_comunidade' || p.status === 'concluida' ? 'success'
+                  : p.status === 'rejeitada' ? 'danger'
+                  : 'neutral'
+                }
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tab: Documentos
+// ---------------------------------------------------------------------------
+
+function DocumentosTab({ documentos, search }: { documentos: any[]; search: string }) {
+  const filtered = documentos.filter((d: any) => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (
+      (d.title || '').toLowerCase().includes(s) ||
+      (d.description || '').toLowerCase().includes(s) ||
+      (d.category || '').toLowerCase().includes(s)
+    );
+  });
+
+  if (filtered.length === 0) {
+    return (
+      <EmptyState
+        icon={FileText}
+        title="Nenhum documento encontrado"
+        description={search ? 'Tente outro termo de busca.' : 'Documentos relacionados à sua unidade aparecerão aqui.'}
+      />
+    );
+  }
+
+  return (
+    <div className="divide-y divide-wave-100">
+      {filtered.map((doc: any, idx: number) => (
+        <div key={doc.id || idx} className="p-4 sm:p-5 hover:bg-wave-50/50 transition-colors">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <FileText className="w-4 h-4 text-amber-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-wave-800 text-sm font-medium">{doc.title}</p>
+                <p className="text-wave-500 text-xs mt-0.5">{doc.description}</p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-wave-400 text-xs">
+                  {doc.date && (
+                    <span>{new Date(doc.date).toLocaleDateString('pt-BR')}</span>
+                  )}
+                  {doc.category && <span>· {doc.category}</span>}
+                  {doc.source === 'blockchain' && (
+                    <span className="text-brand-teal font-medium">Verificado</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <StatusPill
+              label={doc.status === 'confirmed' ? 'Confirmado' : doc.status === 'available' ? 'Disponível' : doc.status || '—'}
+              variant={doc.status === 'confirmed' || doc.status === 'available' ? 'success' : 'neutral'}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ===========================================================================
+// SÍNDICO / ADMIN — Auditoria completa (mantida, renomeada)
+// ===========================================================================
+
+function AdminAuditView({ records }: { records: any[] }) {
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
 
-  // Boletos com registro Stellar — fonte principal de pagamentos
   const [boletos] = useLocalStorage<any[]>('wave_boletos', []);
   const boletosRegistrados = boletos.filter((b: any) =>
     b.blockchainHash && b.status === 'blockchain_registered'
   );
 
-  const filtered = records.filter(r => {
+  const filtered = records.filter((r: any) => {
     const matchType   = filter === 'all' || r.type === filter;
     const matchSearch = !search ||
       r.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -37,31 +482,26 @@ export function BlockchainRegistry() {
     return matchType && matchSearch;
   });
 
-  const confirmed = records.filter(r => r.status === 'confirmed').length;
-  const pending   = records.filter(r => r.status === 'pending').length;
+  const confirmed = records.filter((r: any) => r.status === 'confirmed').length;
+  const pending   = records.filter((r: any) => r.status === 'pending').length;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
-
+    <>
       {/* Header */}
       <div className="mb-6 relative z-10">
-        <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-1">
-          {userProfile.role === 'Morador' ? 'Meus Comprovantes' : 'Auditoria Stellar'}
-        </h1>
+        <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-1">Auditoria</h1>
         <p className="text-wave-500 text-sm">
-          {userProfile.role === 'Morador'
-            ? 'Comprovantes dos seus pagamentos, verificáveis de forma independente'
-            : 'Trilha de auditoria completa, com todos os eventos registrados na rede Stellar'}
+          Trilha de auditoria completa com todos os eventos registrados
         </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-10">
         {[
-          { label: 'Total de registros',  value: records.length,           icon: Shield,       bg: 'bg-wave-100',    color: 'text-wave-600'    },
-          { label: 'Confirmados',          value: confirmed,                 icon: CheckCircle,  bg: 'bg-brand-teal/15', color: 'text-brand-teal' },
-          { label: 'Pendentes',            value: pending,                   icon: Clock,        bg: 'bg-amber-100',   color: 'text-amber-600'   },
-          { label: 'Pagamentos verificados', value: boletosRegistrados.length, icon: DollarSign, bg: 'bg-blue-100',    color: 'text-blue-600'    },
+          { label: 'Total de registros',     value: records.length,             icon: Shield,      bg: 'bg-wave-100',      color: 'text-wave-600' },
+          { label: 'Confirmados',             value: confirmed,                  icon: CheckCircle, bg: 'bg-brand-teal/15', color: 'text-brand-teal' },
+          { label: 'Pendentes',               value: pending,                    icon: Clock,       bg: 'bg-amber-100',     color: 'text-amber-600' },
+          { label: 'Pagamentos verificados',  value: boletosRegistrados.length,  icon: DollarSign,  bg: 'bg-blue-100',      color: 'text-blue-600' },
         ].map(s => (
           <div key={s.label} className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-5 shadow-lg">
             <div className={`inline-flex p-2 rounded-lg ${s.bg} mb-3`}>
@@ -73,7 +513,7 @@ export function BlockchainRegistry() {
         ))}
       </div>
 
-      {/* ── PAGAMENTOS REGISTRADOS — visível para todos ── */}
+      {/* Pagamentos registrados */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-6 mb-8 shadow-lg relative z-10">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
@@ -104,7 +544,6 @@ export function BlockchainRegistry() {
 
               return (
                 <div key={boleto.id} className="border border-brand-teal/30 bg-brand-teal/10 rounded-xl p-4">
-                  {/* Cabeçalho do pagamento */}
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <p className="text-wave-800 font-medium">
@@ -126,30 +565,24 @@ export function BlockchainRegistry() {
                     </span>
                   </div>
 
-                  {/* Registro Stellar */}
                   <div className="bg-white rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-wave-500 text-xs font-medium uppercase tracking-wide">
-                        Registro na rede Stellar
+                        Registro verificável
                       </p>
-                      <span className="text-xs text-wave-400 font-mono">Testnet</span>
+                      <span className="text-xs text-wave-400 font-mono">Stellar Testnet</span>
                     </div>
-
-                    {/* Hash da transação */}
                     <div>
                       <p className="text-wave-400 text-xs mb-1">ID da transação</p>
                       <p className="text-wave-700 text-xs font-mono break-all leading-relaxed">
                         {boleto.blockchainHash}
                       </p>
                     </div>
-
                     {boleto.blockchainRegisteredAt && (
                       <p className="text-wave-400 text-xs">
                         Ancoragem: {new Date(boleto.blockchainRegisteredAt).toLocaleString('pt-BR')}
                       </p>
                     )}
-
-                    {/* Botão de verificação — acessível para TODOS */}
                     {explorerUrl ? (
                       <a
                         href={explorerUrl}
@@ -158,7 +591,7 @@ export function BlockchainRegistry() {
                         className="mt-2 flex items-center justify-center gap-2 w-full py-2.5 bg-brand-teal hover:opacity-90 text-white rounded-lg transition-colors text-xs font-medium"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
-                        Verificar transação na rede Stellar
+                        Verificar transação
                       </a>
                     ) : (
                       <div className="mt-2 flex items-center gap-2 w-full py-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3">
@@ -174,18 +607,18 @@ export function BlockchainRegistry() {
         )}
       </div>
 
-      {/* ── TABELA DE AUDITORIA — SÍNDICO/ADMIN APENAS ── */}
-      {userProfile.role !== 'Morador' && boletosRegistrados.length > 0 && (
+      {/* Tabela de auditoria blockchain */}
+      {boletosRegistrados.length > 0 && (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-6 mb-8 shadow-lg relative z-10 overflow-x-auto">
           <div className="flex items-center gap-2 mb-4">
             <Shield className="w-5 h-5 text-wave-500" />
-            <h2 className="text-wave-800 text-lg font-medium">Relatório de Auditoria Blockchain</h2>
+            <h2 className="text-wave-800 text-lg font-medium">Relatório de Auditoria</h2>
             <span className="ml-auto text-xs text-wave-400 italic">Visível apenas para síndico/admin</span>
           </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-wave-100">
-                {['Unidade','Competência','Valor R$','Método','txHash','Status Stellar'].map(h => (
+                {['Unidade', 'Competência', 'Valor R$', 'Método', 'txHash', 'Status'].map(h => (
                   <th key={h} className="text-left py-2 px-3 text-wave-500 text-xs font-medium">{h}</th>
                 ))}
               </tr>
@@ -203,14 +636,14 @@ export function BlockchainRegistry() {
                     <td className="py-2 px-3">
                       {b.blockchainHash ? (
                         <span className="font-mono text-xs text-wave-500">
-                          {b.blockchainHash.slice(0,8)}...{b.blockchainHash.slice(-6)}
+                          {b.blockchainHash.slice(0, 8)}...{b.blockchainHash.slice(-6)}
                         </span>
                       ) : <span className="text-wave-300 text-xs">—</span>}
                     </td>
                     <td className="py-2 px-3">
                       <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 bg-brand-teal/15 text-brand-teal rounded-full text-xs font-medium">
-                          STELLAR_CONFIRMED
+                          Confirmado
                         </span>
                         {explorerUrl && (
                           <a href={explorerUrl} target="_blank" rel="noopener noreferrer"
@@ -228,8 +661,7 @@ export function BlockchainRegistry() {
         </div>
       )}
 
-      {/* ── TRILHA DE AUDITORIA COMPLETA ── */}
-      {userProfile.role !== 'Morador' && (
+      {/* Trilha de auditoria completa */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-6 mb-6 shadow-lg relative z-10">
         <div className="flex items-center gap-2 mb-5">
           <Shield className="w-5 h-5 text-wave-500" />
@@ -273,7 +705,7 @@ export function BlockchainRegistry() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map(record => {
+            {filtered.map((record: any) => {
               const cfg = TYPE_CONFIG[record.type] ?? TYPE_CONFIG['document'];
               const Icon = cfg.icon;
               return (
@@ -286,7 +718,7 @@ export function BlockchainRegistry() {
                       </span>
                       <p className="text-wave-800 text-sm font-medium">{record.title}</p>
                     </div>
-                    <StatusBadge status={record.status} />
+                    <RecordStatusBadge status={record.status} />
                   </div>
 
                   <p className="text-wave-500 text-xs mb-2">{record.description}</p>
@@ -304,7 +736,7 @@ export function BlockchainRegistry() {
                           className="flex items-center gap-1 text-xs text-wave-500 hover:text-wave-700 underline shrink-0"
                         >
                           <ExternalLink className="w-3 h-3" />
-                          Ver na Stellar
+                          Verificar
                         </a>
                       )}
                     </div>
@@ -321,8 +753,6 @@ export function BlockchainRegistry() {
         )}
       </div>
 
-      )}
-
       {/* Info box */}
       <div className="bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
         <div className="flex items-start gap-3">
@@ -332,9 +762,8 @@ export function BlockchainRegistry() {
             <p className="text-wave-600 text-sm mb-3">
               Cada pagamento gera um comprovante em hash SHA-256 registrado permanentemente
               na rede Stellar via campo <code className="bg-wave-100 px-1 rounded text-xs font-mono">memo_hash</code>.
-              Qualquer pessoa (morador, síndico ou auditor externo) pode clicar em
-              "Verificar transação" e confirmar o registro diretamente no Stellar Explorer,
-              sem depender da plataforma Wave.
+              Qualquer pessoa pode clicar em "Verificar transação" e confirmar o registro
+              diretamente no Stellar Explorer, sem depender da plataforma Wave.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-wave-500">
               <div className="bg-white/10 rounded-lg p-3">
@@ -355,11 +784,50 @@ export function BlockchainRegistry() {
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+// ===========================================================================
+// Componentes auxiliares reutilizáveis
+// ===========================================================================
+
+function StatusPill({ label, variant }: {
+  label: string;
+  variant: 'success' | 'warning' | 'danger' | 'neutral';
+}) {
+  const styles = {
+    success: 'bg-brand-teal/15 text-brand-teal',
+    warning: 'bg-amber-100 text-amber-700',
+    danger:  'bg-red-100 text-red-700',
+    neutral: 'bg-wave-100 text-wave-600',
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${styles[variant]}`}>
+      {variant === 'success' && <CheckCircle className="w-3 h-3" />}
+      {variant === 'warning' && <Clock className="w-3 h-3" />}
+      {variant === 'danger' && <XCircle className="w-3 h-3" />}
+      {label}
+    </span>
+  );
+}
+
+function EmptyState({ icon: Icon, title, description }: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="text-center py-12 px-4">
+      <Icon className="w-12 h-12 text-wave-300 mx-auto mb-3" />
+      <p className="text-wave-500 text-sm font-medium">{title}</p>
+      <p className="text-wave-400 text-xs mt-1">{description}</p>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function RecordStatusBadge({ status }: { status: string }) {
   if (status === 'confirmed') return (
     <span className="flex items-center gap-1 px-2 py-0.5 bg-brand-teal/15 text-brand-teal rounded-full text-xs shrink-0">
       <CheckCircle className="w-3 h-3" /> Confirmado

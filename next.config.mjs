@@ -3,7 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000", "192.168.18.21:3000"],
+      allowedOrigins: [
+        "localhost:3000",
+        "192.168.18.21:3000",
+        "wave-condominium.vercel.app",
+      ],
     },
   },
   // Página de boas-vindas (landing) na entrada do site. Servida como HTML

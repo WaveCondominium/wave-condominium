@@ -50,7 +50,7 @@ export function Sidebar({ userProfile, onLogout, isMobileOpen = false, onMobileC
     { href: '/dashboard/treasury',       label: 'Tesouraria',  icon: Wallet },
     { href: '/dashboard/documents',      label: 'Documentos',  icon: FileText },
     { href: '/dashboard/maintenance',    label: 'Manutenção',  icon: Wrench,          badge: maintenanceCount > 0 ? maintenanceCount : undefined },
-    { href: '/dashboard/blockchain',     label: 'Auditoria Stellar',  icon: Shield },
+    { href: '/dashboard/blockchain',     label: 'Auditoria',  icon: Shield },
     { href: '/dashboard/units',          label: 'Unidades',    icon: Home },
     // RBAC (regra permanente do projeto): "Criar Nova Conta" é restrito a
     // Síndico/Administrador — Morador não deve ver esse item no menu.
