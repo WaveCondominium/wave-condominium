@@ -67,6 +67,10 @@ model User {
   unit         String?
   photoUrl     String?
 
+  // Primeiro acesso: quando true, o usuario DEVE trocar a senha provisoria
+  // antes de acessar qualquer funcionalidade da plataforma.
+  mustChangePassword Boolean @default(false)
+
   // Vinculo com condominio (sindico/morador) OU administradora.
   condominiumId String?
   condominium   Condominium? @relation(fields: [condominiumId], references: [id])

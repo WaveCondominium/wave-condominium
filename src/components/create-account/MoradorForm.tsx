@@ -2,12 +2,35 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CreditCard, Calendar, Mail, Phone, Home, Users, CheckCircle } from 'lucide-react';
+import { CreditCard, Calendar, Mail, Phone, Home, Users, CheckCircle, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { PhotoUpload } from './PhotoUpload';
-import { CredentialsFields } from './CredentialsFields';
-import { salvarConta, validateCredentials } from '@/lib/accounts';
+import { salvarConta } from '@/lib/accounts';
+import { registerMoradorAction } from '@/app/actions/auth';
 import { isValidCPF, formatCPF, isValidEmail, isValidPhone, formatPhone } from '@/lib/validators';
+
+// Gera senha provisória segura (12 caracteres, mix alfanumérico + símbolo)
+function generateProvisionalPassword(): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghjkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const symbols = '@#$!&';
+  const all = upper + lower + digits + symbols;
+
+  // Garante pelo menos 1 de cada tipo
+  let pwd = '';
+  pwd += upper[Math.floor(Math.random() * upper.length)];
+  pwd += lower[Math.floor(Math.random() * lower.length)];
+  pwd += digits[Math.floor(Math.random() * digits.length)];
+  pwd += symbols[Math.floor(Math.random() * symbols.length)];
+
+  for (let i = 4; i < 12; i++) {
+    pwd += all[Math.floor(Math.random() * all.length)];
+  }
+
+  // Embaralha
+  return pwd.split('').sort(() => Math.random() - 0.5).join('');
+}
 
 interface FormState {
   photoPreview: string | null;
@@ -17,7 +40,6 @@ interface FormState {
   email: string;
   celular: string;
   telefoneFixo: string;
-  condominio: string;
   bloco: string;
   unidade: string;
   tipoUnidade: string;
@@ -27,8 +49,6 @@ interface FormState {
   contatoNome: string;
   contatoParentesco: string;
   contatoTelefone: string;
-  password: string;
-  confirmPassword: string;
 }
 
 const initialState: FormState = {
@@ -39,7 +59,6 @@ const initialState: FormState = {
   email: '',
   celular: '',
   telefoneFixo: '',
-  condominio: '',
   bloco: '',
   unidade: '',
   tipoUnidade: '',
@@ -49,14 +68,20 @@ const initialState: FormState = {
   contatoNome: '',
   contatoParentesco: '',
   contatoTelefone: '',
-  password: '',
-  confirmPassword: '',
 };
+
+interface CreatedCredentials {
+  email: string;
+  provisionalPassword: string;
+  name: string;
+}
 
 export function MoradorForm() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initialState);
   const [submitting, setSubmitting] = useState(false);
+  const [credentials, setCredentials] = useState<CreatedCredentials | null>(null);
+  const [copied, setCopied] = useState(false);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -70,9 +95,8 @@ export function MoradorForm() {
     if (!isValidEmail(form.email)) return 'E-mail inválido.';
     if (!form.celular.trim()) return 'Informe o celular.';
     if (!isValidPhone(form.celular)) return 'Celular inválido.';
-    if (!form.condominio.trim()) return 'Informe o condomínio.';
     if (!form.unidade.trim()) return 'Informe a unidade.';
-    return validateCredentials(form.password, form.confirmPassword);
+    return null;
   }
 
   async function handleSubmit() {
@@ -84,7 +108,22 @@ export function MoradorForm() {
 
     setSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const provisionalPassword = generateProvisionalPassword();
+
+      const result = await registerMoradorAction({
+        email: form.email.trim().toLowerCase(),
+        provisionalPassword,
+        name: form.fullName.trim(),
+        unit: form.unidade.trim(),
+      });
+
+      if (result.error) {
+        toast.error(result.error.message);
+        return;
+      }
+
+      // Persiste dados complementares no localStorage (CPF, celular, etc.)
+      // que ainda não estão no schema Prisma — dívida técnica documentada.
       salvarConta('morador', {
         photoPreview: form.photoPreview,
         fullName: form.fullName.trim(),
@@ -93,7 +132,6 @@ export function MoradorForm() {
         email: form.email.trim().toLowerCase(),
         celular: form.celular,
         telefoneFixo: form.telefoneFixo.trim() || null,
-        condominio: form.condominio.trim(),
         bloco: form.bloco.trim() || null,
         unidade: form.unidade.trim(),
         tipoUnidade: form.tipoUnidade.trim() || null,
@@ -103,17 +141,81 @@ export function MoradorForm() {
         contatoEmergencia: form.contatoNome.trim()
           ? { nome: form.contatoNome.trim(), parentesco: form.contatoParentesco.trim() || null, telefone: form.contatoTelefone || null }
           : null,
-        password: form.password,
       });
-      toast.success('Morador cadastrado com sucesso!', {
-        description: `${form.fullName} foi adicionado(a) à plataforma.`,
+
+      // Exibe modal com credenciais provisórias para o gestor compartilhar
+      setCredentials({
+        email: form.email.trim().toLowerCase(),
+        provisionalPassword,
+        name: form.fullName.trim(),
       });
-      router.push('/dashboard');
     } catch {
       toast.error('Erro inesperado ao criar a conta. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleCopyCredentials() {
+    if (!credentials) return;
+    const text = `Acesso Wave Condominium\nE-mail: ${credentials.email}\nSenha provisória: ${credentials.provisionalPassword}\n\nNo primeiro acesso, você deverá criar uma nova senha.`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success('Credenciais copiadas!');
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  // Modal de credenciais provisórias — exibido APÓS o cadastro bem-sucedido
+  if (credentials) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-7 h-7 text-green-600" />
+          </div>
+          <h2 className="text-wave-800 text-xl font-medium mb-2">Morador cadastrado!</h2>
+          <p className="text-wave-500 text-sm">
+            Compartilhe as credenciais abaixo com <strong>{credentials.name}</strong> para o primeiro acesso.
+          </p>
+        </div>
+
+        <div className="bg-wave-50 rounded-xl border border-wave-200 p-5 space-y-3">
+          <div>
+            <p className="text-wave-400 text-xs uppercase tracking-wider mb-1">E-mail</p>
+            <p className="text-wave-800 font-mono text-sm">{credentials.email}</p>
+          </div>
+          <div>
+            <p className="text-wave-400 text-xs uppercase tracking-wider mb-1">Senha provisória</p>
+            <p className="text-wave-800 font-mono text-sm">{credentials.provisionalPassword}</p>
+          </div>
+          <p className="text-orange-600 text-xs font-medium mt-2">
+            No primeiro acesso, o morador será obrigado a criar uma nova senha.
+          </p>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={handleCopyCredentials}
+            className="flex-1 py-3 bg-wave-500 text-white rounded-xl hover:bg-wave-600 transition-colors flex items-center justify-center gap-2 font-medium text-sm"
+          >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied ? 'Copiado!' : 'Copiar credenciais'}
+          </button>
+          <button
+            onClick={() => { setCredentials(null); setForm(initialState); }}
+            className="flex-1 py-3 bg-wave-50 border border-wave-200 text-wave-600 rounded-xl hover:bg-wave-100 transition-all font-medium text-sm"
+          >
+            Cadastrar outro morador
+          </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex-1 py-3 bg-wave-50 border border-wave-200 text-wave-600 rounded-xl hover:bg-wave-100 transition-all font-medium text-sm"
+          >
+            Voltar ao Dashboard
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -182,12 +284,6 @@ export function MoradorForm() {
           <h2 className="text-wave-800 font-medium">Dados da unidade</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-3">
-            <label className="block text-wave-600 text-sm mb-1.5">Condomínio *</label>
-            <input type="text" value={form.condominio} onChange={(e) => update('condominio', e.target.value)}
-              placeholder="Ex: Residencial Aurora"
-              className="w-full px-4 py-2.5 bg-white border border-wave-200 rounded-xl text-wave-800 placeholder-wave-300 focus:outline-none focus:ring-2 focus:ring-wave-300 focus:border-wave-400 transition-all text-sm" />
-          </div>
           <div>
             <label className="block text-wave-600 text-sm mb-1.5">Bloco</label>
             <input type="text" value={form.bloco} onChange={(e) => update('bloco', e.target.value)}
@@ -257,12 +353,13 @@ export function MoradorForm() {
 
       <section>
         <h2 className="text-wave-800 font-medium mb-4">Acesso</h2>
-        <CredentialsFields
-          password={form.password}
-          onPasswordChange={(v) => update('password', v)}
-          confirmPassword={form.confirmPassword}
-          onConfirmPasswordChange={(v) => update('confirmPassword', v)}
-        />
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <p className="text-blue-800 text-sm font-medium mb-1">Senha provisória gerada automaticamente</p>
+          <p className="text-blue-600 text-xs">
+            Após o cadastro, uma senha provisória será gerada e exibida para você compartilhar com o morador.
+            No primeiro acesso, o morador será obrigado a criar uma nova senha pessoal.
+          </p>
+        </div>
       </section>
 
       <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-wave-100">

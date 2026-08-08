@@ -9,6 +9,7 @@ export interface CreateUserInput {
   unit?: string | null;
   photoUrl?: string | null;
   condominiumId: string;
+  mustChangePassword?: boolean;
 }
 
 export const userRepository = {
@@ -28,6 +29,14 @@ export const userRepository = {
   create(data: CreateUserInput) {
     return prisma.user.create({
       data: { ...data, email: data.email.toLowerCase().trim() },
+    });
+  },
+
+  /** Atualiza hash da senha e limpa flag de primeiro acesso. */
+  async updatePassword(userId: string, passwordHash: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash, mustChangePassword: false },
     });
   },
 };

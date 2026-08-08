@@ -13,6 +13,8 @@ export interface SessionPayload {
   condominiumId: string | null;
   /** Administradora dona da sessao (canal B2B2C multi-condominio). */
   administradoraId?: string | null;
+  /** Primeiro acesso: usuario precisa trocar a senha provisoria. */
+  mustChangePassword?: boolean;
 }
 
 function getSecret(): Uint8Array {
@@ -49,6 +51,7 @@ export async function getSession(): Promise<SessionPayload | null> {
       role: payload.role as Role,
       condominiumId: payload.condominiumId ? String(payload.condominiumId) : null,
       administradoraId: payload.administradoraId ? String(payload.administradoraId) : null,
+      mustChangePassword: Boolean(payload.mustChangePassword),
     };
   } catch {
     return null;

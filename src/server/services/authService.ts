@@ -28,12 +28,16 @@ export interface PublicUser {
   photoUrl: string | null;
   condominiumId: string | null;
   administradoraId: string | null;
+  mustChangePassword: boolean;
 }
 
+// Tipo alinhado ao Prisma User — mustChangePassword pode ainda nao existir
+// no banco (migration pendente) ou ser undefined em registros antigos.
 type DbUser = {
   id: string; email: string; name: string; role: PrismaRole;
   unit: string | null; photoUrl: string | null;
   condominiumId: string | null; administradoraId: string | null;
+  mustChangePassword?: boolean;
 };
 
 function toPublic(u: DbUser): PublicUser {
@@ -46,6 +50,7 @@ function toPublic(u: DbUser): PublicUser {
     photoUrl: u.photoUrl,
     condominiumId: u.condominiumId,
     administradoraId: u.administradoraId,
+    mustChangePassword: u.mustChangePassword ?? false,
   };
 }
 
@@ -64,6 +69,7 @@ export async function login(email: string, password: string): Promise<LoginResul
     role: DB_TO_LABEL[user.role],
     condominiumId: user.condominiumId ?? null,
     administradoraId: user.administradoraId ?? null,
+    mustChangePassword: user.mustChangePassword ?? false,
   });
   return { ok: true, user: toPublic(user) };
 }
@@ -99,4 +105,74 @@ export async function register(input: RegisterInput): Promise<PublicUser> {
     condominiumId: input.condominiumId,
   });
   return toPublic(created);
+}
+
+// ---------------------------------------------------------------------------
+// Primeiro acesso — registro de Morador com senha provisória
+// ---------------------------------------------------------------------------
+
+export interface RegisterMoradorInput {
+  email: string;
+  provisionalPassword: string;
+  name: string;
+  unit?: string | null;
+  condominiumId: string;
+}
+
+/**
+ * Registra um Morador com senha provisória. O campo `mustChangePassword`
+ * é setado como true, forçando a troca no primeiro login.
+ */
+export async function registerMorador(input: RegisterMoradorInput): Promise<PublicUser> {
+  const passwordHash = await hashPassword(input.provisionalPassword);
+  const created = await userRepository.create({
+    email: input.email,
+    passwordHash,
+    name: input.name,
+    role: "MORADOR",
+    unit: input.unit ?? null,
+    condominiumId: input.condominiumId,
+    mustChangePassword: true,
+  });
+  return toPublic(created);
+}
+
+// ---------------------------------------------------------------------------
+// Alteração obrigatória de senha (primeiro acesso)
+// ---------------------------------------------------------------------------
+
+export type ChangePasswordResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Troca a senha do usuário autenticado, invalida a provisória,
+ * limpa mustChangePassword e recria a sessão sem a flag.
+ */
+export async function changePassword(newPassword: string): Promise<ChangePasswordResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Sessão expirada. Faça login novamente." };
+
+  const user = await userRepository.findById(session.userId);
+  if (!user) return { ok: false, error: "Usuário não encontrado." };
+
+  // Impede reutilização da senha provisória (ou senha atual)
+  const isSamePassword = await verifyPassword(user.passwordHash, newPassword);
+  if (isSamePassword) {
+    return { ok: false, error: "A nova senha não pode ser igual à senha atual." };
+  }
+
+  const newHash = await hashPassword(newPassword);
+  await userRepository.updatePassword(user.id, newHash);
+
+  // Recria a sessão sem mustChangePassword para liberar acesso normal
+  await createSession({
+    userId: user.id,
+    role: DB_TO_LABEL[user.role],
+    condominiumId: user.condominiumId ?? null,
+    administradoraId: user.administradoraId ?? null,
+    mustChangePassword: false,
+  });
+
+  return { ok: true };
 }

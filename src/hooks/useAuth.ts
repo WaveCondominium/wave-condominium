@@ -10,11 +10,13 @@ export interface User {
   unit: string;
   walletAddress?: string;
   photoUrl?: string;
+  mustChangePassword?: boolean;
 }
 
 function toUser(p: {
   id: string; email: string; name: string;
   role: User["role"]; unit: string | null; photoUrl: string | null;
+  mustChangePassword?: boolean;
 }): User {
   return {
     id: p.id,
@@ -23,6 +25,7 @@ function toUser(p: {
     role: p.role,
     unit: p.unit ?? "",
     photoUrl: p.photoUrl ?? undefined,
+    mustChangePassword: p.mustChangePassword ?? false,
   };
 }
 
@@ -53,6 +56,13 @@ export function useAuth() {
       const res = await loginAction(email, password);
       if (res.error) return { error: res.error };
       setUser(res.user ? toUser(res.user) : null);
+
+      // Primeiro acesso: redireciona para troca obrigatória de senha.
+      if (res.user?.mustChangePassword) {
+        router.push("/force-change-password");
+        return { error: null };
+      }
+
       // Administradora entra pelo painel multi-condominio (escolhe o condominio
       // ativo la); demais perfis vao direto ao dashboard.
       router.push(res.user?.role === "Administradora" ? "/dashboard/administradora" : "/dashboard");
