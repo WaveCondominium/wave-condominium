@@ -12,6 +12,12 @@ export interface MaintenanceOrder {
   assignedTo: string | null;
   category: string;
   hasDocument: boolean;
+  description?: string;
+  location?: string;
+  unit?: string;
+  origin?: 'condominio' | 'morador';
+  createdByName?: string;
+  createdById?: string;
 }
 
 export interface UnifiedMaintenanceOrder extends MaintenanceOrder {

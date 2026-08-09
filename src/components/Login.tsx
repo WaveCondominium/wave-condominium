@@ -1,15 +1,17 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { ArrowRight, Shield, Vote, FileText } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Shield, Vote, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<any>;
 }
 
 export function Login({ onLogin }: LoginProps) {
+  const router = useRouter();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
 
@@ -144,11 +146,8 @@ export function Login({ onLogin }: LoginProps) {
             </button>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-brand-light">
-            <p className="text-brand-grey text-xs text-center">
-              Contas de demonstração · senha <strong className="text-brand-ink">Senha@12345</strong>
-            </p>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+          <div className="mt-6 pt-5 border-t border-brand-light">
+            <div className="grid grid-cols-3 gap-2 text-xs">
               {[
                 { label: 'Síndico',        email: 'sindico@wave.com' },
                 { label: 'Morador',        email: 'morador@wave.com' },
@@ -161,10 +160,17 @@ export function Login({ onLogin }: LoginProps) {
                   className="px-2 py-1.5 bg-brand-light border border-brand-chrome/50 rounded-lg text-brand-grey hover:border-brand-steel hover:text-brand-navy transition-all text-center"
                 >
                   <p className="font-medium text-xs">{item.label}</p>
-                  <p className="text-brand-grey/80 text-[10px] truncate">{item.email}</p>
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="w-full mt-4 py-2.5 text-brand-grey hover:text-brand-navy transition-all flex items-center justify-center gap-2 text-sm"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar
+            </button>
           </div>
 
         </div>
