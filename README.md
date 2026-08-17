@@ -213,3 +213,5 @@ Built by the **Wave Condomínios** team (Rio de Janeiro / São Paulo, Brazil):
 - 🌐 **Live Demo:** [wave-condominium.vercel.app](https://wave-condominium.vercel.app)
 - 📦 **Repository:** [github.com/WaveCondominium/wave-condominium](https://github.com/WaveCondominium/wave-condominium)
 - 🔭 **Stellar Testnet Explorer:** [stellar.expert/explorer/testnet](https://stellar.expert/explorer/testnet)
+
+Ambiente de homologação - branch develop.
