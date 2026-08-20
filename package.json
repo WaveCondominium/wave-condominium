@@ -64,13 +64,15 @@
     "eslint-config-next": "14.2.18",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^2.1.9"
   },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
     "postinstall": "prisma generate",
     "db:seed": "node scripts/seed.mjs"
   },
