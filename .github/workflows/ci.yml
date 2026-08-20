@@ -1,0 +1,56 @@
+name: CI
+
+# Gate de qualidade: roda em PRs (para main e develop) e em pushes na branch
+# develop. NÃO faz deploy — o deploy de homologação/produção é feito pela
+# integração Git da Vercel. Aqui apenas barramos código quebrado antes do merge.
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+# Cancela execuções antigas da mesma ref quando um novo push chega.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint • Types • Build
+    runs-on: ubuntu-latest
+    env:
+      # Valores dummy só para o build passar em CI (sem banco real).
+      # O build NÃO conecta ao banco (nenhuma página é estática com Prisma),
+      # mas o PrismaClient e o middleware esperam as vars definidas.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
+      WAVE_SESSION_SECRET: "ci-dummy-secret-not-used-in-runtime"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build (sem migrate)
+        # Chamamos o next build direto para NÃO rodar "prisma migrate deploy"
+        # (que é do script de build de deploy e exigiria um banco real).
+        run: npx next build
