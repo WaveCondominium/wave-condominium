@@ -402,9 +402,9 @@ function GestorDashboard() {
               Ações Rápidas
             </h2>
             <div className="grid grid-cols-2 gap-3">
-              <Link href="/dashboard/governance?filtro=ativas" className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-center backdrop-blur-sm">
+              <Link href="/dashboard/governance?filtro=aberta" className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-center backdrop-blur-sm">
                 <Vote className="w-6 h-6 mx-auto mb-2" />
-                <span className="text-xs">Votação</span>
+                <span className="text-xs">Votações</span>
               </Link>
               <Link href="/dashboard/maintenance" className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-center backdrop-blur-sm">
                 <Wrench className="w-6 h-6 mx-auto mb-2" />

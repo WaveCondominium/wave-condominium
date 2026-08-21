@@ -1,20 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Vote, Plus, TrendingUp, Archive } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useUser } from '../../contexts/UserContext';
 import { isManager } from '../../lib/rbac';
 import { type Proposta, type VoteChoice, isAprovada, isEmVotacao, isRejeitada } from './governanceCore';
+import { type Filtro, parseFiltroParam } from './governanceFilter';
 import { useGovernance } from './useGovernance';
 import { GovernanceDashboard } from './GovernanceDashboard';
 import { ProposalCard } from './ProposalCard';
 import { FilaPrioridades } from './FilaPrioridades';
 import { DeliberacoesAnteriores } from './DeliberacoesAnteriores';
 import { CreatePropostaModal } from './CreatePropostaModal';
-
-type Filtro = 'todas' | 'aberta' | 'aprovadas' | 'rejeitadas';
 
 interface GovernanceViewProps {
   onViewProposal: (proposalId: string) => void;
@@ -35,6 +34,19 @@ export function GovernanceView({ onViewProposal }: GovernanceViewProps) {
   const [view, setView] = useState<'votacoes' | 'fila' | 'deliberacoes'>('votacoes');
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [showCreate, setShowCreate] = useState(false);
+
+  // MOR-020: quando a tela é aberta via Ação Rápida "Votações"
+  // (`/dashboard/governance?filtro=aberta`), inicia direto nas votações em
+  // andamento. Lido no mount a partir da URL (sem useSearchParams, para não
+  // exigir Suspense no build); a navegação normal pelo menu mantém o padrão.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const alvo = parseFiltroParam(new URLSearchParams(window.location.search).get('filtro'));
+    if (alvo) {
+      setView('votacoes');
+      setFiltro(alvo);
+    }
+  }, []);
 
   const lista = useMemo<Proposta[]>(() => {
     if (filtro === 'aberta') return emVotacao;
