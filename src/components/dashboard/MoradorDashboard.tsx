@@ -11,6 +11,7 @@ import type { SolicitacaoServico } from './moradorDashboardTypes';
 import { BlockCard, BlockEmpty } from './BlockCard';
 import { OcorrenciaBadge } from './OcorrenciaBadge';
 import { SolicitacaoDetailsModal } from './SolicitacaoDetailsModal';
+import { MoradorAtencaoSection } from './MoradorAtencaoSection';
 
 const MAX_ITENS = 4;
 
@@ -36,6 +37,10 @@ export function MoradorDashboard() {
           {userProfile.unit ? `${userProfile.unit}: ` : ''}apenas o que pertence a sua unidade e os comunicados do condominio.
         </p>
       </header>
+
+      {/* Atenção Necessária — o que exige a atenção do morador (MOR-015):
+          comunicados urgentes/importantes + solicitações da unidade em aberto. */}
+      <MoradorAtencaoSection comunicados={comunicados} solicitacoes={solicitacoes} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Meus Documentos */}

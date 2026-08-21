@@ -316,6 +316,11 @@ function GestorDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
+          {/* RBAC / MOR-015: esta "Atenção Necessária" é a lista de alertas de
+              GESTÃO (garantias, fundo de reserva, etc.). É pertinente apenas a
+              Síndico/Administrador — o Morador tem a sua própria "Atenção
+              Necessária" (relevante à unidade dele) no MoradorDashboard. */}
+          {isManager(userProfile.role) && (
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-orange-100 rounded-lg">
@@ -349,6 +354,7 @@ function GestorDashboard() {
               ))}
             </div>
           </div>
+          )}
 
           {/* Atividade Recente — removida temporariamente a pedido da equipe (14/07/2026). Estrutura preservada para reimplementação futura.
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-sm p-6">
