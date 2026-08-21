@@ -3,11 +3,17 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   Wrench, CheckCircle, AlertCircle, Calendar, Shield, Bell, Plus,
   X, Clock, ChevronRight, FileText, Send, Eye, ShieldCheck,
-  CalendarClock, CircleDot, Info, Lock,
+  CalendarClock, CircleDot, Info, Building2,
 } from 'lucide-react';
 
 import { CreateMaintenanceModal } from './maintenance/CreateMaintenanceModal';
 import { InspectionOrderModal } from './maintenance/InspectionOrderModal';
+import { BuildingMaintenanceSection } from './maintenance/BuildingMaintenanceSection';
+import {
+  BUILDING_WARRANTIES,
+  BUILDING_COMPLIANCE,
+  getWarrantyHealth,
+} from './maintenance/buildingMaintenance';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useMaintenanceOrders, type MaintenanceOrder } from '../hooks/useMaintenanceOrders';
 import { useUser } from '@/contexts/UserContext';
@@ -21,12 +27,14 @@ export function Maintenance() {
   const { userProfile } = useUser();
   const canManage = isManager(userProfile.role);
 
-  // RBAC: a "Manutenção Geral" (gestão de manutenção do condomínio) é renderizada
-  // APENAS para perfis gestores (Síndico/Administrador). O Morador nunca recebe a
+  // RBAC: a GESTÃO da manutenção (criar/editar/concluir OS, abrir vistorias) é
+  // renderizada APENAS para perfis gestores (Síndico/Administrador) via
   // ManagerMaintenanceView — este roteamento por perfil é o bloqueio efetivo de
-  // acesso ao conteúdo geral, inclusive ao acessar /dashboard/maintenance pela URL.
-  // O Morador ainda vê um bloco "Manutenção Geral" desabilitado (visível, sem abrir)
-  // dentro da própria tela — ver MoradorMaintenanceView.
+  // qualquer ação, inclusive ao acessar /dashboard/maintenance pela URL.
+  // O Morador recebe a MoradorMaintenanceView, que inclui a aba "Prédio":
+  // uma visão SOMENTE LEITURA da Manutenção Geral do Prédio (garantias,
+  // conformidade e manutenções coletivas) — consulta e acompanhamento, sem
+  // qualquer controle de criação/edição/exclusão.
   return canManage ? <ManagerMaintenanceView /> : <MoradorMaintenanceView />;
 }
 
@@ -135,7 +143,7 @@ const DEFAULT_PREVENTIVE_ITEMS: PreventiveItem[] = [
 
 function MoradorMaintenanceView() {
   const { userProfile } = useUser();
-  const [activeTab, setActiveTab] = useState<'preventiva' | 'corretiva'>('preventiva');
+  const [activeTab, setActiveTab] = useState<'preventiva' | 'corretiva' | 'predio'>('preventiva');
   const [filter, setFilter] = useState<'all' | 'pending' | 'progress' | 'completed'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<MaintenanceOrder | null>(null);
@@ -244,41 +252,7 @@ function MoradorMaintenanceView() {
         )}
       </div>
 
-      {/* ================================================================= */}
-      {/* BLOCO — MANUTENÇÃO GERAL (RBAC)                                    */}
-      {/* Regra: o Morador VÊ o bloco de Manutenção Geral, porém NÃO pode    */}
-      {/* abri-lo (bloco desabilitado, sem navegação por clique). O acesso   */}
-      {/* ao conteúdo geral permanece normal para Síndico/Administrador.     */}
-      {/* ================================================================= */}
-      <div
-        role="button"
-        aria-disabled="true"
-        tabIndex={-1}
-        title="Disponível apenas para Síndico e Administrador"
-        onClick={() =>
-          toast.info('Manutenção Geral é exclusiva do Síndico e do Administrador.')
-        }
-        className="mb-6 flex items-center gap-4 rounded-2xl border border-wave-100 bg-white/60 p-4 sm:p-5 opacity-60 cursor-not-allowed select-none"
-      >
-        <div className="shrink-0 w-11 h-11 rounded-xl bg-wave-100 flex items-center justify-center">
-          <Lock className="w-5 h-5 text-wave-500" aria-hidden="true" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="font-display text-brand-navy text-lg truncate">
-              Manutenção Geral
-            </h2>
-            <span className="px-2 py-0.5 rounded-full bg-wave-100 text-wave-600 text-xs font-medium">
-              Restrito
-            </span>
-          </div>
-          <p className="text-wave-500 text-sm">
-            Gestão de manutenção do condomínio. Disponível apenas para Síndico e Administrador.
-          </p>
-        </div>
-      </div>
-
-      {/* Tabs — Preventiva / Corretiva */}
+      {/* Tabs — Preventiva / Corretiva / Prédio */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-1.5 border border-wave-100 mb-6 shadow-sm inline-flex gap-1 w-full sm:w-auto">
         <button
           onClick={() => setActiveTab('preventiva')}
@@ -306,6 +280,17 @@ function MoradorMaintenanceView() {
               {counts.pending}
             </span>
           )}
+        </button>
+        <button
+          onClick={() => setActiveTab('predio')}
+          className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl transition-all text-sm font-medium flex items-center justify-center gap-2 ${
+            activeTab === 'predio'
+              ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
+              : 'text-wave-500 hover:bg-wave-50'
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          Prédio
         </button>
       </div>
 
@@ -532,6 +517,13 @@ function MoradorMaintenanceView() {
             </p>
           </div>
         </>
+      )}
+
+      {/* ================================================================= */}
+      {/* ABA — MANUTENÇÃO GERAL DO PRÉDIO (somente leitura)                */}
+      {/* ================================================================= */}
+      {activeTab === 'predio' && (
+        <BuildingMaintenanceSection orders={allOrders} />
       )}
 
       {/* Order Detail Modal (Corretiva) */}
@@ -964,62 +956,11 @@ function ManagerMaintenanceView() {
     setInspectionOrders,
   } = useMaintenanceOrders();
 
-  const warranties = [
-    {
-      id: '1',
-      system: 'Bomba D\'água Principal',
-      type: 'Equipamento',
-      startDate: '15/01/2023',
-      endDate: '15/01/2026',
-      daysRemaining: 28,
-      status: 'warning',
-      supplier: 'Construtora XYZ'
-    },
-    {
-      id: '2',
-      system: 'Impermeabilização Piscina',
-      type: 'Estrutural',
-      startDate: '01/03/2023',
-      endDate: '01/03/2028',
-      daysRemaining: 754,
-      status: 'good',
-      supplier: 'Construtora XYZ'
-    },
-    {
-      id: '3',
-      system: 'Sistema de CFTV',
-      type: 'Eletrônico',
-      startDate: '10/06/2024',
-      endDate: '10/06/2026',
-      daysRemaining: 187,
-      status: 'good',
-      supplier: 'SecurityTech Ltda'
-    }
-  ];
-
-  const compliance = [
-    {
-      name: 'AVCB - Auto de Vistoria do Corpo de Bombeiros',
-      status: 'valid',
-      validUntil: '15/08/2026',
-      daysRemaining: 253,
-      authority: 'Corpo de Bombeiros SP'
-    },
-    {
-      name: 'Seguro Predial Integral',
-      status: 'valid',
-      validUntil: '20/05/2026',
-      daysRemaining: 166,
-      authority: 'Porto Seguro'
-    },
-    {
-      name: 'Laudo Técnico SPDA (Para-raios)',
-      status: 'warning',
-      validUntil: '10/02/2026',
-      daysRemaining: 67,
-      authority: 'Eng. Silva'
-    }
-  ];
+  // Garantias e conformidade vêm da fonte única compartilhada
+  // (buildingMaintenance.ts) — mesma verdade que o Morador consulta na aba
+  // "Prédio", evitando divergência entre as duas visões.
+  const warranties = BUILDING_WARRANTIES;
+  const compliance = BUILDING_COMPLIANCE;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -1045,12 +986,6 @@ function ManagerMaintenanceView() {
       default:
         return null;
     }
-  };
-
-  const getWarrantyStatus = (daysRemaining: number) => {
-    if (daysRemaining <= 30) return 'critical';
-    if (daysRemaining <= 90) return 'warning';
-    return 'good';
   };
 
   const filteredOrders = allOrders.filter(order => {
@@ -1150,7 +1085,7 @@ function ManagerMaintenanceView() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {warranties.map((warranty) => {
-            const statusType = getWarrantyStatus(warranty.daysRemaining);
+            const statusType = getWarrantyHealth(warranty.daysRemaining);
             return (
               <div
                 key={warranty.id}
