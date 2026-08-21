@@ -12,6 +12,7 @@ import { BlockCard, BlockEmpty } from './BlockCard';
 import { OcorrenciaBadge } from './OcorrenciaBadge';
 import { SolicitacaoDetailsModal } from './SolicitacaoDetailsModal';
 import { MoradorAtencaoSection } from './MoradorAtencaoSection';
+import { ProfissionaisSection } from '../staff/ProfissionaisSection';
 
 const MAX_ITENS = 4;
 
@@ -146,6 +147,10 @@ export function MoradorDashboard() {
             </ul>
           )}
         </BlockCard>
+
+        {/* Funcionários e Prestadores do condomínio (MOR-021) — somente leitura
+            para o Morador; cadastro/gestão é exclusivo de Síndico/Administradora. */}
+        <ProfissionaisSection />
       </div>
 
       {detalhe && <SolicitacaoDetailsModal solicitacao={detalhe} onClose={() => setDetalhe(null)} />}
