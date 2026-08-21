@@ -5,6 +5,7 @@ import { formatDisplayName } from '@/lib/formatName';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMenuBadges } from '@/hooks/useMenuBadges';
 import { isManager, isAdministradora, type Role } from '@/lib/rbac';
+import { ThemeToggle } from './ThemeToggle';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
@@ -158,8 +159,9 @@ export function Sidebar({ userProfile, onLogout, isMobileOpen = false, onMobileC
           </div>
         </nav>
 
-        {/* Logout */}
-        <div className="px-3 py-4 border-t border-wave-100">
+        {/* Tema + Logout */}
+        <div className="px-3 py-4 border-t border-wave-100 space-y-1">
+          <ThemeToggle />
           <button
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-wave-400 hover:bg-wave-50 hover:text-wave-600 transition-all"

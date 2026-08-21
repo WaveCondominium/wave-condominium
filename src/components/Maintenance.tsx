@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   Wrench, CheckCircle, AlertCircle, Calendar, Shield, Bell, Plus,
   X, Clock, ChevronRight, FileText, Send, Eye, ShieldCheck,
-  CalendarClock, CircleDot, Info,
+  CalendarClock, CircleDot, Info, Lock,
 } from 'lucide-react';
 
 import { CreateMaintenanceModal } from './maintenance/CreateMaintenanceModal';
@@ -21,6 +21,12 @@ export function Maintenance() {
   const { userProfile } = useUser();
   const canManage = isManager(userProfile.role);
 
+  // RBAC: a "Manutenção Geral" (gestão de manutenção do condomínio) é renderizada
+  // APENAS para perfis gestores (Síndico/Administrador). O Morador nunca recebe a
+  // ManagerMaintenanceView — este roteamento por perfil é o bloqueio efetivo de
+  // acesso ao conteúdo geral, inclusive ao acessar /dashboard/maintenance pela URL.
+  // O Morador ainda vê um bloco "Manutenção Geral" desabilitado (visível, sem abrir)
+  // dentro da própria tela — ver MoradorMaintenanceView.
   return canManage ? <ManagerMaintenanceView /> : <MoradorMaintenanceView />;
 }
 
@@ -236,6 +242,40 @@ function MoradorMaintenanceView() {
             Nova Solicitação
           </button>
         )}
+      </div>
+
+      {/* ================================================================= */}
+      {/* BLOCO — MANUTENÇÃO GERAL (RBAC)                                    */}
+      {/* Regra: o Morador VÊ o bloco de Manutenção Geral, porém NÃO pode    */}
+      {/* abri-lo (bloco desabilitado, sem navegação por clique). O acesso   */}
+      {/* ao conteúdo geral permanece normal para Síndico/Administrador.     */}
+      {/* ================================================================= */}
+      <div
+        role="button"
+        aria-disabled="true"
+        tabIndex={-1}
+        title="Disponível apenas para Síndico e Administrador"
+        onClick={() =>
+          toast.info('Manutenção Geral é exclusiva do Síndico e do Administrador.')
+        }
+        className="mb-6 flex items-center gap-4 rounded-2xl border border-wave-100 bg-white/60 p-4 sm:p-5 opacity-60 cursor-not-allowed select-none"
+      >
+        <div className="shrink-0 w-11 h-11 rounded-xl bg-wave-100 flex items-center justify-center">
+          <Lock className="w-5 h-5 text-wave-500" aria-hidden="true" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="font-display text-brand-navy text-lg truncate">
+              Manutenção Geral
+            </h2>
+            <span className="px-2 py-0.5 rounded-full bg-wave-100 text-wave-600 text-xs font-medium">
+              Restrito
+            </span>
+          </div>
+          <p className="text-wave-500 text-sm">
+            Gestão de manutenção do condomínio. Disponível apenas para Síndico e Administrador.
+          </p>
+        </div>
       </div>
 
       {/* Tabs — Preventiva / Corretiva */}

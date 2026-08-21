@@ -5,6 +5,8 @@ import { ArrowRight, ArrowLeft, Shield, Vote, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useI18n } from '@/contexts/I18nContext';
+import { LanguageSelector } from '@/components/LanguageSelector';
 
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<any>;
@@ -12,27 +14,32 @@ interface LoginProps {
 
 export function Login({ onLogin }: LoginProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!formData.email || !formData.password) {
-      toast.error('Por favor, preencha email e senha');
+      toast.error(t('login.errors.fillFields'));
       return;
     }
     setLoading(true);
     try {
       const { error } = await onLogin(formData.email, formData.password);
-      if (error) toast.error('Verifique suas credenciais.');
+      if (error) toast.error(t('login.errors.invalidCredentials'));
     } catch {
-      toast.error('Erro inesperado ao fazer login.');
+      toast.error(t('login.errors.unexpected'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-brand-abyss flex">
+    <div className="min-h-screen bg-brand-abyss flex relative">
+
+      {/* Seletor de idioma — canto superior direito, sem afetar o layout.
+          Offsets responsivos evitam colar na borda em telas pequenas. */}
+      <LanguageSelector className="absolute top-3 right-3 sm:top-4 sm:right-4 z-30" />
 
       <div className="hidden lg:flex flex-col justify-between w-[45%] bg-brand-abyss p-14">
         <div>
@@ -47,18 +54,18 @@ export function Login({ onLogin }: LoginProps) {
           {/* Título no mesmo padrão do hero da Boas-Vindas: Montserrat branco,
               entrelinha 1.14, destaque em azul oficial (--blue / brand-blue). */}
           <h1 className="font-display text-4xl text-white font-normal leading-[1.14] mb-4">
-            Governança condominial com{' '}
-            <span className="text-brand-blue">prova de integridade</span>
+            {t('login.hero.titlePrefix')}{' '}
+            <span className="text-brand-blue">{t('login.hero.titleHighlight')}</span>
           </h1>
           <p className="text-brand-chrome leading-relaxed mb-12">
-            Cada decisão registrada, cada voto auditável e todos os documentos protegidos.
+            {t('login.hero.subtitle')}
           </p>
 
           <div className="space-y-4">
             {[
-              { icon: Vote,     label: 'Governança',  desc: 'Votações com registro imutável' },
-              { icon: FileText, label: 'Documentos',  desc: 'Atas com registro verificável' },
-              { icon: Shield,   label: 'Transparência', desc: 'Auditável por qualquer morador' },
+              { icon: Vote,     label: t('login.hero.features.governanca.label'),    desc: t('login.hero.features.governanca.desc') },
+              { icon: FileText, label: t('login.hero.features.documentos.label'),    desc: t('login.hero.features.documentos.desc') },
+              { icon: Shield,   label: t('login.hero.features.transparencia.label'), desc: t('login.hero.features.transparencia.desc') },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-4 p-4 bg-white/5 border border-brand-chrome/20 rounded-xl">
                 <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
@@ -74,7 +81,7 @@ export function Login({ onLogin }: LoginProps) {
         </div>
 
         <p className="text-brand-chrome/60 text-xs">
-          © 2026 Wave · Gestão Condominial Inteligente
+          {t('login.hero.footer')}
         </p>
       </div>
 
@@ -93,26 +100,26 @@ export function Login({ onLogin }: LoginProps) {
           <div className="mb-8">
             <p className="inline-flex items-center gap-2 mb-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-brand-teal">
               <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
-              Bem Vindo(a) de volta
+              {t('login.badge')}
             </p>
-            <h2 className="font-display text-2xl text-brand-navy font-normal">Acessar plataforma</h2>
+            <h2 className="font-display text-2xl text-brand-navy font-normal">{t('login.title')}</h2>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-brand-ink text-sm font-medium mb-1.5">E-mail</label>
+              <label className="block text-brand-ink text-sm font-medium mb-1.5">{t('login.emailLabel')}</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                placeholder="seu@email.com"
+                placeholder={t('login.emailPlaceholder')}
                 className="w-full px-4 py-3 bg-white border border-brand-chrome/60 rounded-xl text-brand-ink placeholder-brand-grey/70 focus:outline-none focus:ring-2 focus:ring-brand-teal/40 focus:border-brand-teal transition-all text-base"
               />
             </div>
 
             <div>
-              <label className="block text-brand-ink text-sm font-medium mb-1.5">Senha</label>
+              <label className="block text-brand-ink text-sm font-medium mb-1.5">{t('login.passwordLabel')}</label>
               <input
                 type="password"
                 value={formData.password}
@@ -126,13 +133,13 @@ export function Login({ onLogin }: LoginProps) {
             <div className="flex items-center justify-between text-xs">
               <label className="flex items-center gap-2 text-brand-grey cursor-pointer">
                 <input type="checkbox" className="rounded accent-brand-steel w-3.5 h-3.5" />
-                <span>Lembrar-me</span>
+                <span>{t('login.remember')}</span>
               </label>
               <Link
                 href="/forgot-password"
                 className="text-brand-steel hover:text-brand-navy text-sm font-medium"
               >
-                Esqueci minha senha
+                {t('login.forgot')}
               </Link>
             </div>
 
@@ -141,7 +148,7 @@ export function Login({ onLogin }: LoginProps) {
               disabled={loading}
               className="w-full py-3 bg-brand-blue text-brand-deep rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-60 font-medium text-base"
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? t('login.signingIn') : t('login.signIn')}
               {!loading && <ArrowRight className="w-4 h-4" />}
             </button>
           </div>
@@ -149,9 +156,9 @@ export function Login({ onLogin }: LoginProps) {
           <div className="mt-6 pt-5 border-t border-brand-light">
             <div className="grid grid-cols-3 gap-2 text-xs">
               {[
-                { label: 'Síndico',        email: 'sindico@wave.com' },
-                { label: 'Morador',        email: 'morador@wave.com' },
-                { label: 'Administradora', email: 'administradora@wave.com' },
+                { label: t('login.demo.sindico'),        email: 'sindico@wave.com' },
+                { label: t('login.demo.morador'),        email: 'morador@wave.com' },
+                { label: t('login.demo.administradora'), email: 'administradora@wave.com' },
               ].map((item, i) => (
                 <button
                   key={i}
@@ -169,7 +176,7 @@ export function Login({ onLogin }: LoginProps) {
               className="w-full mt-4 py-2.5 text-brand-grey hover:text-brand-navy transition-all flex items-center justify-center gap-2 text-sm"
             >
               <ArrowLeft className="w-4 h-4" />
-              Voltar
+              {t('login.back')}
             </button>
           </div>
 
