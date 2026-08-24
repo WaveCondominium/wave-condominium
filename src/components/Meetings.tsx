@@ -5,6 +5,14 @@ import { CreateMeetingModal } from './CreateMeetingModal';
 import { temLinkReuniaoValido } from './meetingUtils';
 import { AtasAnterioresModal } from './meetings/AtasAnterioresModal';
 import { calcularHashAta } from './meetings/atasIntegridade';
+import { ParticipantesModal } from './meetings/ParticipantesModal';
+import {
+  jaConfirmou,
+  adicionarConfirmacao,
+  confirmacoesDaReuniao,
+  totalConfirmados,
+  type ConfirmacaoPresenca,
+} from './meetings/presencaConfirmacoes';
 import { isManager, type Role } from '@/lib/rbac';
 
 import { toast } from 'sonner';
@@ -35,6 +43,8 @@ interface MeetingsProps {
   userProfile: {
     name: string;
     role: Role;
+    /** Unidade do morador — vincula a confirmação de presença (MOR-032). */
+    unit?: string | null;
   };
 }
 
@@ -114,7 +124,9 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
 
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'completed'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [confirmedMeetings, setConfirmedMeetings] = useLocalStorage<string[]>('wave_confirmed_meetings', []);
+  // MOR-032: confirmações vinculadas ao morador/unidade (registro de participantes).
+  const [confirmacoes, setConfirmacoes] = useLocalStorage<ConfirmacaoPresenca[]>('wave_meeting_confirmations', []);
+  const [participantesMeeting, setParticipantesMeeting] = useState<Meeting | null>(null);
   const [showAtaModal, setShowAtaModal] = useState(false);
   const [selectedMeetingForAta, setSelectedMeetingForAta] = useState<Meeting | null>(null);
   const [ataText, setAtaText] = useState('');
@@ -137,17 +149,25 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
   };
 
   const handleConfirmPresence = (meetingId: string) => {
-    if (!confirmedMeetings.includes(meetingId)) {
-      setConfirmedMeetings([...confirmedMeetings, meetingId]);
-      
-      setMeetings(meetings.map(m => 
-        m.id === meetingId 
-          ? { ...m, participants: m.participants + 1 }
-          : m
-      ));
+    const unidade = userProfile.unit ?? '';
+    const nome = userProfile.name;
 
-      toast.success('Presença confirmada!', { description: 'Você receberá um lembrete antes da reunião.' });
-    }
+    if (jaConfirmou(confirmacoes, meetingId, unidade, nome)) return;
+
+    setConfirmacoes(adicionarConfirmacao(confirmacoes, {
+      meetingId,
+      nome,
+      unidade,
+      confirmadoEm: new Date().toISOString(),
+    }));
+
+    setMeetings(meetings.map(m =>
+      m.id === meetingId
+        ? { ...m, participants: m.participants + 1 }
+        : m
+    ));
+
+    toast.success('Presença confirmada!', { description: 'Você receberá um lembrete antes da reunião.' });
   };
 
   const handleOpenAtaModal = (meeting: Meeting) => {
@@ -343,7 +363,7 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
       ) : (
         <div className="space-y-6 relative z-10">
           {filteredMeetings.map((meeting) => {
-            const isConfirmed = confirmedMeetings.includes(meeting.id);
+            const isConfirmed = jaConfirmou(confirmacoes, meeting.id, userProfile.unit ?? '', userProfile.name);
             const meetingDate = new Date(meeting.date + 'T' + meeting.time);
             const isUpcoming = meetingDate > new Date();
 
@@ -437,6 +457,16 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
                         Presença Confirmada
                       </div>
                     )}
+                    {/* Registro de participantes — visível ao gestor (MOR-032) */}
+                    {canCreateMeeting && (
+                      <button
+                        onClick={() => setParticipantesMeeting(meeting)}
+                        className="px-6 py-3 bg-white border border-wave-200 text-wave-600 rounded-xl hover:bg-wave-50 transition-all flex items-center gap-2"
+                      >
+                        <Users className="w-5 h-5" />
+                        Participantes ({totalConfirmados(confirmacoes, meeting.id)})
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="flex gap-3">
@@ -516,6 +546,15 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
         <AtasAnterioresModal
           atas={meetings}
           onClose={() => setShowAtasAnteriores(false)}
+        />
+      )}
+
+      {/* Participantes confirmados (MOR-032) — registro para o gestor */}
+      {canCreateMeeting && participantesMeeting && (
+        <ParticipantesModal
+          titulo={participantesMeeting.title}
+          confirmacoes={confirmacoesDaReuniao(confirmacoes, participantesMeeting.id)}
+          onClose={() => setParticipantesMeeting(null)}
         />
       )}
 
