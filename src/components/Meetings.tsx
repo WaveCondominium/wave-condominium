@@ -534,7 +534,7 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
               <li>Participe, vote e tire suas dúvidas em tempo real!</li>
             </ol>
             <p className="text-wave-500 text-sm mt-3">
-              💡 <strong>Dica:</strong> Todas as decisões importantes são registradas na rede Stellar após a reunião, 
+              💡 <strong>Dica:</strong> Todas as decisões importantes ficam registradas de forma segura após a reunião,
               garantindo transparência e rastreabilidade total.
             </p>
           </div>
