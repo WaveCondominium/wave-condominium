@@ -3,6 +3,8 @@ import { Video, Calendar, Users, Clock, FileText, Plus, ExternalLink, CheckCircl
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { CreateMeetingModal } from './CreateMeetingModal';
 import { temLinkReuniaoValido } from './meetingUtils';
+import { AtasAnterioresModal } from './meetings/AtasAnterioresModal';
+import { calcularHashAta } from './meetings/atasIntegridade';
 import { isManager, type Role } from '@/lib/rbac';
 
 import { toast } from 'sonner';
@@ -25,6 +27,8 @@ interface Meeting {
   minutesUrl?: string;
   recordingUrl?: string;
   ataContent?: string;
+  /** Código de integridade registrado no momento em que a ata foi salva (MOR-033). */
+  ataHash?: string;
 }
 
 interface MeetingsProps {
@@ -96,7 +100,15 @@ export function Meetings({ userProfile }: MeetingsProps) {
       createdBy: 'Síndico João',
       createdAt: '2026-05-01',
       minutesUrl: '#',
-      recordingUrl: '#'
+      recordingUrl: '#',
+      ataContent: `ATA — Assembleia Ordinária de Junho/2026
+
+1. Aprovação da ata anterior: aprovada por unanimidade.
+2. Prestação de contas: saldo e despesas do mês apresentados e aprovados.
+3. Assuntos gerais: definido reforço na limpeza das áreas comuns.
+
+Encerramento às 20h30. Quórum: 42 unidades presentes.`,
+      ataHash: 'EC739E9B9E85E62B'
     }
   ]);
 
@@ -106,6 +118,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
   const [showAtaModal, setShowAtaModal] = useState(false);
   const [selectedMeetingForAta, setSelectedMeetingForAta] = useState<Meeting | null>(null);
   const [ataText, setAtaText] = useState('');
+  const [showAtasAnteriores, setShowAtasAnteriores] = useState(false);
 
   const canCreateMeeting = isManager(userProfile.role);
 
@@ -151,7 +164,8 @@ export function Meetings({ userProfile }: MeetingsProps) {
 
     setMeetings(meetings.map(m =>
       m.id === selectedMeetingForAta.id
-        ? { ...m, ataContent: ataText, status: 'completed' }
+        // Registra o código de integridade da versão oficial salva (MOR-033).
+        ? { ...m, ataContent: ataText, ataHash: calcularHashAta(ataText), status: 'completed' }
         : m
     ));
 
@@ -212,15 +226,25 @@ export function Meetings({ userProfile }: MeetingsProps) {
           <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2">Reuniões & Assembleias</h1>
           <p className="text-wave-500">Participe das decisões do condomínio online via Google Meets</p>
         </div>
-        {canCreateMeeting && (
+        <div className="flex gap-3">
+          {/* Atas Anteriores — consulta disponível a todos os perfis (MOR-033) */}
           <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
+            onClick={() => setShowAtasAnteriores(true)}
+            className="px-4 py-3 bg-white border border-wave-200 text-wave-600 rounded-xl hover:bg-wave-50 transition-all shadow-sm flex items-center gap-2"
           >
-            <Plus className="w-5 h-5" />
-            Agendar Reunião
+            <FileText className="w-5 h-5" />
+            Atas Anteriores
           </button>
-        )}
+          {canCreateMeeting && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Agendar Reunião
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Statistics */}
@@ -486,6 +510,14 @@ export function Meetings({ userProfile }: MeetingsProps) {
           </div>
         </div>
       </div>
+
+      {/* Atas Anteriores (MOR-033) — consulta read-only, todos os perfis */}
+      {showAtasAnteriores && (
+        <AtasAnterioresModal
+          atas={meetings}
+          onClose={() => setShowAtasAnteriores(false)}
+        />
+      )}
 
       {/* Create Meeting Modal — RBAC (MOR-055): render guardado por canCreateMeeting,
           reforçando que só perfis administrativos criam/gerenciam reuniões. */}
