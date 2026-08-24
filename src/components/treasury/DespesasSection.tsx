@@ -15,16 +15,17 @@
 import { TrendingDown, PieChart as PieChartIcon } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
-import { useDespesas } from './useDespesas';
-import { formatBRL } from './despesas';
+import { formatBRL, totalDespesas, agruparPorCategoria, type Despesa } from './despesas';
 
 interface DespesasSectionProps {
+  despesas: Despesa[];
   /** Rótulo do período (ex.: "Ago") — exibido junto ao título, como em Receitas. */
   periodoLabel?: string;
 }
 
-export function DespesasSection({ periodoLabel }: DespesasSectionProps) {
-  const { total, porCategoria } = useDespesas();
+export function DespesasSection({ despesas, periodoLabel }: DespesasSectionProps) {
+  const total = totalDespesas(despesas);
+  const porCategoria = agruparPorCategoria(despesas);
 
   return (
     <section

@@ -3,12 +3,19 @@ import { describe, it, expect } from 'vitest';
 import {
   totalDespesas,
   agruparPorCategoria,
+  validarNovaDespesa,
+  montarDespesa,
   CATEGORIA_COR,
   type Despesa,
+  type NovaDespesaInput,
 } from './despesas';
 
 function d(overrides: Partial<Despesa> = {}): Despesa {
-  return { id: 'D', descricao: 'x', categoria: 'Outras', valor: 100, data: '2026-08-01', ...overrides };
+  return { id: 'D', descricao: 'x', categoria: 'Outras', valor: 100, data: '2026-08-01', origemRecurso: 'saldo', ...overrides };
+}
+
+function input(overrides: Partial<NovaDespesaInput> = {}): NovaDespesaInput {
+  return { categoria: 'Manutenção', descricao: 'Troca de bomba', valor: 500, data: '2026-08-10', origemRecurso: 'saldo', ...overrides };
 }
 
 describe('totalDespesas', () => {
@@ -49,5 +56,32 @@ describe('agruparPorCategoria', () => {
     const snap = [...lista];
     agruparPorCategoria(lista);
     expect(lista).toEqual(snap);
+  });
+});
+
+describe('validarNovaDespesa', () => {
+  it('aceita um input completo', () => {
+    expect(validarNovaDespesa(input())).toBeNull();
+  });
+
+  it('exige descrição, valor > 0 e data', () => {
+    expect(validarNovaDespesa(input({ descricao: '  ' }))).toMatch(/descrição/i);
+    expect(validarNovaDespesa(input({ valor: 0 }))).toMatch(/valor/i);
+    expect(validarNovaDespesa(input({ valor: -5 }))).toMatch(/valor/i);
+    expect(validarNovaDespesa(input({ data: '' }))).toMatch(/data/i);
+  });
+});
+
+describe('montarDespesa', () => {
+  it('monta a despesa com id fornecido e normaliza a descrição', () => {
+    const desp = montarDespesa(input({ descricao: '  Pintura  ' }), 'DESP-X');
+    expect(desp.id).toBe('DESP-X');
+    expect(desp.descricao).toBe('Pintura');
+    expect(desp.origemRecurso).toBe('saldo');
+  });
+
+  it('comprovante vazio vira undefined', () => {
+    expect(montarDespesa(input({ comprovanteNome: '   ' }), 'DESP-Y').comprovanteNome).toBeUndefined();
+    expect(montarDespesa(input({ comprovanteNome: 'nota.pdf' }), 'DESP-Z').comprovanteNome).toBe('nota.pdf');
   });
 });

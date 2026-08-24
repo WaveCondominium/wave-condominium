@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Download, CreditCard, Smartphone, X, AlertCircle, Users, Receipt, FileText, Send } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Download, CreditCard, Smartphone, X, AlertCircle, Users, Receipt, FileText, Send } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
@@ -9,7 +9,9 @@ import { useFinancialSummary, PAID_STATUS } from '../../hooks/useFinancialSummar
 import { GenerateBoletoModal } from './GenerateBoletoModal';
 import { DespesasSection } from './DespesasSection';
 import { HistoricoTransacoes } from './HistoricoTransacoes';
+import { AdicionarDespesaModal } from './AdicionarDespesaModal';
 import { useDespesas } from './useDespesas';
+import { totalDespesas } from './despesas';
 import { isManager, type Role } from '@/lib/rbac';
 
 interface TreasuryProps {
@@ -33,6 +35,7 @@ function formatBRL(value: number): string {
 export function Treasury({ userProfile }: TreasuryProps) {
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'card'>('pix');
   const [showGenerateBoletoModal, setShowGenerateBoletoModal] = useState(false);
+  const [showAddDespesa, setShowAddDespesa] = useState(false);
   const [view, setView] = useState<'overview' | 'boletos'>('overview');
 
   // Extraído para src/hooks/useFinancialSummary.ts — mesmo cálculo que o
@@ -57,7 +60,8 @@ export function Treasury({ userProfile }: TreasuryProps) {
 
   // Despesas (MOR-52) — fonte demo compartilhada; o total alimenta tanto a
   // seção "Despesas" quanto a série de despesas do gráfico de evolução.
-  const { total: totalDespesasDemo } = useDespesas();
+  const { despesas, adicionar: adicionarDespesa } = useDespesas();
+  const totalDespesasDemo = totalDespesas(despesas);
 
   const metaFundoReserva = 100000; // meta ainda fixa — não há de onde derivar isso dos boletos
   const percentualMeta = metaFundoReserva > 0 ? Math.min(100, Math.round((fundoReserva / metaFundoReserva) * 100)) : 0;
@@ -123,13 +127,18 @@ export function Treasury({ userProfile }: TreasuryProps) {
           <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2">Gestão Financeira</h1>
           <p className="text-wave-500">Transparência total com registros auditáveis</p>
         </div>
-        <button 
-          onClick={() => window.location.href = '/dashboard/boletos'}
-          className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
-        >
-          <DollarSign className="w-5 h-5" />
-          Ir para Boletos
-        </button>
+        {/* MOR-054: "Ir para Boletos" foi substituído por "Adicionar Despesa",
+            disponível apenas para perfis administrativos (Síndico/Administradora).
+            O Morador é somente leitura — não vê este botão. */}
+        {isManagerRole && (
+          <button
+            onClick={() => setShowAddDespesa(true)}
+            className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
+          >
+            <Receipt className="w-5 h-5" />
+            Adicionar Despesa
+          </button>
+        )}
       </div>
 
       {/* Balance Cards */}
@@ -180,7 +189,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
 
       {/* Despesas (MOR-52) — abaixo das Receitas: total do período + quebra por
           categoria + gráfico. Somente leitura para o Morador. */}
-      <DespesasSection periodoLabel={formatMonthLabel(currentMonthKey)} />
+      <DespesasSection despesas={despesas} periodoLabel={formatMonthLabel(currentMonthKey)} />
 
       {/* Admin: Gestão de Boletos */}
       {isManagerRole && (
@@ -377,7 +386,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
       </div>
 
       {/* Histórico de Transações (MOR-053) — receitas + despesas, cronológico */}
-      <HistoricoTransacoes />
+      <HistoricoTransacoes despesas={despesas} />
 
       {/* Blockchain Info */}
       <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
@@ -398,6 +407,14 @@ export function Treasury({ userProfile }: TreasuryProps) {
         <GenerateBoletoModal
           onClose={() => setShowGenerateBoletoModal(false)}
           onGenerate={handleGenerateBoletos}
+        />
+      )}
+
+      {/* Adicionar Despesa (MOR-054) — apenas gestor */}
+      {isManagerRole && showAddDespesa && (
+        <AdicionarDespesaModal
+          onClose={() => setShowAddDespesa(false)}
+          onCreate={adicionarDespesa}
         />
       )}
     </div>

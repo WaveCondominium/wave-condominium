@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 
 import { PAID_STATUS, type Boleto } from '../../hooks/useFinancialSummary';
-import type { Despesa } from './despesas';
+import { ORIGEM_RECURSO_LABEL, type Despesa } from './despesas';
 
 export type TipoTransacao = 'receita' | 'despesa';
 
@@ -27,6 +27,8 @@ export interface Transacao {
   valor: number;
   /** Data em ISO 8601 (YYYY-MM-DD) — usada para ordenar. */
   data: string;
+  /** Origem do recurso (só despesas): "Saldo disponível" / "Fundo de Reserva". */
+  origem?: string;
 }
 
 /** Normaliza um timestamp ISO para apenas a data (YYYY-MM-DD). */
@@ -56,6 +58,7 @@ export function despesaParaTransacao(d: Despesa): Transacao {
     categoria: d.categoria,
     valor: d.valor,
     data: d.data,
+    origem: ORIGEM_RECURSO_LABEL[d.origemRecurso],
   };
 }
 

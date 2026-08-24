@@ -23,7 +23,7 @@ function boleto(overrides: Partial<Boleto> = {}): Boleto {
 }
 
 function despesa(overrides: Partial<Despesa> = {}): Despesa {
-  return { id: 'D1', descricao: 'Limpeza', categoria: 'Limpeza', valor: 200, data: '2026-08-05', ...overrides };
+  return { id: 'D1', descricao: 'Limpeza', categoria: 'Limpeza', valor: 200, data: '2026-08-05', origemRecurso: 'saldo', ...overrides };
 }
 
 describe('construirHistorico', () => {

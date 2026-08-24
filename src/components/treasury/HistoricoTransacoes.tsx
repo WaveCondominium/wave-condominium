@@ -12,9 +12,12 @@
 import { History, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 import { useFinancialSummary } from '../../hooks/useFinancialSummary';
-import { useDespesas } from './useDespesas';
-import { formatBRL } from './despesas';
+import { formatBRL, type Despesa } from './despesas';
 import { construirHistorico, type Transacao } from './transacoes';
+
+interface HistoricoTransacoesProps {
+  despesas: Despesa[];
+}
 
 /** ISO (YYYY-MM-DD) → DD/MM/YYYY, sem depender de fuso. */
 function formatDataBR(iso: string): string {
@@ -24,9 +27,8 @@ function formatDataBR(iso: string): string {
   return `${dia}/${mes}/${ano}`;
 }
 
-export function HistoricoTransacoes() {
+export function HistoricoTransacoes({ despesas }: HistoricoTransacoesProps) {
   const { boletos } = useFinancialSummary();
-  const { despesas } = useDespesas();
 
   const historico = construirHistorico(boletos, despesas);
 
@@ -68,7 +70,10 @@ export function HistoricoTransacoes() {
                   <tr key={t.id} className="hover:bg-wave-50/50 transition-colors">
                     <td className="px-6 py-4"><TipoBadge tipo={t.tipo} /></td>
                     <td className="px-6 py-4 text-wave-500 text-sm whitespace-nowrap">{formatDataBR(t.data)}</td>
-                    <td className="px-6 py-4 text-wave-800">{t.descricao}</td>
+                    <td className="px-6 py-4">
+                      <p className="text-wave-800">{t.descricao}</p>
+                      {t.origem && <p className="text-xs text-wave-400 mt-0.5">Origem: {t.origem}</p>}
+                    </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 rounded-full text-xs bg-wave-100 text-wave-600">{t.categoria}</span>
                     </td>
@@ -89,7 +94,9 @@ export function HistoricoTransacoes() {
                     <span className="text-xs text-wave-400">{formatDataBR(t.data)}</span>
                   </div>
                   <p className="text-wave-800 text-sm truncate">{t.descricao}</p>
-                  <p className="text-xs text-wave-500 mt-0.5">{t.categoria}</p>
+                  <p className="text-xs text-wave-500 mt-0.5">
+                    {t.categoria}{t.origem ? ` · ${t.origem}` : ''}
+                  </p>
                 </div>
                 <div className="shrink-0 text-right"><Valor t={t} /></div>
               </li>
