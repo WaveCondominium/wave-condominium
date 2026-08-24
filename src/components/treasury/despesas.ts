@@ -30,6 +30,8 @@ export interface Despesa {
   categoria: CategoriaDespesa;
   /** Valor em reais (BRL). */
   valor: number;
+  /** Data da despesa em ISO 8601 (YYYY-MM-DD) — usada no histórico (MOR-053). */
+  data: string;
 }
 
 export interface CategoriaResumo {
@@ -56,15 +58,15 @@ export const CATEGORIA_COR: Record<CategoriaDespesa, string> = {
 
 /** Dados de demonstração (representam as despesas do período corrente). */
 export const DEFAULT_DESPESAS: Despesa[] = [
-  { id: 'DESP-001', descricao: 'Folha de pagamento — Portaria/Zeladoria', categoria: 'Funcionários', valor: 18500 },
-  { id: 'DESP-002', descricao: 'Vigilância patrimonial (contrato)',       categoria: 'Segurança',    valor: 9200 },
-  { id: 'DESP-003', descricao: 'Empresa de limpeza (contrato)',            categoria: 'Limpeza',      valor: 8500 },
-  { id: 'DESP-004', descricao: 'Manutenção de elevadores',                 categoria: 'Manutenção',   valor: 4300 },
-  { id: 'DESP-005', descricao: 'Reparos hidráulicos e elétricos',          categoria: 'Manutenção',   valor: 2200 },
-  { id: 'DESP-006', descricao: 'Energia elétrica — áreas comuns',          categoria: 'Energia',      valor: 4200 },
-  { id: 'DESP-007', descricao: 'Conta de água',                            categoria: 'Água',         valor: 1800 },
-  { id: 'DESP-008', descricao: 'Jardinagem e paisagismo',                  categoria: 'Serviços',     valor: 1500 },
-  { id: 'DESP-009', descricao: 'Material de escritório e limpeza',         categoria: 'Outras',       valor: 900 },
+  { id: 'DESP-001', descricao: 'Folha de pagamento — Portaria/Zeladoria', categoria: 'Funcionários', valor: 18500, data: '2026-08-05' },
+  { id: 'DESP-002', descricao: 'Vigilância patrimonial (contrato)',       categoria: 'Segurança',    valor: 9200,  data: '2026-08-05' },
+  { id: 'DESP-003', descricao: 'Empresa de limpeza (contrato)',            categoria: 'Limpeza',      valor: 8500,  data: '2026-08-08' },
+  { id: 'DESP-004', descricao: 'Manutenção de elevadores',                 categoria: 'Manutenção',   valor: 4300,  data: '2026-08-12' },
+  { id: 'DESP-005', descricao: 'Reparos hidráulicos e elétricos',          categoria: 'Manutenção',   valor: 2200,  data: '2026-08-15' },
+  { id: 'DESP-006', descricao: 'Energia elétrica — áreas comuns',          categoria: 'Energia',      valor: 4200,  data: '2026-08-18' },
+  { id: 'DESP-007', descricao: 'Conta de água',                            categoria: 'Água',         valor: 1800,  data: '2026-08-18' },
+  { id: 'DESP-008', descricao: 'Jardinagem e paisagismo',                  categoria: 'Serviços',     valor: 1500,  data: '2026-08-20' },
+  { id: 'DESP-009', descricao: 'Material de escritório e limpeza',         categoria: 'Outras',       valor: 900,   data: '2026-08-22' },
 ];
 
 /** Soma o valor total das despesas. */

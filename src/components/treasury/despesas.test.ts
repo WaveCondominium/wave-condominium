@@ -8,7 +8,7 @@ import {
 } from './despesas';
 
 function d(overrides: Partial<Despesa> = {}): Despesa {
-  return { id: 'D', descricao: 'x', categoria: 'Outras', valor: 100, ...overrides };
+  return { id: 'D', descricao: 'x', categoria: 'Outras', valor: 100, data: '2026-08-01', ...overrides };
 }
 
 describe('totalDespesas', () => {

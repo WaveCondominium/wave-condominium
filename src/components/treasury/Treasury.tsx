@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, Download, ExternalLink, Filter, CreditCard, Smartphone, X, AlertCircle, Users, Receipt, FileText, Send } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Download, CreditCard, Smartphone, X, AlertCircle, Users, Receipt, FileText, Send } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
@@ -8,6 +8,7 @@ import { useFinancialSummary, PAID_STATUS } from '../../hooks/useFinancialSummar
 
 import { GenerateBoletoModal } from './GenerateBoletoModal';
 import { DespesasSection } from './DespesasSection';
+import { HistoricoTransacoes } from './HistoricoTransacoes';
 import { useDespesas } from './useDespesas';
 import { isManager, type Role } from '@/lib/rbac';
 
@@ -97,12 +98,6 @@ export function Treasury({ userProfile }: TreasuryProps) {
     });
   };
 
-  const handleFilter = () => {
-    toast.info('Filtros avançados', {
-      description: 'Funcionalidade de filtros em desenvolvimento.'
-    });
-  };
-
   const handleGenerateBoletos = (data: any) => {
     console.log('Gerando boletos:', data);
     const count = data.units.length;
@@ -117,67 +112,6 @@ export function Treasury({ userProfile }: TreasuryProps) {
       description: `Notificações enviadas para ${unidadesInadimplentes.size} unidade${unidadesInadimplentes.size !== 1 ? 's' : ''} em atraso.`
     });
   };
-
-  // NOTA: "Histórico de Transações" também continua mock por enquanto — a
-  // parte de "despesa" não tem fonte de dados real ainda. Fora do escopo
-  // pedido nesta rodada; fica marcado aqui para não esquecer.
-  const transactions = [
-    {
-      id: '1',
-      type: 'receita',
-      description: 'Taxa Condominial - Novembro',
-      value: 'R$ 48.000,00',
-      date: '05/11/2025',
-      category: 'Receita',
-      status: 'Confirmado',
-      hash: '0x742d...8f2a',
-      proposal: null
-    },
-    {
-      id: '2',
-      type: 'despesa',
-      description: 'Pagamento - Empresa de Limpeza',
-      value: 'R$ 8.500,00',
-      date: '03/11/2025',
-      category: 'Limpeza',
-      status: 'Confirmado',
-      hash: '0x8a3c...5b1d',
-      proposal: 'Proposta #004'
-    },
-    {
-      id: '3',
-      type: 'despesa',
-      description: 'Salário - Portaria',
-      value: 'R$ 12.000,00',
-      date: '01/11/2025',
-      category: 'Portaria',
-      status: 'Confirmado',
-      hash: '0x1f5e...9c7a',
-      proposal: null
-    },
-    {
-      id: '4',
-      type: 'despesa',
-      description: 'Manutenção - Elevador',
-      value: 'R$ 3.200,00',
-      date: '28/10/2025',
-      category: 'Manutenção',
-      status: 'Confirmado',
-      hash: '0x6d2b...4e8f',
-      proposal: 'Proposta #012'
-    },
-    {
-      id: '5',
-      type: 'receita',
-      description: 'Taxa Condominial - Outubro',
-      value: 'R$ 45.500,00',
-      date: '05/10/2025',
-      category: 'Receita',
-      status: 'Confirmado',
-      hash: '0x9a7c...2d3e',
-      proposal: null
-    }
-  ];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
@@ -442,88 +376,8 @@ export function Treasury({ userProfile }: TreasuryProps) {
         </div>
       </div>
 
-      {/* Transactions */}
-      <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-lg relative z-10">
-        <div className="p-6 border-b border-wave-100">
-          <div className="flex items-center justify-between">
-            <h3 className="text-wave-800 text-lg">Histórico de Transações</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={handleFilter}
-                className="px-3 py-2 bg-wave-50 text-wave-500 rounded-lg hover:bg-wave-100 transition-colors flex items-center gap-2"
-              >
-                <Filter className="w-4 h-4" />
-                Filtros
-              </button>
-              <button
-                onClick={handleExport}
-                className="px-3 py-2 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-lg hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Exportar
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-wave-50 border-b border-wave-100">
-              <tr>
-                <th className="px-6 py-4 text-left text-sm text-wave-500">Data</th>
-                <th className="px-6 py-4 text-left text-sm text-wave-500">Descrição</th>
-                <th className="px-6 py-4 text-left text-sm text-wave-500">Categoria</th>
-                <th className="px-6 py-4 text-left text-sm text-wave-500">Valor</th>
-                <th className="px-6 py-4 text-left text-sm text-wave-500">Status</th>
-                <th className="px-6 py-4 text-left text-sm text-wave-500">Hash</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-blue-50">
-              {transactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-wave-50/50 transition-colors">
-                  <td className="px-6 py-4 text-wave-500 text-sm">{tx.date}</td>
-                  <td className="px-6 py-4">
-                    <p className="text-wave-800">{tx.description}</p>
-                    {tx.proposal && (
-                      <p className="text-wave-500 text-sm">{tx.proposal}</p>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      tx.type === 'receita'
-                        ? 'bg-brand-teal/15 text-brand-teal'
-                        : 'bg-wave-100 text-wave-600'
-                    }`}>
-                      {tx.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className={`${
-                      tx.type === 'receita' ? 'text-brand-teal' : 'text-wave-800'
-                    }`}>
-                      {tx.value}
-                    </p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-brand-teal/10 text-brand-teal rounded-full text-xs">
-                      {tx.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button className="text-wave-500 hover:text-wave-500 font-mono text-sm flex items-center gap-1">
-                      {tx.hash}
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-wave-400 text-xs italic px-6 pb-4">
-          * Esta tabela ainda é mock (mistura receita/despesa) — fora do escopo desta rodada de correção.
-        </p>
-      </div>
+      {/* Histórico de Transações (MOR-053) — receitas + despesas, cronológico */}
+      <HistoricoTransacoes />
 
       {/* Blockchain Info */}
       <div className="mt-8 bg-gradient-to-r from-brand-deep to-brand-steel rounded-2xl p-6 border border-wave-200 shadow-lg relative z-10">
