@@ -1,12 +1,14 @@
 ﻿import { useState } from 'react';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, PieChart as PieChartIcon, Download, ExternalLink, Filter, CreditCard, Smartphone, X, AlertCircle, Users, Receipt, FileText, Send } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Download, ExternalLink, Filter, CreditCard, Smartphone, X, AlertCircle, Users, Receipt, FileText, Send } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { useFinancialSummary, PAID_STATUS } from '../../hooks/useFinancialSummary';
 
 import { GenerateBoletoModal } from './GenerateBoletoModal';
+import { DespesasSection } from './DespesasSection';
+import { useDespesas } from './useDespesas';
 import { isManager, type Role } from '@/lib/rbac';
 
 interface TreasuryProps {
@@ -52,6 +54,10 @@ export function Treasury({ userProfile }: TreasuryProps) {
 
   const isManagerRole = isManager(userProfile?.role);
 
+  // Despesas (MOR-52) — fonte demo compartilhada; o total alimenta tanto a
+  // seção "Despesas" quanto a série de despesas do gráfico de evolução.
+  const { total: totalDespesasDemo } = useDespesas();
+
   const metaFundoReserva = 100000; // meta ainda fixa — não há de onde derivar isso dos boletos
   const percentualMeta = metaFundoReserva > 0 ? Math.min(100, Math.round((fundoReserva / metaFundoReserva) * 100)) : 0;
 
@@ -78,7 +84,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
         return {
           month: formatMonthLabel(monthKey),
           receitas,
-          despesas: 0, // aguardando módulo de despesas
+          // Despesas demonstrativas (MOR-52): atribuídas ao mês corrente, já
+          // que a fonte demo representa o período atual.
+          despesas: monthKey === currentMonthKey ? totalDespesasDemo : 0,
         };
       })
     : [];
@@ -109,18 +117,6 @@ export function Treasury({ userProfile }: TreasuryProps) {
       description: `Notificações enviadas para ${unidadesInadimplentes.size} unidade${unidadesInadimplentes.size !== 1 ? 's' : ''} em atraso.`
     });
   };
-
-  // NOTA: "Despesas por Categoria" continua mock — não há, hoje, nenhuma
-  // fonte de dados de despesas no projeto (só existe o modelo de Boleto,
-  // que é receita). Quando existir um módulo de despesas, troca este array
-  // fixo pelos dados reais agrupados por categoria.
-  const expensesByCategory = [
-    { name: 'Limpeza', value: 8500, color: '#3b82f6' },
-    { name: 'Portaria', value: 12000, color: '#8b5cf6' },
-    { name: 'Manutenção', value: 6500, color: '#22c55e' },
-    { name: 'Energia', value: 4200, color: '#f59e0b' },
-    { name: 'Água', value: 1800, color: '#06b6d4' }
-  ];
 
   // NOTA: "Histórico de Transações" também continua mock por enquanto — a
   // parte de "despesa" não tem fonte de dados real ainda. Fora do escopo
@@ -247,6 +243,10 @@ export function Treasury({ userProfile }: TreasuryProps) {
           </p>
         </div>
       </div>
+
+      {/* Despesas (MOR-52) — abaixo das Receitas: total do período + quebra por
+          categoria + gráfico. Somente leitura para o Morador. */}
+      <DespesasSection periodoLabel={formatMonthLabel(currentMonthKey)} />
 
       {/* Admin: Gestão de Boletos */}
       {isManagerRole && (
@@ -383,9 +383,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
       )}
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 relative z-10">
+      <div className="grid grid-cols-1 gap-6 mb-8 relative z-10">
         {/* Balance Evolution */}
-        <div className="lg:col-span-2 bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-wave-100 shadow-lg">
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-wave-100 shadow-lg">
           <h3 className="text-wave-800 text-lg mb-6">Evolução Financeira (Últimos 6 Meses)</h3>
           {balanceData.length === 0 ? (
             <div className="h-[300px] flex items-center justify-center">
@@ -435,48 +435,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
             </ResponsiveContainer>
           )}
           <p className="text-wave-400 text-xs italic mt-2">
-            * Despesas ainda não têm fonte de dados real neste projeto — aparecem zeradas até existir um módulo de despesas.
-          </p>
-        </div>
-
-        {/* Expenses by Category */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-wave-100 shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <PieChartIcon className="w-5 h-5 text-wave-500" />
-            <h3 className="text-wave-800 text-lg">Despesas por Categoria</h3>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={expensesByCategory}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={5}
-                dataKey="value"
-              >
-                {expensesByCategory.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="space-y-2 mt-4">
-            {expensesByCategory.map((item) => (
-              <div key={item.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-sm text-wave-500">{item.name}</span>
-                </div>
-                <span className="text-sm text-wave-800">
-                  R$ {item.value.toLocaleString('pt-BR')}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="text-wave-400 text-xs italic mt-3">
-            * Ainda mock — não há módulo de despesas por categoria implementado.
+            * Despesas demonstrativas (MOR-52); a integração com valores reais e o lançamento
+            por Síndico/Administradora serão entregues em etapa própria. A distribuição por
+            categoria está na seção "Despesas" acima.
           </p>
         </div>
       </div>
