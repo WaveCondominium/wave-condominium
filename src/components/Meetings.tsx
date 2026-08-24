@@ -2,6 +2,7 @@
 import { Video, Calendar, Users, Clock, FileText, Plus, ExternalLink, CheckCircle, Bell, Download } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { CreateMeetingModal } from './CreateMeetingModal';
+import { temLinkReuniaoValido } from './meetingUtils';
 import { isManager, type Role } from '@/lib/rbac';
 
 import { toast } from 'sonner';
@@ -378,16 +379,25 @@ export function Meetings({ userProfile }: MeetingsProps) {
                 {/* Actions */}
                 {meeting.status === 'scheduled' || meeting.status === 'ongoing' ? (
                   <div className="flex gap-3">
-                    <a
-                      href={meeting.meetLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-3 bg-gradient-to-r from-brand-teal to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2"
-                    >
-                      <Video className="w-5 h-5" />
-                      Entrar na Reunião (Google Meets)
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
+                    {/* MOR-055: "Entrar na Reunião" só aparece quando há link válido
+                        cadastrado pelo responsável; caso contrário, apenas informa. */}
+                    {temLinkReuniaoValido(meeting.meetLink) ? (
+                      <a
+                        href={meeting.meetLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-3 bg-gradient-to-r from-brand-teal to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <Video className="w-5 h-5" />
+                        Entrar na Reunião (Google Meets)
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    ) : (
+                      <div className="flex-1 py-3 bg-wave-50 text-wave-500 rounded-xl flex items-center justify-center gap-2 text-sm">
+                        <Video className="w-5 h-5" />
+                        Link de acesso ainda não disponível
+                      </div>
+                    )}
                     {!isConfirmed && isUpcoming && (
                       <button
                         onClick={() => handleConfirmPresence(meeting.id)}
@@ -477,16 +487,17 @@ export function Meetings({ userProfile }: MeetingsProps) {
         </div>
       </div>
 
-      {/* Create Meeting Modal */}
-      {showCreateModal && (
+      {/* Create Meeting Modal — RBAC (MOR-055): render guardado por canCreateMeeting,
+          reforçando que só perfis administrativos criam/gerenciam reuniões. */}
+      {canCreateMeeting && showCreateModal && (
         <CreateMeetingModal
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreateMeeting}
         />
       )}
 
-      {/* ATA Modal */}
-      {showAtaModal && selectedMeetingForAta && (
+      {/* ATA Modal — também restrito a perfis administrativos. */}
+      {canCreateMeeting && showAtaModal && selectedMeetingForAta && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-3xl w-full max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
