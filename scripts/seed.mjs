@@ -172,11 +172,17 @@ const boletos = [
     issuedBy: "Sindico Joao Silva",
   },
   {
+    // SÍN-009: boleto em atraso com lembrete de cobrança enviado e acordo de
+    // parcelamento registrado pelo síndico (para ver as ações de cobrança).
     unitNumber: "203", unitOwner: "Maria Santos", referenceMonth: ym(-2), dueDate: ymd(-70),
     amount: 780, barcode: "23793.38128 60000.203003 78901.203003 3 99990000078000",
     status: "PENDING", description: "Taxa condominial (em atraso)",
     condominiumFee: 580, waterFee: 110, reserveFund: 50, otherFees: 40,
     issuedBy: "Sindico Joao Silva",
+    lastReminderAt: daysFromNow(-3),
+    acordoParcelas: 3, acordoPrimeiraParcela: ymd(10),
+    acordoObservacao: "Acordo combinado com a moradora por telefone.",
+    acordoRegistradoEm: daysFromNow(-2), acordoRegistradoPor: "Joao Silva",
   },
   {
     unitNumber: "101", unitOwner: "Joao Silva", referenceMonth: ym(0), dueDate: ymd(8),

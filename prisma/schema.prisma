@@ -257,6 +257,15 @@ model Boleto {
   issuedBy  String
   issuedAt  DateTime @default(now())
 
+  // Gestão de cobrança pelo síndico (SÍN-009). O síndico NÃO paga boletos de
+  // terceiros — apenas acompanha e faz cobrança. Registro leve, sem tabela nova.
+  lastReminderAt        DateTime? // último lembrete de cobrança enviado ao morador
+  acordoParcelas        Int?      // nº de parcelas do acordo de parcelamento
+  acordoPrimeiraParcela String?   // 'YYYY-MM-DD' — vencimento da 1ª parcela
+  acordoObservacao      String?
+  acordoRegistradoEm    DateTime?
+  acordoRegistradoPor   String?   // nome do gestor que registrou o acordo
+
   @@index([condominiumId, unitNumber])
   @@index([condominiumId, status])
 }
