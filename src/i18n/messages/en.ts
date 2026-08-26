@@ -44,6 +44,12 @@ const en: Messages = {
       morador: "Resident",
       administradora: "Administrator",
     },
+    chooseProfile: {
+      title: "How would you like to sign in?",
+      subtitle: "Your account has more than one profile. Choose which one to use now.",
+      enterAs: "Sign in as",
+      switchError: "Could not switch profile. Please try again.",
+    },
     errors: {
       fillFields: "Please enter your email and password",
       invalidCredentials: "Please check your credentials.",

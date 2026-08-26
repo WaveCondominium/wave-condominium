@@ -44,6 +44,12 @@ const ptBR = {
       morador: "Morador",
       administradora: "Administradora",
     },
+    chooseProfile: {
+      title: "Como deseja entrar?",
+      subtitle: "Sua conta tem mais de um perfil. Escolha com qual acessar agora.",
+      enterAs: "Entrar como",
+      switchError: "Não foi possível trocar de perfil. Tente novamente.",
+    },
     errors: {
       fillFields: "Por favor, preencha email e senha",
       invalidCredentials: "Verifique suas credenciais.",

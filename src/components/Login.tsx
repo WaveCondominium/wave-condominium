@@ -1,22 +1,38 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { ArrowRight, ArrowLeft, Shield, Vote, FileText } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Shield, Vote, FileText, Home, Building2, Settings, User as UserIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/contexts/I18nContext';
 import { LanguageSelector } from '@/components/LanguageSelector';
+import type { AppRole } from '@/hooks/useAuth';
 
 interface LoginProps {
   onLogin: (email: string, password: string) => Promise<any>;
+  // SÍN-003: escolha de perfil quando o usuário tem mais de um.
+  onChooseProfile?: (role: AppRole) => Promise<{ error: any }>;
+  needsProfileChoice?: boolean;
+  availableRoles?: AppRole[];
 }
 
-export function Login({ onLogin }: LoginProps) {
+// Ícone por perfil — apoia a leitura rápida do porteiro/idoso (ícone + texto).
+const ROLE_ICON: Record<AppRole, LucideIcon> = {
+  'Síndico': Shield,
+  Morador: Home,
+  Administradora: Building2,
+  Admin: Settings,
+};
+
+export function Login({ onLogin, onChooseProfile, needsProfileChoice = false, availableRoles = [] }: LoginProps) {
   const router = useRouter();
   const { t } = useI18n();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  // Perfil sendo ativado (feedback de carregamento no botão escolhido).
+  const [choosingRole, setChoosingRole] = useState<AppRole | null>(null);
 
   const handleLogin = async () => {
     if (!formData.email || !formData.password) {
@@ -27,10 +43,25 @@ export function Login({ onLogin }: LoginProps) {
     try {
       const { error } = await onLogin(formData.email, formData.password);
       if (error) toast.error(t('login.errors.invalidCredentials'));
+      // Sucesso: o hook decide entre navegar (perfil único) ou exibir a
+      // escolha de perfil (needsProfileChoice) — nada a fazer aqui.
     } catch {
       toast.error(t('login.errors.unexpected'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChoose = async (role: AppRole) => {
+    if (!onChooseProfile) return;
+    setChoosingRole(role);
+    try {
+      const { error } = await onChooseProfile(role);
+      if (error) toast.error(t('login.chooseProfile.switchError'));
+    } catch {
+      toast.error(t('login.chooseProfile.switchError'));
+    } finally {
+      setChoosingRole(null);
     }
   };
 
@@ -97,6 +128,60 @@ export function Login({ onLogin }: LoginProps) {
             <img src="/brand/wordmark-dark.png" alt="Wave Condominium" className="h-8 w-auto" />
           </div>
 
+          {needsProfileChoice && onChooseProfile ? (
+            /* SÍN-003 — Escolha de perfil: usuário com mais de um perfil decide
+               com qual acessar. A sessão já foi criada com o perfil primário;
+               a escolha re-emite a sessão com o perfil ativo (validado no
+               servidor). Botões grandes com ícone + texto (acessibilidade). */
+            <div>
+              <div className="mb-8">
+                <p className="inline-flex items-center gap-2 mb-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-brand-teal">
+                  <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
+                  {t('login.badge')}
+                </p>
+                <h2 className="font-display text-2xl text-brand-navy font-normal">{t('login.chooseProfile.title')}</h2>
+                <p className="mt-2 text-brand-grey text-sm leading-relaxed">{t('login.chooseProfile.subtitle')}</p>
+              </div>
+
+              <div className="space-y-3">
+                {availableRoles.map((role) => {
+                  const Icon = ROLE_ICON[role] ?? UserIcon;
+                  const isBusy = choosingRole === role;
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => handleChoose(role)}
+                      disabled={choosingRole !== null}
+                      className="w-full flex items-center gap-4 p-4 min-h-[64px] rounded-xl border border-brand-chrome/60 hover:border-brand-teal hover:bg-brand-light transition-all text-left disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
+                    >
+                      <span className="w-11 h-11 rounded-xl bg-brand-light flex items-center justify-center flex-shrink-0">
+                        <Icon className="w-5 h-5 text-brand-steel" />
+                      </span>
+                      <span className="flex-1 min-w-0 text-brand-navy font-medium text-base">
+                        {t('login.chooseProfile.enterAs')} {role}
+                      </span>
+                      {isBusy ? (
+                        <span className="text-brand-grey text-sm">{t('login.signingIn')}</span>
+                      ) : (
+                        <ArrowRight className="w-4 h-4 text-brand-steel flex-shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="w-full mt-6 py-2.5 text-brand-grey hover:text-brand-navy transition-all flex items-center justify-center gap-2 text-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                {t('login.back')}
+              </button>
+            </div>
+          ) : (
+          <>
           <div className="mb-8">
             <p className="inline-flex items-center gap-2 mb-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-brand-teal">
               <span className="h-1.5 w-1.5 rounded-full bg-brand-teal" />
@@ -179,6 +264,8 @@ export function Login({ onLogin }: LoginProps) {
               {t('login.back')}
             </button>
           </div>
+          </>
+          )}
 
         </div>
       </div>

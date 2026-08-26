@@ -64,6 +64,9 @@ model User {
   passwordHash String
   name         String
   role         Role   @default(MORADOR)
+  // Papel adicional opcional — ex.: um Síndico que também é Morador (SÍN-003).
+  // Permite ao usuário escolher/alternar o perfil ativo da sessão.
+  secondaryRole Role?
   unit         String?
   photoUrl     String?
 

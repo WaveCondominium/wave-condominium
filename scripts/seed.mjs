@@ -21,7 +21,9 @@ const passwordHash = await bcrypt.hash("Senha@12345", 12);
 
 const demoUsers = [
   { email: "admin@wave.com",    name: "Administrador Wave", role: "ADMIN",   unit: "Administracao" },
-  { email: "sindico@wave.com",  name: "Joao Silva",         role: "SINDICO", unit: "Apto 101" },
+  // SÍN-003: Joao é Síndico E Morador (perfil dual). No login ele escolhe o
+  // perfil e pode alternar dentro do app. `unit` é a unidade dele como morador.
+  { email: "sindico@wave.com",  name: "Joao Silva",         role: "SINDICO", unit: "Apto 101", secondaryRole: "MORADOR" },
   { email: "morador@wave.com",  name: "Maria Santos",       role: "MORADOR", unit: "Apto 203" },
   { email: "morador2@wave.com", name: "Carlos Mendes",      role: "MORADOR", unit: "Apto 204" },
   { email: "morador3@wave.com", name: "Ana Paula",          role: "MORADOR", unit: "Apto 205" },
@@ -33,7 +35,7 @@ const usersByEmail = {};
 for (const u of demoUsers) {
   const saved = await prisma.user.upsert({
     where: { condominiumId_email: { condominiumId: condo.id, email: u.email } },
-    update: { passwordHash, name: u.name, role: u.role, unit: u.unit },
+    update: { passwordHash, name: u.name, role: u.role, unit: u.unit, secondaryRole: u.secondaryRole ?? null },
     create: { ...u, passwordHash, condominiumId: condo.id },
   });
   usersByEmail[u.email] = saved.id;

@@ -17,7 +17,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userProfile, isAuthenticated, isLoading, logout } = useUser();
+  const { userProfile, isAuthenticated, isLoading, logout, setActiveProfile } = useUser();
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -80,6 +80,7 @@ export default function DashboardLayout({
       <Sidebar
         userProfile={userProfile}
         onLogout={logout}
+        onSwitchProfile={(role) => { void setActiveProfile(role); }}
         isMobileOpen={isMobileMenuOpen}
         onMobileClose={() => setIsMobileMenuOpen(false)}
       />

@@ -2,6 +2,7 @@ import { userRepository } from "@/server/repositories/userRepository";
 import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { createSession, destroySession, getSession } from "@/server/auth/session";
 import type { Role } from "@/lib/rbac";
+import { papeisDisponiveis } from "@/lib/perfis";
 import type { Role as PrismaRole } from "@prisma/client";
 
 // Ponto UNICO de conversao entre o enum do banco e o rotulo do app.
@@ -23,7 +24,10 @@ export interface PublicUser {
   id: string;
   email: string;
   name: string;
+  /** Perfil ATIVO da sessão (pode diferir do papel de cadastro em usuários duais). */
   role: Role;
+  /** Perfis que o usuário pode assumir (SÍN-003). */
+  availableRoles: Role[];
   unit: string | null;
   photoUrl: string | null;
   condominiumId: string | null;
@@ -31,21 +35,32 @@ export interface PublicUser {
   mustChangePassword: boolean;
 }
 
-// Tipo alinhado ao Prisma User — mustChangePassword pode ainda nao existir
-// no banco (migration pendente) ou ser undefined em registros antigos.
+// Tipo alinhado ao Prisma User — campos opcionais (mustChangePassword,
+// secondaryRole) podem ainda nao existir no banco (migration pendente) ou ser
+// undefined em registros antigos.
 type DbUser = {
   id: string; email: string; name: string; role: PrismaRole;
+  secondaryRole?: PrismaRole | null;
   unit: string | null; photoUrl: string | null;
   condominiumId: string | null; administradoraId: string | null;
   mustChangePassword?: boolean;
 };
 
-function toPublic(u: DbUser): PublicUser {
+/** Perfis disponíveis do usuário, em rótulos de app (primário + secundário). */
+function availableRolesOf(u: DbUser): Role[] {
+  const secundario = u.secondaryRole ? DB_TO_LABEL[u.secondaryRole] : null;
+  return papeisDisponiveis(DB_TO_LABEL[u.role], secundario);
+}
+
+// `activeRole` é o perfil ATIVO da sessão; quando ausente, usa o papel de
+// cadastro (comportamento anterior para usuários de perfil único).
+function toPublic(u: DbUser, activeRole?: Role): PublicUser {
   return {
     id: u.id,
     email: u.email,
     name: u.name,
-    role: DB_TO_LABEL[u.role],
+    role: activeRole ?? DB_TO_LABEL[u.role],
+    availableRoles: availableRolesOf(u),
     unit: u.unit,
     photoUrl: u.photoUrl,
     condominiumId: u.condominiumId,
@@ -55,7 +70,7 @@ function toPublic(u: DbUser): PublicUser {
 }
 
 export type LoginResult =
-  | { ok: true; user: PublicUser }
+  | { ok: true; user: PublicUser; needsProfileChoice: boolean }
   | { ok: false; error: string };
 
 export async function login(email: string, password: string): Promise<LoginResult> {
@@ -64,14 +79,54 @@ export async function login(email: string, password: string): Promise<LoginResul
   const valid = await verifyPassword(user?.passwordHash, password);
   if (!user || !valid) return { ok: false, error: "E-mail ou senha invalidos." };
 
+  // Perfil ativo inicial = primário. Se houver mais de um perfil, a UI oferece
+  // a escolha (needsProfileChoice) e chama setActiveProfile depois.
+  const disponiveis = availableRolesOf(user);
+  const ativo = disponiveis[0];
+
   await createSession({
     userId: user.id,
-    role: DB_TO_LABEL[user.role],
+    role: ativo,
     condominiumId: user.condominiumId ?? null,
     administradoraId: user.administradoraId ?? null,
     mustChangePassword: user.mustChangePassword ?? false,
   });
-  return { ok: true, user: toPublic(user) };
+  return { ok: true, user: toPublic(user, ativo), needsProfileChoice: disponiveis.length > 1 };
+}
+
+// ---------------------------------------------------------------------------
+// Perfil ativo (SÍN-003) — trocar o perfil da sessão (login dual / switch)
+// ---------------------------------------------------------------------------
+
+export type SetActiveProfileResult =
+  | { ok: true; user: PublicUser }
+  | { ok: false; error: string };
+
+/**
+ * Define o perfil ativo da sessão. Valida no servidor que o perfil pedido está
+ * entre os disponíveis do usuário (nunca confia no cliente) e re-emite a sessão.
+ */
+export async function setActiveProfile(role: Role): Promise<SetActiveProfileResult> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Sessão expirada. Faça login novamente." };
+
+  const user = await userRepository.findById(session.userId);
+  if (!user) return { ok: false, error: "Usuário não encontrado." };
+
+  // Regra crítica validada no SERVIDOR: o perfil pedido precisa estar entre os
+  // disponíveis do usuário (primário + secundário). Nunca confia no cliente.
+  if (!availableRolesOf(user).includes(role)) {
+    return { ok: false, error: "Perfil não permitido para este usuário." };
+  }
+
+  await createSession({
+    userId: user.id,
+    role,
+    condominiumId: user.condominiumId ?? null,
+    administradoraId: user.administradoraId ?? null,
+    mustChangePassword: user.mustChangePassword ?? false,
+  });
+  return { ok: true, user: toPublic(user, role) };
 }
 
 export async function logout(): Promise<void> {
@@ -82,7 +137,8 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
   const session = await getSession();
   if (!session) return null;
   const user = await userRepository.findById(session.userId);
-  return user ? toPublic(user) : null;
+  // `role` reflete o PERFIL ATIVO da sessão (SÍN-003), não o papel de cadastro.
+  return user ? toPublic(user, session.role) : null;
 }
 
 export interface RegisterInput {
@@ -165,10 +221,11 @@ export async function changePassword(newPassword: string): Promise<ChangePasswor
   const newHash = await hashPassword(newPassword);
   await userRepository.updatePassword(user.id, newHash);
 
-  // Recria a sessão sem mustChangePassword para liberar acesso normal
+  // Recria a sessão sem mustChangePassword para liberar acesso normal.
+  // Preserva o PERFIL ATIVO da sessão (SÍN-003) em vez do papel de cadastro.
   await createSession({
     userId: user.id,
-    role: DB_TO_LABEL[user.role],
+    role: session.role,
     condominiumId: user.condominiumId ?? null,
     administradoraId: user.administradoraId ?? null,
     mustChangePassword: false,

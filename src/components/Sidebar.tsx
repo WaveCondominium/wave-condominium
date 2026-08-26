@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, SlidersHorizontal, Video, Receipt, Shield, MessageSquare, UserPlus, User, X, Building2 } from 'lucide-react';
+import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, SlidersHorizontal, Video, Receipt, Shield, MessageSquare, UserPlus, User, X, Building2, Repeat } from 'lucide-react';
 import { formatDisplayName } from '@/lib/formatName';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMenuBadges } from '@/hooks/useMenuBadges';
@@ -17,17 +17,25 @@ interface SidebarProps {
     role: Role;
     email: string;
     avatar?: string;
+    // SÍN-003: perfis que o usuário pode assumir. Único = [role].
+    availableRoles?: Role[];
   };
   onLogout: () => void;
+  // SÍN-003: troca de perfil ativo (só aparece quando há mais de um perfil).
+  onSwitchProfile?: (role: Role) => void;
   // Novos props (opcionais) — controlam o drawer em telas mobile.
   // Em desktop (lg+) não têm efeito nenhum, o menu fica sempre visível.
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
 }
 
-export function Sidebar({ userProfile, onLogout, isMobileOpen = false, onMobileClose }: SidebarProps) {
+export function Sidebar({ userProfile, onLogout, onSwitchProfile, isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const isManagerRole = isManager(userProfile.role);
+  // Perfis alternativos ao ATIVO (SÍN-003). Vazio quando o usuário tem 1 só.
+  const outrosPerfis = (userProfile.availableRoles ?? [userProfile.role]).filter(
+    (r) => r !== userProfile.role,
+  );
   const { unreadCount } = useNotifications();
   const { governanceCount, communicationCount, meetingsCount, boletosCount, maintenanceCount } = useMenuBadges();
 
@@ -158,6 +166,23 @@ export function Sidebar({ userProfile, onLogout, isMobileOpen = false, onMobileC
             })}
           </div>
         </nav>
+
+        {/* Trocar de perfil (SÍN-003) — só quando o usuário tem mais de um.
+            Botão grande com ícone + texto; troca o perfil ativo sem deslogar. */}
+        {onSwitchProfile && outrosPerfis.length > 0 && (
+          <div className="px-3 pt-3 border-t border-wave-100 space-y-1">
+            {outrosPerfis.map((role) => (
+              <button
+                key={role}
+                onClick={() => onSwitchProfile(role)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-wave-500 hover:bg-wave-50 hover:text-wave-700 transition-all"
+              >
+                <Repeat className="w-4 h-4 flex-shrink-0" />
+                <span>Entrar como {role}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Tema + Logout */}
         <div className="px-3 py-4 border-t border-wave-100 space-y-1">

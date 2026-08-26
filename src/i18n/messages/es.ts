@@ -43,6 +43,12 @@ const es: Messages = {
       morador: "Residente",
       administradora: "Administradora",
     },
+    chooseProfile: {
+      title: "¿Cómo desea entrar?",
+      subtitle: "Su cuenta tiene más de un perfil. Elija con cuál acceder ahora.",
+      enterAs: "Entrar como",
+      switchError: "No se pudo cambiar de perfil. Inténtelo de nuevo.",
+    },
     errors: {
       fillFields: "Por favor, ingrese su correo y contraseña",
       invalidCredentials: "Verifique sus credenciales.",
