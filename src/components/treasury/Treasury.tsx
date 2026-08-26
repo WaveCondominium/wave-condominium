@@ -10,6 +10,7 @@ import { GenerateBoletoModal } from './GenerateBoletoModal';
 import { DespesasSection } from './DespesasSection';
 import { HistoricoTransacoes } from './HistoricoTransacoes';
 import { AdicionarDespesaModal } from './AdicionarDespesaModal';
+import { ConciliacaoPanel } from './ConciliacaoPanel';
 import { useDespesas } from './useDespesas';
 import { totalDespesas } from './despesas';
 import { isManager, type Role } from '@/lib/rbac';
@@ -324,6 +325,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
           </div>
         </div>
       )}
+
+      {/* Conciliação Boletos × Tesouraria (SÍN-010) — apenas gestor. */}
+      {isManagerRole && <ConciliacaoPanel />}
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-6 mb-8 relative z-10">
