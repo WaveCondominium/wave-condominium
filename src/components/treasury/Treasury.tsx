@@ -55,6 +55,7 @@ export function Treasury({ userProfile }: TreasuryProps) {
     totalInadimplencia,
     unidadesInadimplentes,
     totalUnidadesConhecidas,
+    loading,
   } = useFinancialSummary();
 
   const isManagerRole = isManager(userProfile?.role);
@@ -118,9 +119,19 @@ export function Treasury({ userProfile }: TreasuryProps) {
     });
   };
 
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen">
+        <div className="rounded-2xl border border-wave-100 bg-white/80 p-12 text-center text-wave-500 shadow-lg backdrop-blur-sm">
+          Carregando dados financeiros...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
-      
+
 
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 relative z-10">

@@ -86,7 +86,7 @@ function GestorDashboard() {
     setCurrentDateLabel(formatCurrentDateBR(new Date()));
   }, []);
 
-  const { saldoAtual, fundoReserva, percentualAdimplencia, percentualInadimplencia } = useFinancialSummary();
+  const { saldoAtual, fundoReserva, percentualAdimplencia, percentualInadimplencia, loading: financeiroLoading } = useFinancialSummary();
   // RBAC (regra permanente do projeto): Adimplência/Inadimplência são dados
   // financeiros sensíveis, restritos a Síndico e Admin — Morador não vê.
   // LIMITAÇÃO: sem backend real, o valor é calculado no cliente independente
@@ -241,21 +241,21 @@ function GestorDashboard() {
           <div className="space-y-1.5 text-sm">
             <div className="flex items-center justify-between">
               <span className="text-wave-500">Saldo</span>
-              <span className="font-mono text-brand-ink font-medium">{formatBRL(saldoAtual)}</span>
+              <span className="font-mono text-brand-ink font-medium">{financeiroLoading ? '—' : formatBRL(saldoAtual)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-wave-500">Fundo de Reserva</span>
-              <span className="font-mono text-brand-ink font-medium">{formatBRL(fundoReserva)}</span>
+              <span className="font-mono text-brand-ink font-medium">{financeiroLoading ? '—' : formatBRL(fundoReserva)}</span>
             </div>
             {canViewFinancialCompliance && (
               <>
                 <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-wave-50">
                   <span className="text-wave-500">Adimplência</span>
-                  <span className="font-mono text-brand-teal font-medium">{percentualAdimplencia}%</span>
+                  <span className="font-mono text-brand-teal font-medium">{financeiroLoading ? '—' : `${percentualAdimplencia}%`}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-wave-500">Inadimplência</span>
-                  <span className="font-mono text-orange-600 font-medium">{percentualInadimplencia}%</span>
+                  <span className="font-mono text-orange-600 font-medium">{financeiroLoading ? '—' : `${percentualInadimplencia}%`}</span>
                 </div>
               </>
             )}

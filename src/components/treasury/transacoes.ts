@@ -13,7 +13,8 @@
 // combinador e a UI.
 // ---------------------------------------------------------------------------
 
-import { PAID_STATUS, type Boleto } from '../../hooks/useFinancialSummary';
+import { PAID_STATUS } from '../boletos/boletoStatus';
+import type { Boleto } from '../../hooks/useFinancialSummary';
 import { ORIGEM_RECURSO_LABEL, type Despesa } from './despesas';
 
 export type TipoTransacao = 'receita' | 'despesa';

@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import { construirHistorico } from './transacoes';
-import { PAID_STATUS, type Boleto } from '../../hooks/useFinancialSummary';
+import { PAID_STATUS } from '../boletos/boletoStatus';
+import type { Boleto } from '../../hooks/useFinancialSummary';
 import type { Despesa } from './despesas';
 
 function boleto(overrides: Partial<Boleto> = {}): Boleto {

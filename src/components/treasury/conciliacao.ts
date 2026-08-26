@@ -14,7 +14,7 @@
 // detectar qualquer origem de dado que fuja da fonte única.
 // ---------------------------------------------------------------------------
 
-import { PAID_STATUS } from '../../hooks/useFinancialSummary';
+import { PAID_STATUS } from '../boletos/boletoStatus';
 
 /** Categoria de receita correspondente a um boleto de condomínio. */
 export const CATEGORIA_RECEITA_BOLETO = 'Taxa condominial';
