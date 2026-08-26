@@ -306,6 +306,14 @@ model Proposta {
   encerradaEm  DateTime?
   aprovadaEm   DateTime?
 
+  // Rejeição pelo síndico (SÍN-005). A proposta NUNCA é excluída fisicamente:
+  // ao rejeitar, guarda-se o motivo, o responsável e o momento da decisão,
+  // preservando a rastreabilidade completa da Governança no histórico.
+  motivoRejeicao String?
+  rejeitadaPor   String? // nome do responsável pela decisão (auditoria)
+  rejeitadaPorId String? // userId do responsável (auditoria)
+  rejeitadaEm    DateTime?
+
   votos Voto[]
 
   @@index([condominiumId, status])

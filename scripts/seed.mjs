@@ -122,6 +122,17 @@ const propostas = [
     criadaEm: daysFromNow(-45), prazoVotacao: daysFromNow(-15), encerradaEm: daysFromNow(-15),
     votos: votos(["REPROVO", "REPROVO", "APROVO", "REPROVO", "REPROVO"]),
   },
+  {
+    // SÍN-005: exemplo de proposta REJEITADA pelo sindico (fora do escopo),
+    // com motivo/responsavel/data preservados no historico (auditoria).
+    titulo: "Piscina aquecida coberta", descricao: "Construir uma piscina aquecida coberta na area de lazer.",
+    categoria: "OBRAS", status: "REJEITADA", autorNome: "Pedro Lima - Apto 206",
+    criadaEm: daysFromNow(-8), prazoVotacao: daysFromNow(22),
+    encerradaEm: daysFromNow(-2), rejeitadaEm: daysFromNow(-2),
+    rejeitadaPor: "Joao Silva", rejeitadaPorId: usersByEmail["sindico@wave.com"],
+    motivoRejeicao: "Proposta fora do escopo: obra estrutural nao prevista no orcamento aprovado para este ano.",
+    votos: votos(["APROVO", null, "APROVO", null, null]),
+  },
 ];
 
 for (const p of propostas) {
