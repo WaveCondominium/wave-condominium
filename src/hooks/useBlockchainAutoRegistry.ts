@@ -230,7 +230,7 @@ export function useBlockchainAutoRegistry() {
   // unidades (informação alterada, valor anterior e novo, responsável). Silent:
   // não interrompe o fluxo de cadastro com o toast de ancoragem.
   const registerUnitChange = useCallback(async (data: {
-    acao: 'criada' | 'atualizada' | 'status' | 'removida';
+    acao: 'criada' | 'atualizada' | 'status' | 'removida' | 'importadas';
     rotulo: string;
     responsavel: string;
     alteracoes?: { campo: string; de: string; para: string }[];
@@ -239,8 +239,11 @@ export function useBlockchainAutoRegistry() {
       data.acao === 'criada' ? 'cadastrada' :
       data.acao === 'atualizada' ? 'atualizada' :
       data.acao === 'status' ? 'teve o status atualizado' :
+      data.acao === 'importadas' ? 'importadas' :
       'removida';
-    const title = `Unidade ${acaoLabel}: ${data.rotulo}`;
+    const title = data.acao === 'importadas'
+      ? `Importação de unidades: ${data.rotulo}`
+      : `Unidade ${acaoLabel}: ${data.rotulo}`;
     const description = data.alteracoes && data.alteracoes.length
       ? data.alteracoes.map(a => `${a.campo}: ${a.de} → ${a.para}`).join(' · ')
       : `Alteração registrada por ${data.responsavel}`;

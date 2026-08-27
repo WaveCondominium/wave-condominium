@@ -4,7 +4,7 @@ import {
   Home, User, Key, Users, Plus, X, Search, Edit2, CheckCircle,
   Building2, Ruler, AlertCircle, Layers, Dumbbell, PartyPopper,
   Waves, TreePine, Flame, Trophy, UtensilsCrossed, Car, ShieldCheck,
-  Loader2, Trash2,
+  Loader2, Trash2, Upload, Download, FileSpreadsheet,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -17,6 +17,7 @@ import {
   STATUS_UNIDADE_COR, validarUnidade, rotuloUnidade, formatArea, formatFracao,
   diffUnidade, type Unidade, type UnidadeInput, type StatusUnidade,
 } from './units/unidades';
+import { importarUnidadesAction, type ImportRelatorio } from '@/app/actions/unidadesImport';
 
 interface Unit {
   id: string;
@@ -327,7 +328,7 @@ function MoradorUnitView() {
 
 function AdminUnitsView() {
   const { userProfile } = useUser();
-  const { unidades, loading, error, criar, atualizar, atualizarStatus, remover } = useUnidades();
+  const { unidades, loading, error, recarregar, criar, atualizar, atualizarStatus, remover } = useUnidades();
   const { registerUnitChange } = useBlockchainAutoRegistry();
 
   const [search, setSearch] = useState('');
@@ -335,6 +336,7 @@ function AdminUnitsView() {
   const [selected, setSelected] = useState<Unidade | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Unidade | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const responsavel = userProfile.name || 'Gestor';
 
@@ -398,6 +400,13 @@ function AdminUnitsView() {
     setSelected(null);
   }
 
+  async function handleImported(rel: ImportRelatorio) {
+    await recarregar();
+    if (rel.criadas > 0) {
+      void registerUnitChange({ acao: 'importadas', rotulo: `${rel.criadas} unidade${rel.criadas !== 1 ? 's' : ''}`, responsavel });
+    }
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen relative">
       {/* Header */}
@@ -406,9 +415,14 @@ function AdminUnitsView() {
           <h1 className="font-display text-brand-navy text-2xl sm:text-3xl mb-2">Unidades</h1>
           <p className="text-wave-500">Cadastro e gestão das unidades do condomínio</p>
         </div>
-        <button onClick={abrirCriar} className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl shadow-lg flex items-center justify-center gap-2 hover:opacity-90 transition-all">
-          <Plus className="w-5 h-5" /> Nova Unidade
-        </button>
+        <div className="flex gap-3">
+          <button onClick={() => setShowImport(true)} className="px-4 py-3 bg-white border border-wave-200 text-wave-700 rounded-xl shadow-sm flex items-center justify-center gap-2 hover:bg-wave-50 transition-all">
+            <Upload className="w-5 h-5" /> Importar
+          </button>
+          <button onClick={abrirCriar} className="px-4 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl shadow-lg flex items-center justify-center gap-2 hover:opacity-90 transition-all">
+            <Plus className="w-5 h-5" /> Nova Unidade
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -512,6 +526,14 @@ function AdminUnitsView() {
           unidade={editing}
           onClose={() => { setShowForm(false); setEditing(null); }}
           onSubmit={handleSubmit}
+        />
+      )}
+
+      {/* Importação em massa (CSV/Excel) */}
+      {showImport && (
+        <ImportarUnidadesModal
+          onClose={() => setShowImport(false)}
+          onImported={handleImported}
         />
       )}
     </div>
@@ -746,6 +768,182 @@ function UnidadeFormModal({ unidade, onClose, onSubmit }: {
             {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando…</> : <><CheckCircle className="w-4 h-4" /> {editando ? 'Salvar' : 'Cadastrar'}</>}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Modal — Importação em massa de unidades (CSV/Excel) — SÍN-021 Fase 2
+// ---------------------------------------------------------------------------
+
+const COLUNAS_MODELO = [
+  'Bloco', 'Andar', 'Número', 'Tipo', 'Fração ideal', 'Área privativa', 'Vagas',
+  'Status', 'Proprietário', 'E-mail do proprietário', 'Telefone do proprietário',
+  'Inquilino', 'E-mail do inquilino', 'Telefone do inquilino',
+];
+const EXEMPLO_MODELO = [
+  'A', '3', '302', 'Apartamento', '0,0125', '92', '1', 'Ocupada',
+  'João Silva', 'joao@email.com', '(21) 99999-0000', '', '', '',
+];
+
+function csvCell(c: string): string {
+  return /[",\n;]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c;
+}
+
+function baixarModeloCSV() {
+  const linhas = [COLUNAS_MODELO.map(csvCell).join(','), EXEMPLO_MODELO.map(csvCell).join(',')];
+  const csv = '﻿' + linhas.join('\r\n'); // BOM p/ o Excel abrir com acentos corretos
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'modelo-unidades.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const r = String(reader.result ?? '');
+      const i = r.indexOf(',');
+      resolve(i >= 0 ? r.slice(i + 1) : r);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('Falha ao ler o arquivo.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function ImportarUnidadesModal({ onClose, onImported }: {
+  onClose: () => void;
+  onImported: (rel: ImportRelatorio) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [relatorio, setRelatorio] = useState<ImportRelatorio | null>(null);
+
+  async function processar() {
+    if (!file) { toast.error('Selecione um arquivo CSV ou Excel.'); return; }
+    if (file.size > 15 * 1024 * 1024) { toast.error('O arquivo excede o limite de 15 MB.'); return; }
+    setProcessing(true);
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await importarUnidadesAction({ nome: file.name, mime: file.type, base64 });
+      if (!res.ok) { toast.error(res.error); return; }
+      setRelatorio(res.relatorio);
+      onImported(res.relatorio);
+      if (res.relatorio.criadas > 0) toast.success(`${res.relatorio.criadas} unidade(s) importada(s).`);
+      else toast.message('Nenhuma unidade nova foi importada.');
+    } catch {
+      toast.error('Não foi possível importar. Tente novamente.');
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  function reiniciar() { setRelatorio(null); setFile(null); }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-wave-100 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-wave-100 sticky top-0 bg-white z-10">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-br from-brand-deep to-brand-steel rounded-xl">
+              <FileSpreadsheet className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-wave-800 text-xl font-serif">Importar unidades</h2>
+              <p className="text-wave-400 text-sm">Carga em massa por CSV ou Excel</p>
+            </div>
+          </div>
+          <button onClick={onClose} disabled={processing} className="p-2 hover:bg-wave-50 rounded-lg disabled:opacity-50"><X className="w-5 h-5 text-wave-400" /></button>
+        </div>
+
+        {!relatorio ? (
+          <div className="p-6 space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <div className="text-blue-700 text-sm">
+                <p>O arquivo deve ter uma linha de cabeçalho com as colunas do modelo. Obrigatório: <b>Número</b>. Tipos aceitos: {TIPOS_UNIDADE.map(t => TIPO_UNIDADE_LABEL[t]).join(', ')}. Status: {STATUS_UNIDADE.map(s => STATUS_UNIDADE_LABEL[s]).join(', ')}.</p>
+                <button onClick={baixarModeloCSV} className="mt-2 inline-flex items-center gap-1.5 text-blue-700 underline hover:no-underline">
+                  <Download className="w-4 h-4" /> Baixar modelo CSV
+                </button>
+              </div>
+            </div>
+
+            <label className="flex flex-col items-center justify-center gap-2 px-4 py-8 bg-wave-50 border-2 border-dashed border-wave-300 rounded-xl text-wave-600 cursor-pointer hover:bg-wave-100 transition-colors">
+              <Upload className="w-7 h-7 text-wave-400" />
+              <span className="text-sm">{file ? file.name : 'Clique para selecionar um arquivo CSV ou Excel'}</span>
+              <input type="file" className="hidden" accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+            </label>
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={onClose} disabled={processing} className="flex-1 py-2.5 bg-wave-50 border border-wave-200 text-wave-600 rounded-xl text-sm disabled:opacity-50">Cancelar</button>
+              <button onClick={processar} disabled={processing || !file} className="flex-1 py-2.5 bg-wave-800 text-white rounded-xl hover:bg-wave-700 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+                {processing ? <><Loader2 className="w-4 h-4 animate-spin" /> Processando…</> : <><Upload className="w-4 h-4" /> Importar</>}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-brand-teal/10 border border-brand-teal/30 rounded-xl p-3 text-center">
+                <p className="text-2xl font-semibold text-brand-teal">{relatorio.criadas}</p>
+                <p className="text-wave-600 text-xs">Criadas</p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                <p className="text-2xl font-semibold text-amber-700">{relatorio.duplicadas}</p>
+                <p className="text-wave-600 text-xs">Duplicadas</p>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
+                <p className="text-2xl font-semibold text-red-600">{relatorio.invalidas}</p>
+                <p className="text-wave-600 text-xs">Com erro</p>
+              </div>
+            </div>
+
+            {relatorio.itens.length === 0 ? (
+              <div className="bg-brand-teal/10 border border-brand-teal/30 rounded-xl p-4 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-brand-teal" />
+                <p className="text-wave-700 text-sm">Importação concluída sem erros. {relatorio.totalLinhas} linha(s) processada(s).</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-wave-700 text-sm font-medium mb-2">Relatório de erros ({relatorio.itens.length})</p>
+                <div className="overflow-x-auto border border-wave-100 rounded-xl max-h-72 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-wave-50 sticky top-0">
+                      <tr>
+                        {['Linha', 'Unidade', 'Motivo', 'Tipo de validação'].map(h => (
+                          <th key={h} className="text-left px-3 py-2 text-wave-500 text-xs font-medium whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-wave-50">
+                      {relatorio.itens.map((it, i) => (
+                        <tr key={i} className="hover:bg-wave-50/50">
+                          <td className="px-3 py-2 text-wave-600">{it.linha}</td>
+                          <td className="px-3 py-2 text-wave-700 whitespace-nowrap">{it.unidade}</td>
+                          <td className="px-3 py-2 text-wave-700">{it.motivo}</td>
+                          <td className="px-3 py-2"><span className="px-2 py-0.5 rounded-full text-xs bg-wave-100 text-wave-600 whitespace-nowrap">{it.tipoValidacao}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-wave-400 text-xs mt-2">Corrija as linhas acima no arquivo e importe novamente — as unidades válidas já foram criadas.</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={reiniciar} className="flex-1 py-2.5 bg-wave-50 border border-wave-200 text-wave-600 rounded-xl text-sm">Importar outro arquivo</button>
+              <button onClick={onClose} className="flex-1 py-2.5 bg-wave-800 text-white rounded-xl hover:bg-wave-700 transition-all text-sm">Concluir</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

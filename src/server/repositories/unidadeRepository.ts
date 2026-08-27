@@ -24,6 +24,11 @@ export const unidadeRepository = {
     return prisma.unidade.create({ data });
   },
 
+  /** Importação em massa (SÍN-021 Fase 2). skipDuplicates protege a unique. */
+  createMany(data: Prisma.UnidadeUncheckedCreateInput[]) {
+    return prisma.unidade.createMany({ data, skipDuplicates: true });
+  },
+
   update(id: string, condominiumId: string, data: Prisma.UnidadeUncheckedUpdateInput) {
     return prisma.unidade.updateMany({ where: { id, condominiumId }, data });
   },
