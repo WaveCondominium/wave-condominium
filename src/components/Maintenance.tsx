@@ -15,7 +15,8 @@ import {
   getWarrantyHealth,
 } from './maintenance/buildingMaintenance';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { useMaintenanceOrders, type MaintenanceOrder } from '../hooks/useMaintenanceOrders';
+import { useMaintenanceOrders, type MaintenanceOrder, type UnifiedMaintenanceOrder } from '../hooks/useMaintenanceOrders';
+import { acaoMudancaStatus, formatCustoBRL, formatDataHora } from './maintenance/ordemServico';
 import { useUser } from '@/contexts/UserContext';
 import { isManager } from '@/lib/rbac';
 
@@ -941,11 +942,14 @@ function MoradorCreateOSModal({
 // ===========================================================================
 
 function ManagerMaintenanceView() {
+  const { userProfile } = useUser();
   const [filter, setFilter] = useState<'all' | 'pending' | 'progress' | 'completed'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInspectionModal, setShowInspectionModal] = useState(false);
   const [selectedWarranty, setSelectedWarranty] = useState<any>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  // SÍN-012: OS selecionada para o modal "Ver Detalhes".
+  const [selectedOrder, setSelectedOrder] = useState<UnifiedMaintenanceOrder | null>(null);
   const [maintenanceRequests, setMaintenanceRequests] = useLocalStorage<any[]>('wave_maintenance_requests', []);
 
   const {
@@ -1291,7 +1295,11 @@ function ManagerMaintenanceView() {
               </div>
 
               <div className="flex gap-3">
-                <button className="flex-1 py-2 bg-wave-100 text-wave-600 rounded-xl hover:bg-wave-200 transition-all">
+                <button
+                  onClick={() => setSelectedOrder(order)}
+                  className="flex-1 py-2 bg-wave-100 text-wave-600 rounded-xl hover:bg-wave-200 transition-all inline-flex items-center justify-center gap-2"
+                >
+                  <Eye className="w-4 h-4" />
                   Ver Detalhes
                 </button>
                 {order.status !== 'completed' && (
@@ -1299,7 +1307,15 @@ function ManagerMaintenanceView() {
                     onClick={() => {
                       const nextStatus = order.status === 'pending' ? 'progress' : 'completed';
                       const label = nextStatus === 'progress' ? 'Em Andamento' : 'Concluída';
-                      setMaintenanceOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: nextStatus } : o));
+                      // Registra a alteração no histórico da OS (quem/quando/o quê) — SÍN-012.
+                      const entry = {
+                        at: new Date().toISOString(),
+                        action: acaoMudancaStatus(nextStatus),
+                        by: userProfile.name || 'Gestor',
+                      };
+                      setMaintenanceOrders((prev) => prev.map((o) => o.id === order.id
+                        ? { ...o, status: nextStatus, history: [...(o.history ?? []), entry] }
+                        : o));
                       toast.success(`OS ${order.id} atualizada para: ${label}`);
                     }}
                     className="flex-1 py-2 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg text-sm"
@@ -1327,6 +1343,14 @@ function ManagerMaintenanceView() {
         </div>
       </div>
 
+      {/* Order Detail Modal (SÍN-012) — abre os detalhes da OS selecionada. */}
+      {selectedOrder && (
+        <ManagerOrderDetailModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+        />
+      )}
+
       {/* Create Maintenance Modal */}
       {showCreateModal && (
         <CreateMaintenanceModal
@@ -1344,6 +1368,181 @@ function ManagerMaintenanceView() {
           warranty={selectedWarranty}
         />
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Modal — Detalhes da Ordem de Serviço (Síndico) — SÍN-012
+//
+// Abre os dados da OS SELECIONADA (recebe o objeto completo, com o id). Mostra
+// descrição, solicitante, unidade, prioridade, status, prestador, custos
+// (previsto/realizado), anexos e o histórico de alterações (o quê/quando/quem).
+// Campos ainda não preenchidos recebem uma indicação adequada, sem esconder os
+// demais dados.
+// ---------------------------------------------------------------------------
+
+const OS_STATUS_META: Record<
+  'pending' | 'progress' | 'completed',
+  { label: string; bg: string; color: string }
+> = {
+  pending: { label: 'Pendente', bg: 'bg-orange-100', color: 'text-orange-700' },
+  progress: { label: 'Em Andamento', bg: 'bg-wave-100', color: 'text-wave-600' },
+  completed: { label: 'Concluída', bg: 'bg-brand-teal/15', color: 'text-brand-teal' },
+};
+
+const OS_PRIORITY_META: Record<'high' | 'medium' | 'low', { label: string; color: string }> = {
+  high: { label: 'Urgente', color: 'text-red-600' },
+  medium: { label: 'Média', color: 'text-orange-600' },
+  low: { label: 'Baixa', color: 'text-blue-600' },
+};
+
+function InfoCell({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div className="bg-wave-50 rounded-xl p-3">
+      <p className="text-wave-400 text-xs mb-1">{label}</p>
+      <p className={`text-sm font-medium ${valueClass ?? 'text-wave-800'}`}>{value}</p>
+    </div>
+  );
+}
+
+function ManagerOrderDetailModal({
+  order,
+  onClose,
+}: {
+  order: UnifiedMaintenanceOrder;
+  onClose: () => void;
+}) {
+  const statusMeta = OS_STATUS_META[order.status] ?? OS_STATUS_META.pending;
+  const priorityMeta = OS_PRIORITY_META[order.priority] ?? OS_PRIORITY_META.low;
+
+  // Histórico: usa o registrado; se vazio, deriva o evento de abertura para não
+  // deixar a seção em branco (indicação adequada).
+  const historico =
+    order.history && order.history.length > 0
+      ? order.history
+      : [{ at: order.openedDate, action: 'Ordem de serviço aberta', by: order.createdByName ?? '—' }];
+
+  const anexos = order.attachments && order.attachments.length > 0
+    ? order.attachments
+    : order.hasDocument
+      ? ['Documento anexado']
+      : [];
+
+  return (
+    <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-blue-100">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-blue-100 p-5 z-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-gradient-to-br from-brand-deep to-brand-steel rounded-xl">
+                <Eye className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-blue-900 text-xl">Detalhes da Ordem de Serviço</h2>
+                <p className="text-wave-400 text-sm">{order.id}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-blue-50 rounded-lg transition-colors" aria-label="Fechar">
+              <X className="w-5 h-5 text-blue-600" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* Título + status */}
+          <div>
+            <div className="flex items-center gap-2 flex-wrap mb-2">
+              <h3 className="text-wave-800 text-lg">{order.title}</h3>
+              {order.isInspection && (
+                <span className="px-2.5 py-0.5 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-full text-xs flex items-center gap-1">
+                  <Shield className="w-3 h-3" /> Vistoria
+                </span>
+              )}
+              {order.origin === 'morador' && (
+                <span className="px-2.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">
+                  Solicitação do Morador
+                </span>
+              )}
+            </div>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm ${statusMeta.bg} ${statusMeta.color}`}>
+              <CircleDot className="w-4 h-4" />
+              {statusMeta.label}
+            </span>
+          </div>
+
+          {/* Grade de informações */}
+          <div className="grid grid-cols-2 gap-3">
+            <InfoCell label="Categoria" value={order.category || 'Não informado'} />
+            <InfoCell label="Prioridade" value={priorityMeta.label} valueClass={priorityMeta.color} />
+            <InfoCell label="Solicitante" value={order.createdByName || 'Não informado'} />
+            <InfoCell label="Unidade" value={order.unit ? `Unidade ${order.unit}` : 'Não aplicável'} />
+            <InfoCell label="Data de abertura" value={order.openedDate || 'Não informado'} />
+            <InfoCell label="Prestador designado" value={order.assignedTo || 'Aguardando designação'} />
+            <InfoCell label="Custo previsto" value={formatCustoBRL(order.costEstimated)} />
+            <InfoCell label="Custo realizado" value={formatCustoBRL(order.costActual)} />
+          </div>
+
+          {/* Descrição */}
+          <div className="bg-wave-50 rounded-xl p-4">
+            <p className="text-wave-400 text-xs mb-1.5">Descrição</p>
+            <p className="text-wave-700 text-sm whitespace-pre-wrap">
+              {order.description || 'Sem descrição informada.'}
+            </p>
+          </div>
+
+          {/* Anexos */}
+          <div>
+            <p className="text-wave-700 text-sm font-medium mb-2">Anexos</p>
+            {anexos.length === 0 ? (
+              <p className="text-wave-400 text-sm">Nenhum anexo relacionado.</p>
+            ) : (
+              <ul className="space-y-2">
+                {anexos.map((nome, i) => (
+                  <li key={i} className="flex items-center gap-2 bg-wave-50 rounded-xl p-3">
+                    <FileText className="w-4 h-4 text-wave-500 shrink-0" />
+                    <span className="text-wave-700 text-sm truncate">{nome}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Histórico de alterações */}
+          <div>
+            <p className="text-wave-700 text-sm font-medium mb-3">Histórico de alterações</p>
+            <ol className="space-y-0">
+              {historico.map((h, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="w-6 h-6 rounded-full bg-wave-100 flex items-center justify-center shrink-0">
+                      <Clock className="w-3.5 h-3.5 text-wave-500" />
+                    </div>
+                    {i < historico.length - 1 && <div className="w-0.5 h-8 bg-wave-200" />}
+                  </div>
+                  <div className="pt-0.5 pb-3">
+                    <p className="text-wave-800 text-sm">{h.action}</p>
+                    <p className="text-wave-400 text-xs mt-0.5">
+                      {formatDataHora(h.at)} · {h.by}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+
+        {/* Rodapé */}
+        <div className="p-5 border-t border-wave-100">
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-wave-100 text-wave-700 rounded-xl hover:bg-wave-200 transition-all"
+          >
+            Fechar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
