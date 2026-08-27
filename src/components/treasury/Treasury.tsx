@@ -10,9 +10,9 @@ import { GenerateBoletoModal } from './GenerateBoletoModal';
 import { DespesasSection } from './DespesasSection';
 import { HistoricoTransacoes } from './HistoricoTransacoes';
 import { AdicionarDespesaModal } from './AdicionarDespesaModal';
+import { GestaoDespesas } from './GestaoDespesas';
 import { ConciliacaoPanel } from './ConciliacaoPanel';
 import { useDespesas } from './useDespesas';
-import { totalDespesas } from './despesas';
 import { isManager, type Role } from '@/lib/rbac';
 
 interface TreasuryProps {
@@ -60,10 +60,25 @@ export function Treasury({ userProfile }: TreasuryProps) {
 
   const isManagerRole = isManager(userProfile?.role);
 
-  // Despesas (MOR-52) — fonte demo compartilhada; o total alimenta tanto a
-  // seção "Despesas" quanto a série de despesas do gráfico de evolução.
-  const { despesas, adicionar: adicionarDespesa } = useDespesas();
-  const totalDespesasDemo = totalDespesas(despesas);
+  // Despesas (SÍN-011) — fonte real (backend), compartilhada entre a seção
+  // "Despesas" (distribuição), a "Gestão de Despesas" e a série do gráfico de
+  // evolução. Estado único aqui garante que tudo reflita o mesmo dado.
+  const {
+    despesas,
+    loading: despesasLoading,
+    error: despesasError,
+    criar: criarDespesa,
+    registrarPagamento: registrarPagamentoDespesa,
+  } = useDespesas();
+
+  // Despesas PAGAS somadas por mês do pagamento (YYYY-MM) — alimenta a série
+  // "despesas" do gráfico de evolução com valores reais.
+  const despesasPagasPorMes = new Map<string, number>();
+  for (const d of despesas) {
+    if (d.status !== 'PAGO') continue;
+    const mesKey = (d.dataPagamento ?? d.dataVencimento).slice(0, 7);
+    despesasPagasPorMes.set(mesKey, (despesasPagasPorMes.get(mesKey) ?? 0) + d.valor);
+  }
 
   const metaFundoReserva = 100000; // meta ainda fixa — não há de onde derivar isso dos boletos
   const percentualMeta = metaFundoReserva > 0 ? Math.min(100, Math.round((fundoReserva / metaFundoReserva) * 100)) : 0;
@@ -91,9 +106,8 @@ export function Treasury({ userProfile }: TreasuryProps) {
         return {
           month: formatMonthLabel(monthKey),
           receitas,
-          // Despesas demonstrativas (MOR-52): atribuídas ao mês corrente, já
-          // que a fonte demo representa o período atual.
-          despesas: monthKey === currentMonthKey ? totalDespesasDemo : 0,
+          // Despesas reais pagas no mês (SÍN-011).
+          despesas: despesasPagasPorMes.get(monthKey) ?? 0,
         };
       })
     : [];
@@ -199,9 +213,20 @@ export function Treasury({ userProfile }: TreasuryProps) {
         </div>
       </div>
 
-      {/* Despesas (MOR-52) — abaixo das Receitas: total do período + quebra por
-          categoria + gráfico. Somente leitura para o Morador. */}
+      {/* Despesas — abaixo das Receitas: distribuição por categoria das despesas
+          pagas. Somente leitura para o Morador. */}
       <DespesasSection despesas={despesas} periodoLabel={formatMonthLabel(currentMonthKey)} />
+
+      {/* Gestão de Despesas (SÍN-011) — registrar/acompanhar/consultar: só gestor. */}
+      {isManagerRole && (
+        <GestaoDespesas
+          despesas={despesas}
+          loading={despesasLoading}
+          error={despesasError}
+          onNovaDespesa={() => setShowAddDespesa(true)}
+          onRegistrarPagamento={registrarPagamentoDespesa}
+        />
+      )}
 
       {/* Admin: Gestão de Boletos */}
       {isManagerRole && (
@@ -393,9 +418,9 @@ export function Treasury({ userProfile }: TreasuryProps) {
             </ResponsiveContainer>
           )}
           <p className="text-wave-400 text-xs italic mt-2">
-            * Despesas demonstrativas (MOR-52); a integração com valores reais e o lançamento
-            por Síndico/Administradora serão entregues em etapa própria. A distribuição por
-            categoria está na seção "Despesas" acima.
+            * Receitas dos boletos pagos e despesas efetivamente pagas por mês. A distribuição
+            por categoria está na seção "Despesas" acima; o registro e acompanhamento, em
+            "Gestão de Despesas".
           </p>
         </div>
       </div>
@@ -425,11 +450,11 @@ export function Treasury({ userProfile }: TreasuryProps) {
         />
       )}
 
-      {/* Adicionar Despesa (MOR-054) — apenas gestor */}
+      {/* Adicionar Despesa (SÍN-011) — apenas gestor */}
       {isManagerRole && showAddDespesa && (
         <AdicionarDespesaModal
           onClose={() => setShowAddDespesa(false)}
-          onCreate={adicionarDespesa}
+          onCreate={criarDespesa}
         />
       )}
     </div>

@@ -4,18 +4,16 @@
 // Histórico de Transações (MOR-053) — unifica RECEITAS e DESPESAS num único
 // extrato cronológico. Lógica pura (sem React/DOM), testável e reutilizável.
 //
-// Fontes:
-//   - Receitas: boletos PAGOS (mesma regra do restante do financeiro —
-//     status === PAID_STATUS). Dinheiro que entrou.
-//   - Despesas: fonte de despesas do MOR-52 (hoje demo/localStorage).
-//
-// Quando existir backend financeiro real, troca-se a origem mantendo este
-// combinador e a UI.
+// Fontes (dinheiro que efetivamente se movimentou):
+//   - Receitas: boletos PAGOS (status === PAID_STATUS). Dinheiro que entrou.
+//   - Despesas: despesas PAGAS (SÍN-011, status === 'PAGO'). Dinheiro que saiu.
+//     Despesas pendentes/vencidas são obrigações, não movimentações — aparecem
+//     na gestão de despesas, não no extrato.
 // ---------------------------------------------------------------------------
 
 import { PAID_STATUS } from '../boletos/boletoStatus';
 import type { Boleto } from '../../hooks/useFinancialSummary';
-import { ORIGEM_RECURSO_LABEL, type Despesa } from './despesas';
+import { ORIGEM_RECURSO_LABEL, CATEGORIA_DESPESA_LABEL, type Despesa } from './despesas';
 
 export type TipoTransacao = 'receita' | 'despesa';
 
@@ -56,9 +54,10 @@ export function despesaParaTransacao(d: Despesa): Transacao {
     id: `despesa:${d.id}`,
     tipo: 'despesa',
     descricao: d.descricao,
-    categoria: d.categoria,
+    categoria: CATEGORIA_DESPESA_LABEL[d.categoria],
     valor: d.valor,
-    data: d.data,
+    // Movimentação = data do pagamento; cai para o vencimento se ausente.
+    data: d.dataPagamento ?? d.dataVencimento,
     origem: ORIGEM_RECURSO_LABEL[d.origemRecurso],
   };
 }
@@ -71,7 +70,9 @@ export function construirHistorico(boletos: Boleto[], despesas: Despesa[]): Tran
   const receitas = boletos
     .filter((b) => b.status === PAID_STATUS)
     .map(boletoParaTransacao);
-  const saidas = despesas.map(despesaParaTransacao);
+  const saidas = despesas
+    .filter((d) => d.status === 'PAGO')
+    .map(despesaParaTransacao);
 
   return [...receitas, ...saidas].sort((a, b) => {
     if (a.data === b.data) return 0;

@@ -106,8 +106,8 @@ export function HistoricoTransacoes({ despesas }: HistoricoTransacoesProps) {
       )}
 
       <p className="text-wave-400 text-xs italic px-6 py-4">
-        * Receitas vêm dos boletos pagos; despesas são demonstrativas (MOR-52) até a integração
-        com os valores reais. Consulta apenas — a gestão financeira é do Síndico/Administradora.
+        * Extrato de caixa: receitas vêm dos boletos pagos e despesas das despesas pagas.
+        Consulta apenas — a gestão financeira é do Síndico/Administradora.
       </p>
     </section>
   );

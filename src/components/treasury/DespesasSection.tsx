@@ -24,8 +24,11 @@ interface DespesasSectionProps {
 }
 
 export function DespesasSection({ despesas, periodoLabel }: DespesasSectionProps) {
-  const total = totalDespesas(despesas);
-  const porCategoria = agruparPorCategoria(despesas);
+  // A distribuição reflete os recursos que efetivamente saíram (despesas
+  // PAGAS), no mesmo espírito das receitas (boletos pagos).
+  const pagas = despesas.filter((d) => d.status === 'PAGO');
+  const total = totalDespesas(pagas);
+  const porCategoria = agruparPorCategoria(pagas);
 
   return (
     <section
@@ -49,7 +52,7 @@ export function DespesasSection({ despesas, periodoLabel }: DespesasSectionProps
 
       {porCategoria.length === 0 ? (
         <p className="py-8 text-center text-sm text-wave-400">
-          Nenhuma despesa registrada no período.
+          Nenhuma despesa paga registrada até o momento.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -65,7 +68,7 @@ export function DespesasSection({ despesas, periodoLabel }: DespesasSectionProps
                         style={{ backgroundColor: c.cor }}
                         aria-hidden="true"
                       />
-                      <span className="text-sm text-wave-700 truncate">{c.categoria}</span>
+                      <span className="text-sm text-wave-700 truncate">{c.label}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-sm text-wave-800">{formatBRL(c.valor)}</span>
@@ -100,7 +103,7 @@ export function DespesasSection({ despesas, periodoLabel }: DespesasSectionProps
                   outerRadius={90}
                   paddingAngle={4}
                   dataKey="valor"
-                  nameKey="categoria"
+                  nameKey="label"
                 >
                   {porCategoria.map((c) => (
                     <Cell key={c.categoria} fill={c.cor} />
@@ -109,7 +112,7 @@ export function DespesasSection({ despesas, periodoLabel }: DespesasSectionProps
                 <Tooltip
                   formatter={(value: number, _name, entry) => [
                     formatBRL(value),
-                    (entry?.payload as { categoria?: string })?.categoria ?? '',
+                    (entry?.payload as { label?: string })?.label ?? '',
                   ]}
                   contentStyle={{ backgroundColor: 'white', border: '2px solid #f59e0b', borderRadius: '12px' }}
                 />
@@ -120,8 +123,8 @@ export function DespesasSection({ despesas, periodoLabel }: DespesasSectionProps
       )}
 
       <p className="text-wave-400 text-xs italic mt-4">
-        * Dados demonstrativos — o lançamento de despesas (Síndico/Administradora) e a
-        integração com os valores reais serão entregues em etapa própria.
+        * Distribuição das despesas efetivamente pagas do condomínio. O registro e o
+        acompanhamento (Síndico/Administradora) ficam na seção “Gestão de Despesas”.
       </p>
     </section>
   );

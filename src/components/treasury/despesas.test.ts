@@ -1,87 +1,152 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  CATEGORIAS_DESPESA,
+  CATEGORIA_DESPESA_LABEL,
+  FORMAS_PAGAMENTO,
+  validarNovaDespesa,
+  validarPagamento,
+  statusDeInput,
+  isDespesaVencida,
+  statusView,
   totalDespesas,
   agruparPorCategoria,
-  validarNovaDespesa,
-  montarDespesa,
-  CATEGORIA_COR,
+  formatBRL,
   type Despesa,
   type NovaDespesaInput,
 } from './despesas';
 
-function d(overrides: Partial<Despesa> = {}): Despesa {
-  return { id: 'D', descricao: 'x', categoria: 'Outras', valor: 100, data: '2026-08-01', origemRecurso: 'saldo', ...overrides };
+function novaDespesa(overrides: Partial<NovaDespesaInput> = {}): NovaDespesaInput {
+  return {
+    categoria: 'MANUTENCAO_PREDIAL',
+    descricao: 'Reparo da bomba',
+    valor: 1200,
+    dataVencimento: '2026-08-20',
+    origemRecurso: 'SALDO',
+    ...overrides,
+  };
 }
 
-function input(overrides: Partial<NovaDespesaInput> = {}): NovaDespesaInput {
-  return { categoria: 'Manutenção', descricao: 'Troca de bomba', valor: 500, data: '2026-08-10', origemRecurso: 'saldo', ...overrides };
+function despesa(overrides: Partial<Despesa> = {}): Despesa {
+  return {
+    id: 'D1',
+    categoria: 'ENERGIA',
+    descricao: 'Energia — áreas comuns',
+    valor: 4200,
+    dataVencimento: '2026-08-18',
+    origemRecurso: 'SALDO',
+    status: 'PENDENTE',
+    registradoPor: 'Síndico',
+    criadoEm: '2026-08-01T00:00:00.000Z',
+    atualizadoEm: '2026-08-01T00:00:00.000Z',
+    ...overrides,
+  };
 }
 
-describe('totalDespesas', () => {
-  it('soma os valores', () => {
-    expect(totalDespesas([d({ valor: 100 }), d({ valor: 250 }), d({ valor: 50 })])).toBe(400);
+describe('catálogo de categorias/formas', () => {
+  it('expõe as 14 categorias do SÍN-011 com rótulo para cada uma', () => {
+    expect(CATEGORIAS_DESPESA).toHaveLength(14);
+    for (const c of CATEGORIAS_DESPESA) {
+      expect(CATEGORIA_DESPESA_LABEL[c]).toBeTruthy();
+    }
   });
 
-  it('retorna 0 para lista vazia', () => {
-    expect(totalDespesas([])).toBe(0);
-  });
-});
-
-describe('agruparPorCategoria', () => {
-  it('soma por categoria, ordena desc e calcula percentual', () => {
-    const out = agruparPorCategoria([
-      d({ categoria: 'Manutenção', valor: 200 }),
-      d({ categoria: 'Manutenção', valor: 100 }),
-      d({ categoria: 'Energia', valor: 100 }),
-    ]);
-    expect(out.map((c) => c.categoria)).toEqual(['Manutenção', 'Energia']);
-    expect(out[0].valor).toBe(300);
-    expect(out[0].percentual).toBe(75); // 300 de 400
-    expect(out[1].percentual).toBe(25);
-  });
-
-  it('anexa a cor de cada categoria', () => {
-    const out = agruparPorCategoria([d({ categoria: 'Funcionários', valor: 10 })]);
-    expect(out[0].cor).toBe(CATEGORIA_COR['Funcionários']);
-  });
-
-  it('lida com total zero sem dividir por zero', () => {
-    const out = agruparPorCategoria([d({ categoria: 'Água', valor: 0 })]);
-    expect(out[0].percentual).toBe(0);
-  });
-
-  it('não muta a entrada', () => {
-    const lista = [d({ categoria: 'Energia', valor: 1 }), d({ categoria: 'Água', valor: 2 })];
-    const snap = [...lista];
-    agruparPorCategoria(lista);
-    expect(lista).toEqual(snap);
+  it('inclui as formas de pagamento esperadas', () => {
+    expect(FORMAS_PAGAMENTO).toContain('PIX');
+    expect(FORMAS_PAGAMENTO).toContain('BOLETO');
   });
 });
 
 describe('validarNovaDespesa', () => {
-  it('aceita um input completo', () => {
-    expect(validarNovaDespesa(input())).toBeNull();
+  it('aceita uma entrada válida', () => {
+    expect(validarNovaDespesa(novaDespesa())).toBeNull();
   });
 
-  it('exige descrição, valor > 0 e data', () => {
-    expect(validarNovaDespesa(input({ descricao: '  ' }))).toMatch(/descrição/i);
-    expect(validarNovaDespesa(input({ valor: 0 }))).toMatch(/valor/i);
-    expect(validarNovaDespesa(input({ valor: -5 }))).toMatch(/valor/i);
-    expect(validarNovaDespesa(input({ data: '' }))).toMatch(/data/i);
+  it('exige descrição', () => {
+    expect(validarNovaDespesa(novaDespesa({ descricao: '   ' }))).toMatch(/descrição/i);
+  });
+
+  it('exige valor maior que zero', () => {
+    expect(validarNovaDespesa(novaDespesa({ valor: 0 }))).toMatch(/valor/i);
+    expect(validarNovaDespesa(novaDespesa({ valor: -5 }))).toMatch(/valor/i);
+    expect(validarNovaDespesa(novaDespesa({ valor: NaN }))).toMatch(/valor/i);
+  });
+
+  it('exige categoria e vencimento', () => {
+    expect(validarNovaDespesa(novaDespesa({ categoria: undefined as never }))).toMatch(/categoria/i);
+    expect(validarNovaDespesa(novaDespesa({ dataVencimento: '' }))).toMatch(/vencimento/i);
+  });
+
+  it('exige origem do recurso', () => {
+    expect(validarNovaDespesa(novaDespesa({ origemRecurso: undefined as never }))).toMatch(/origem/i);
   });
 });
 
-describe('montarDespesa', () => {
-  it('monta a despesa com id fornecido e normaliza a descrição', () => {
-    const desp = montarDespesa(input({ descricao: '  Pintura  ' }), 'DESP-X');
-    expect(desp.id).toBe('DESP-X');
-    expect(desp.descricao).toBe('Pintura');
-    expect(desp.origemRecurso).toBe('saldo');
+describe('statusDeInput', () => {
+  it('nasce PAGO quando há data de pagamento; PENDENTE caso contrário', () => {
+    expect(statusDeInput({ dataPagamento: '2026-08-19' })).toBe('PAGO');
+    expect(statusDeInput({ dataPagamento: undefined })).toBe('PENDENTE');
+  });
+});
+
+describe('validarPagamento', () => {
+  it('exige a data do pagamento (despesa paga precisa de data)', () => {
+    expect(validarPagamento({})).toMatch(/data/i);
+    expect(validarPagamento({ dataPagamento: '2026-08-25' })).toBeNull();
+  });
+});
+
+describe('status derivado (Vencido)', () => {
+  const hoje = '2026-08-27';
+
+  it('pendente com vencimento no passado é VENCIDA', () => {
+    const d = despesa({ status: 'PENDENTE', dataVencimento: '2026-08-18' });
+    expect(isDespesaVencida(d, hoje)).toBe(true);
+    expect(statusView(d, hoje)).toBe('VENCIDO');
   });
 
-  it('comprovante vazio vira undefined', () => {
-    expect(montarDespesa(input({ comprovanteNome: '   ' }), 'DESP-Y').comprovanteNome).toBeUndefined();
-    expect(montarDespesa(input({ comprovanteNome: 'nota.pdf' }), 'DESP-Z').comprovanteNome).toBe('nota.pdf');
+  it('pendente com vencimento futuro continua PENDENTE', () => {
+    const d = despesa({ status: 'PENDENTE', dataVencimento: '2026-09-10' });
+    expect(isDespesaVencida(d, hoje)).toBe(false);
+    expect(statusView(d, hoje)).toBe('PENDENTE');
+  });
+
+  it('paga nunca é considerada vencida', () => {
+    const d = despesa({ status: 'PAGO', dataVencimento: '2026-08-01', dataPagamento: '2026-08-05' });
+    expect(isDespesaVencida(d, hoje)).toBe(false);
+    expect(statusView(d, hoje)).toBe('PAGO');
+  });
+});
+
+describe('agregações', () => {
+  it('soma o total das despesas', () => {
+    expect(totalDespesas([despesa({ valor: 100 }), despesa({ valor: 250 })])).toBe(350);
+  });
+
+  it('agrupa por categoria com rótulo, %, e ordena do maior para o menor', () => {
+    const resumo = agruparPorCategoria([
+      despesa({ categoria: 'ENERGIA', valor: 300 }),
+      despesa({ categoria: 'LIMPEZA', valor: 700 }),
+      despesa({ categoria: 'ENERGIA', valor: 100 }),
+    ]);
+    expect(resumo[0].categoria).toBe('LIMPEZA');
+    expect(resumo[0].valor).toBe(700);
+    expect(resumo[0].label).toBe('Limpeza e conservação');
+    const energia = resumo.find((r) => r.categoria === 'ENERGIA');
+    expect(energia?.valor).toBe(400);
+    expect(energia?.percentual).toBe(36); // 400 / 1100 ≈ 36%
+  });
+
+  it('não muta a entrada', () => {
+    const arr = [despesa()];
+    const snap = [...arr];
+    agruparPorCategoria(arr);
+    expect(arr).toEqual(snap);
+  });
+});
+
+describe('formatBRL', () => {
+  it('formata em Real com duas casas', () => {
+    expect(formatBRL(1234.5)).toBe('R$ 1.234,50');
   });
 });

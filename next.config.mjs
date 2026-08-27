@@ -33,6 +33,10 @@ const nextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins,
+      // SÍN-011: o upload do comprovante de despesa trafega como argumento da
+      // Server Action (base64). O padrão do Next é 1 MB; elevamos para acomodar
+      // recibos de até ~10 MB (a validação de tamanho real é feita no servidor).
+      bodySizeLimit: "15mb",
     },
   },
   async rewrites() {

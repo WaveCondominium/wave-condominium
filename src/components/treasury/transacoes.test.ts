@@ -24,7 +24,21 @@ function boleto(overrides: Partial<Boleto> = {}): Boleto {
 }
 
 function despesa(overrides: Partial<Despesa> = {}): Despesa {
-  return { id: 'D1', descricao: 'Limpeza', categoria: 'Limpeza', valor: 200, data: '2026-08-05', origemRecurso: 'saldo', ...overrides };
+  return {
+    id: 'D1',
+    categoria: 'LIMPEZA',
+    descricao: 'Limpeza',
+    valor: 200,
+    dataVencimento: '2026-08-05',
+    dataPagamento: '2026-08-05',
+    formaPagamento: 'PIX',
+    origemRecurso: 'SALDO',
+    status: 'PAGO',
+    registradoPor: 'Síndico',
+    criadoEm: '2026-08-05T00:00:00.000Z',
+    atualizadoEm: '2026-08-05T00:00:00.000Z',
+    ...overrides,
+  };
 }
 
 describe('construirHistorico', () => {
@@ -45,12 +59,29 @@ describe('construirHistorico', () => {
     expect(hist.map((t) => t.id)).toEqual(['receita:PAGO']);
   });
 
+  it('NÃO inclui despesas não pagas (pendentes/vencidas)', () => {
+    const hist = construirHistorico(
+      [],
+      [
+        despesa({ id: 'PAGA', status: 'PAGO', dataPagamento: '2026-08-10' }),
+        despesa({ id: 'PEND', status: 'PENDENTE', dataPagamento: undefined }),
+      ],
+    );
+    expect(hist.map((t) => t.id)).toEqual(['despesa:PAGA']);
+  });
+
+  it('usa a categoria em rótulo pt-BR e a data de pagamento como movimentação', () => {
+    const [t] = construirHistorico([], [despesa({ id: 'D', categoria: 'ENERGIA', dataPagamento: '2026-08-15' })]);
+    expect(t.categoria).toBe('Energia elétrica');
+    expect(t.data).toBe('2026-08-15');
+  });
+
   it('ordena da movimentação mais recente para a mais antiga', () => {
     const hist = construirHistorico(
       [boleto({ id: 'B_ANTIGO', paidAt: '2026-08-02T00:00:00.000Z' })],
       [
-        despesa({ id: 'D_NOVA', data: '2026-08-20' }),
-        despesa({ id: 'D_MEIO', data: '2026-08-10' }),
+        despesa({ id: 'D_NOVA', dataPagamento: '2026-08-20' }),
+        despesa({ id: 'D_MEIO', dataPagamento: '2026-08-10' }),
       ],
     );
     expect(hist.map((t) => t.id)).toEqual(['despesa:D_NOVA', 'despesa:D_MEIO', 'receita:B_ANTIGO']);

@@ -1,112 +1,226 @@
 // ---------------------------------------------------------------------------
 // src/components/treasury/despesas.ts
 //
-// Despesas do condomínio (MOR-52) — fonte de dados e lógica pura.
+// Despesas do condomínio — modelo de domínio e lógica PURA (SÍN-011).
 //
-// Contexto: hoje a plataforma só registra RECEITAS (boletos). Não existe um
-// módulo/base de despesas. Este módulo introduz uma fonte de despesas
-// client-side (demo/seed), no mesmo padrão do restante do protótipo, para
-// alimentar a seção "Despesas" do financeiro do Morador. Quando existir
-// backend de despesas, troca-se a origem (localStorage → repository/service)
-// mantendo a UI e os seletores.
+// Este módulo NÃO importa nada de servidor (Prisma/actions), para que a lógica
+// permaneça testável no Vitest sem puxar a cadeia de servidor — mesmo padrão de
+// `boletoStatus.ts`. As Server Actions (`app/actions/despesas.ts`) mapeiam os
+// enums do Prisma para os tipos-string deste módulo (e vice-versa).
 //
-// RBAC: o Morador tem acesso SOMENTE LEITURA — a seção que consome estes dados
-// (DespesasSection) não possui nenhum controle de criação/edição/exclusão.
+// Evolução: até SÍN-011 as despesas eram um demo em localStorage. Agora são
+// persistidas no PostgreSQL (multi-tenant), com comprovante no Vercel Blob e
+// registro de integridade ancorado na Stellar. As chaves de categoria/forma/
+// status/origem espelham exatamente os enums do schema Prisma.
 // ---------------------------------------------------------------------------
 
-export type CategoriaDespesa =
-  | 'Funcionários'
-  | 'Manutenção'
-  | 'Serviços'
-  | 'Limpeza'
-  | 'Segurança'
-  | 'Energia'
-  | 'Água'
-  | 'Outras';
+// --- Categorias --------------------------------------------------------------
+// Chaves iguais ao enum Prisma `CategoriaDespesa`. Os rótulos são a exibição
+// pt-BR conforme o card SÍN-011.
 
-/**
- * Origem do recurso usado para pagar a despesa (MOR-054).
- * Regra financeira (a definir): por padrão, descontar do saldo disponível; o
- * Fundo de Reserva só em despesas extraordinárias/autorizadas por governança.
- * Por ora apenas REGISTRAMOS a origem — a dedução efetiva no saldo/fundo é
- * decisão pendente e não é aplicada aqui.
- */
-export type OrigemRecurso = 'saldo' | 'fundo_reserva';
+export type CategoriaDespesa =
+  | 'FOLHA_PAGAMENTO'
+  | 'JARDINAGEM'
+  | 'LIMPEZA'
+  | 'MANUTENCAO_PREDIAL'
+  | 'ELEVADORES'
+  | 'SEGURANCA_PORTARIA'
+  | 'AGUA_ESGOTO'
+  | 'ENERGIA'
+  | 'GAS'
+  | 'SEGUROS'
+  | 'TAXAS_TRIBUTOS'
+  | 'ADMINISTRACAO'
+  | 'OBRAS_BENFEITORIAS'
+  | 'OUTROS';
+
+export const CATEGORIA_DESPESA_LABEL: Record<CategoriaDespesa, string> = {
+  FOLHA_PAGAMENTO: 'Folha de pagamento e encargos',
+  JARDINAGEM: 'Jardinagem e paisagismo',
+  LIMPEZA: 'Limpeza e conservação',
+  MANUTENCAO_PREDIAL: 'Manutenção predial',
+  ELEVADORES: 'Elevadores',
+  SEGURANCA_PORTARIA: 'Segurança e portaria',
+  AGUA_ESGOTO: 'Água e esgoto',
+  ENERGIA: 'Energia elétrica',
+  GAS: 'Gás',
+  SEGUROS: 'Seguros',
+  TAXAS_TRIBUTOS: 'Taxas e tributos',
+  ADMINISTRACAO: 'Administração',
+  OBRAS_BENFEITORIAS: 'Obras e benfeitorias',
+  OUTROS: 'Outros',
+};
+
+/** Ordem de exibição das categorias no cadastro/consulta. */
+export const CATEGORIAS_DESPESA: CategoriaDespesa[] = [
+  'FOLHA_PAGAMENTO',
+  'JARDINAGEM',
+  'LIMPEZA',
+  'MANUTENCAO_PREDIAL',
+  'ELEVADORES',
+  'SEGURANCA_PORTARIA',
+  'AGUA_ESGOTO',
+  'ENERGIA',
+  'GAS',
+  'SEGUROS',
+  'TAXAS_TRIBUTOS',
+  'ADMINISTRACAO',
+  'OBRAS_BENFEITORIAS',
+  'OUTROS',
+];
+
+/** Cor por categoria — para os gráficos/legendas da seção Despesas. */
+export const CATEGORIA_DESPESA_COR: Record<CategoriaDespesa, string> = {
+  FOLHA_PAGAMENTO: '#8b5cf6',
+  JARDINAGEM: '#22c55e',
+  LIMPEZA: '#06b6d4',
+  MANUTENCAO_PREDIAL: '#3b82f6',
+  ELEVADORES: '#6366f1',
+  SEGURANCA_PORTARIA: '#0ea5e9',
+  AGUA_ESGOTO: '#14b8a6',
+  ENERGIA: '#f59e0b',
+  GAS: '#ef4444',
+  SEGUROS: '#ec4899',
+  TAXAS_TRIBUTOS: '#a855f7',
+  ADMINISTRACAO: '#64748b',
+  OBRAS_BENFEITORIAS: '#f97316',
+  OUTROS: '#94a3b8',
+};
+
+// --- Status ------------------------------------------------------------------
+// Persistimos apenas PENDENTE/PAGO. "VENCIDO" é DERIVADO (não armazenado):
+// status PENDENTE + dataVencimento < hoje. Mesmo padrão de `isBoletoOverdue`.
+
+export type StatusDespesa = 'PENDENTE' | 'PAGO';
+export type StatusDespesaView = StatusDespesa | 'VENCIDO';
+
+export const STATUS_DESPESA_LABEL: Record<StatusDespesaView, string> = {
+  PENDENTE: 'Pendente',
+  PAGO: 'Pago',
+  VENCIDO: 'Vencido',
+};
+
+// --- Forma de pagamento ------------------------------------------------------
+
+export type FormaPagamentoDespesa =
+  | 'PIX'
+  | 'TED'
+  | 'TRANSFERENCIA'
+  | 'DINHEIRO'
+  | 'BOLETO'
+  | 'CARTAO'
+  | 'DEBITO_AUTOMATICO'
+  | 'OUTRO';
+
+export const FORMA_PAGAMENTO_LABEL: Record<FormaPagamentoDespesa, string> = {
+  PIX: 'PIX',
+  TED: 'TED',
+  TRANSFERENCIA: 'Transferência',
+  DINHEIRO: 'Dinheiro',
+  BOLETO: 'Boleto',
+  CARTAO: 'Cartão',
+  DEBITO_AUTOMATICO: 'Débito automático',
+  OUTRO: 'Outro',
+};
+
+export const FORMAS_PAGAMENTO: FormaPagamentoDespesa[] = [
+  'PIX',
+  'TED',
+  'TRANSFERENCIA',
+  'DINHEIRO',
+  'BOLETO',
+  'CARTAO',
+  'DEBITO_AUTOMATICO',
+  'OUTRO',
+];
+
+// --- Origem do recurso (herdado de MOR-054) ----------------------------------
+
+export type OrigemRecurso = 'SALDO' | 'FUNDO_RESERVA';
 
 export const ORIGEM_RECURSO_LABEL: Record<OrigemRecurso, string> = {
-  saldo: 'Saldo disponível',
-  fundo_reserva: 'Fundo de Reserva',
+  SALDO: 'Saldo disponível',
+  FUNDO_RESERVA: 'Fundo de Reserva',
 };
+
+// --- Entidade de aplicação ---------------------------------------------------
 
 export interface Despesa {
   id: string;
-  descricao: string;
   categoria: CategoriaDespesa;
+  descricao: string;
+  /** Fornecedor ou beneficiário. */
+  fornecedor?: string;
   /** Valor em reais (BRL). */
   valor: number;
-  /** Data da despesa em ISO 8601 (YYYY-MM-DD) — usada no histórico (MOR-053). */
-  data: string;
-  /** Origem do recurso utilizado no pagamento (MOR-054). */
+  /** Data de vencimento (YYYY-MM-DD). */
+  dataVencimento: string;
+  /** Data de pagamento (YYYY-MM-DD) — vazia enquanto pendente. */
+  dataPagamento?: string;
+  formaPagamento?: FormaPagamentoDespesa;
   origemRecurso: OrigemRecurso;
-  /** Nome do arquivo de comprovante, quando anexado (MOR-054). */
+  status: StatusDespesa;
+
+  // Comprovante + integridade
   comprovanteNome?: string;
+  comprovanteUrl?: string;
+  comprovanteMime?: string;
+  comprovanteTamanho?: number;
+  /** SHA-256 (hex, 64) dos bytes do comprovante — base da verificação. */
+  comprovanteHash?: string;
+  /** Hash da transação Stellar que ancora o comprovante. */
+  blockchainTxHash?: string;
+  blockchainRegisteredAt?: string;
+  stellarExplorerUrl?: string;
+
+  registradoPor: string;
+  criadoEm: string;
+  atualizadoEm: string;
 }
 
-export interface CategoriaResumo {
-  categoria: CategoriaDespesa;
-  valor: number;
-  cor: string;
-  /** Participação no total (0–100, arredondada). */
-  percentual: number;
+// --- Derivações de status ----------------------------------------------------
+
+/** Uma despesa está vencida quando ainda pendente e o vencimento já passou. */
+export function isDespesaVencida(
+  d: Pick<Despesa, 'status' | 'dataVencimento'>,
+  hojeISO: string,
+): boolean {
+  return d.status === 'PENDENTE' && !!d.dataVencimento && d.dataVencimento < hojeISO;
 }
 
-export const DESPESAS_STORAGE_KEY = 'wave_despesas';
+/** Status para exibição (inclui o derivado VENCIDO). */
+export function statusView(
+  d: Pick<Despesa, 'status' | 'dataVencimento'>,
+  hojeISO: string,
+): StatusDespesaView {
+  if (isDespesaVencida(d, hojeISO)) return 'VENCIDO';
+  return d.status;
+}
 
-/** Categorias oferecidas no cadastro de despesa (ordem de exibição). */
-export const CATEGORIAS_DESPESA: CategoriaDespesa[] = [
-  'Funcionários',
-  'Manutenção',
-  'Serviços',
-  'Limpeza',
-  'Segurança',
-  'Energia',
-  'Água',
-  'Outras',
-];
+// --- Formatação / agregações -------------------------------------------------
 
-/** Cor por categoria — paleta consistente com os gráficos já usados. */
-export const CATEGORIA_COR: Record<CategoriaDespesa, string> = {
-  Funcionários: '#8b5cf6',
-  Manutenção: '#22c55e',
-  Serviços: '#3b82f6',
-  Limpeza: '#06b6d4',
-  Segurança: '#6366f1',
-  Energia: '#f59e0b',
-  Água: '#0ea5e9',
-  Outras: '#94a3b8',
-};
-
-/** Dados de demonstração (representam as despesas do período corrente). */
-export const DEFAULT_DESPESAS: Despesa[] = [
-  { id: 'DESP-001', descricao: 'Folha de pagamento — Portaria/Zeladoria', categoria: 'Funcionários', valor: 18500, data: '2026-08-05', origemRecurso: 'saldo' },
-  { id: 'DESP-002', descricao: 'Vigilância patrimonial (contrato)',       categoria: 'Segurança',    valor: 9200,  data: '2026-08-05', origemRecurso: 'saldo' },
-  { id: 'DESP-003', descricao: 'Empresa de limpeza (contrato)',            categoria: 'Limpeza',      valor: 8500,  data: '2026-08-08', origemRecurso: 'saldo' },
-  { id: 'DESP-004', descricao: 'Manutenção de elevadores',                 categoria: 'Manutenção',   valor: 4300,  data: '2026-08-12', origemRecurso: 'saldo' },
-  { id: 'DESP-005', descricao: 'Reforma extraordinária do telhado',        categoria: 'Manutenção',   valor: 2200,  data: '2026-08-15', origemRecurso: 'fundo_reserva' },
-  { id: 'DESP-006', descricao: 'Energia elétrica — áreas comuns',          categoria: 'Energia',      valor: 4200,  data: '2026-08-18', origemRecurso: 'saldo' },
-  { id: 'DESP-007', descricao: 'Conta de água',                            categoria: 'Água',         valor: 1800,  data: '2026-08-18', origemRecurso: 'saldo' },
-  { id: 'DESP-008', descricao: 'Jardinagem e paisagismo',                  categoria: 'Serviços',     valor: 1500,  data: '2026-08-20', origemRecurso: 'saldo' },
-  { id: 'DESP-009', descricao: 'Material de escritório e limpeza',         categoria: 'Outras',       valor: 900,   data: '2026-08-22', origemRecurso: 'saldo' },
-];
+/** Formata um valor em Real (BRL). */
+export function formatBRL(valor: number): string {
+  return `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 /** Soma o valor total das despesas. */
 export function totalDespesas(despesas: Despesa[]): number {
   return despesas.reduce((soma, d) => soma + d.valor, 0);
 }
 
+export interface CategoriaResumo {
+  categoria: CategoriaDespesa;
+  label: string;
+  valor: number;
+  cor: string;
+  /** Participação no total (0–100, arredondada). */
+  percentual: number;
+}
+
 /**
- * Agrupa as despesas por categoria, com valor somado, cor e participação (%)
- * no total. Ordena da maior para a menor. Não muta a entrada.
+ * Agrupa as despesas por categoria (valor somado, rótulo, cor e % do total),
+ * da maior para a menor. Não muta a entrada.
  */
 export function agruparPorCategoria(despesas: Despesa[]): CategoriaResumo[] {
   const total = totalDespesas(despesas);
@@ -119,56 +233,66 @@ export function agruparPorCategoria(despesas: Despesa[]): CategoriaResumo[] {
   return Array.from(somaPorCategoria.entries())
     .map(([categoria, valor]) => ({
       categoria,
+      label: CATEGORIA_DESPESA_LABEL[categoria],
       valor,
-      cor: CATEGORIA_COR[categoria],
+      cor: CATEGORIA_DESPESA_COR[categoria],
       percentual: total > 0 ? Math.round((valor / total) * 100) : 0,
     }))
     .sort((a, b) => b.valor - a.valor);
 }
 
-/** Formata um valor em Real (BRL). */
-export function formatBRL(valor: number): string {
-  return `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-// ---------------------------------------------------------------------------
-// Cadastro de despesa (MOR-054) — apenas perfis administrativos (Síndico/
-// Administradora). Validação e montagem são puras (testáveis). A restrição de
-// acesso é aplicada na UI (botão/modal só para gestor); quando houver backend,
-// a autorização deve ser validada também no servidor.
-// ---------------------------------------------------------------------------
+// --- Cadastro / validação (puros e testáveis) --------------------------------
+// A restrição de acesso (só gestor) e a autorização são validadas no SERVIDOR
+// (requireManager) — a UI apenas oculta os controles. Estas funções cuidam só
+// da consistência dos dados de entrada.
 
 export interface NovaDespesaInput {
   categoria: CategoriaDespesa;
   descricao: string;
+  fornecedor?: string;
   valor: number;
-  /** Data do pagamento (YYYY-MM-DD). */
-  data: string;
+  dataVencimento: string;
+  /** Opcional: se informada, a despesa nasce PAGA. */
+  dataPagamento?: string;
+  formaPagamento?: FormaPagamentoDespesa;
   origemRecurso: OrigemRecurso;
-  comprovanteNome?: string;
 }
 
-/** Valida os campos obrigatórios do cadastro. Retorna a mensagem de erro ou null. */
+/**
+ * Regras (SÍN-011): valor, categoria e descrição são obrigatórios; o
+ * vencimento é obrigatório; uma despesa marcada como paga (dataPagamento
+ * preenchida) exige a data de pagamento. Retorna a mensagem de erro ou null.
+ */
 export function validarNovaDespesa(input: Partial<NovaDespesaInput>): string | null {
   if (!input.descricao || !input.descricao.trim()) return 'Informe a descrição da despesa.';
   if (input.valor == null || Number.isNaN(input.valor) || input.valor <= 0) {
     return 'Informe um valor maior que zero.';
   }
-  if (!input.data) return 'Informe a data do pagamento.';
   if (!input.categoria) return 'Selecione a categoria da despesa.';
+  if (!input.dataVencimento) return 'Informe a data de vencimento.';
   if (!input.origemRecurso) return 'Selecione a origem do recurso.';
+  // Sem restrição de ordem entre datas: o pagamento pode ocorrer antes ou
+  // depois do vencimento. A data de pagamento presente marca a despesa como paga.
   return null;
 }
 
-/** Monta uma Despesa a partir do input validado. O id é fornecido por quem chama. */
-export function montarDespesa(input: NovaDespesaInput, id: string): Despesa {
-  return {
-    id,
-    descricao: input.descricao.trim(),
-    categoria: input.categoria,
-    valor: input.valor,
-    data: input.data,
-    origemRecurso: input.origemRecurso,
-    comprovanteNome: input.comprovanteNome?.trim() || undefined,
-  };
+/** Deriva o status a partir da presença (ou não) da data de pagamento. */
+export function statusDeInput(
+  input: Pick<NovaDespesaInput, 'dataPagamento'>,
+): StatusDespesa {
+  return input.dataPagamento ? 'PAGO' : 'PENDENTE';
+}
+
+// --- Registro de pagamento de uma despesa pendente ---------------------------
+
+export interface RegistrarPagamentoInput {
+  dataPagamento: string;
+  formaPagamento?: FormaPagamentoDespesa;
+  origemRecurso?: OrigemRecurso;
+}
+
+/** Uma despesa paga DEVE ter data de pagamento registrada (SÍN-011). */
+export function validarPagamento(input: Partial<RegistrarPagamentoInput>): string | null {
+  if (!input.dataPagamento) return 'Informe a data do pagamento.';
+  return null;
 }

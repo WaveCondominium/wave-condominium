@@ -47,6 +47,7 @@ model Condominium {
   bloqueios Bloqueio[]
   boletos   Boleto[]
   propostas Proposta[]
+  despesas  Despesa[]
 
   @@index([administradoraId])
 }
@@ -387,4 +388,89 @@ model ManutencaoUnidade {
   responsavel   String
 
   @@index([condominiumId, unidade])
+}
+
+// --- Tesouraria: Despesas / pagamentos (SÍN-011) -----------------------------
+//
+// Registro de despesas e pagamentos do condomínio, com rastreabilidade e
+// integridade do comprovante. Escopado por condominiumId (multi-tenant).
+//
+// Status: persistimos apenas PENDENTE/PAGO. "Vencido" é DERIVADO no aplicativo
+// (status PENDENTE + dataVencimento < hoje), no mesmo padrão de `isBoletoOverdue`
+// — evita um estado armazenado que precisa ser "corrigido" a cada virada de dia.
+//
+// Integridade: ao anexar um comprovante, calculamos o SHA-256 dos BYTES do
+// arquivo (`comprovanteHash`) e ancoramos esse hash na Stellar (mesmo padrão de
+// Boletos), guardando `blockchainTxHash` + `stellarExplorerUrl`. A verificação
+// recalcula o hash do arquivo atual e o compara com o hash ancorado no ledger.
+
+enum CategoriaDespesa {
+  FOLHA_PAGAMENTO // Folha de pagamento e encargos
+  JARDINAGEM // Jardinagem e paisagismo
+  LIMPEZA // Limpeza e conservação
+  MANUTENCAO_PREDIAL // Manutenção predial
+  ELEVADORES // Elevadores
+  SEGURANCA_PORTARIA // Segurança e portaria
+  AGUA_ESGOTO // Água e esgoto
+  ENERGIA // Energia elétrica
+  GAS // Gás
+  SEGUROS // Seguros
+  TAXAS_TRIBUTOS // Taxas e tributos
+  ADMINISTRACAO // Administração
+  OBRAS_BENFEITORIAS // Obras e benfeitorias
+  OUTROS // Outros
+}
+
+enum StatusDespesa {
+  PENDENTE
+  PAGO
+}
+
+enum FormaPagamentoDespesa {
+  PIX
+  TED
+  TRANSFERENCIA
+  DINHEIRO
+  BOLETO
+  CARTAO
+  DEBITO_AUTOMATICO
+  OUTRO
+}
+
+enum OrigemRecursoDespesa {
+  SALDO
+  FUNDO_RESERVA
+}
+
+model Despesa {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  categoria      CategoriaDespesa
+  descricao      String
+  fornecedor     String? // fornecedor ou beneficiário
+  valor          Decimal          @db.Decimal(12, 2)
+  dataVencimento String // 'YYYY-MM-DD'
+  dataPagamento  String? // 'YYYY-MM-DD' — vazio enquanto pendente
+  formaPagamento FormaPagamentoDespesa?
+  origemRecurso  OrigemRecursoDespesa  @default(SALDO)
+  status         StatusDespesa         @default(PENDENTE)
+
+  // Comprovante + registro de integridade (ancorado na Stellar).
+  comprovanteNome        String?
+  comprovanteUrl         String? // URL do Vercel Blob
+  comprovanteMime        String?
+  comprovanteTamanho     Int? // bytes
+  comprovanteHash        String? // SHA-256 hex (64 chars) dos bytes do arquivo
+  blockchainTxHash       String? // hash da transação Stellar que ancora o comprovante
+  blockchainRegisteredAt DateTime?
+  stellarExplorerUrl     String?
+
+  registradoPor String // nome do gestor que registrou (auditoria)
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([condominiumId, status])
+  @@index([condominiumId, categoria])
 }

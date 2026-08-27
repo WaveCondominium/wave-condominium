@@ -52,6 +52,7 @@ const moradores = [
 await prisma.proposta.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.aviso.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.boleto.deleteMany({ where: { condominiumId: condo.id } });
+await prisma.despesa.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.documentoUnidade.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.solicitacaoServico.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.manutencaoUnidade.deleteMany({ where: { condominiumId: condo.id } });
@@ -196,6 +197,57 @@ for (const b of boletos) {
   await prisma.boleto.create({ data: { condominiumId: condo.id, ...b } });
 }
 console.log("Seed ok -> " + boletos.length + " boletos");
+
+// --- Despesas / pagamentos (SÍN-011) -----------------------------------------
+// Mistura de status para exercitar a Gestão de Despesas: pagas (entram no
+// extrato e na distribuição), pendente (a vencer) e vencida (pendente com
+// vencimento no passado — exibida como "Vencido", que é derivado).
+const despesas = [
+  {
+    categoria: "FOLHA_PAGAMENTO", descricao: "Folha de pagamento — Portaria/Zeladoria",
+    fornecedor: "Colaboradores CLT", valor: 18500, dataVencimento: ymd(-10),
+    dataPagamento: ymd(-9), formaPagamento: "PIX", origemRecurso: "SALDO", status: "PAGO",
+    registradoPor: "Joao Silva",
+  },
+  {
+    categoria: "SEGURANCA_PORTARIA", descricao: "Vigilância patrimonial (contrato)",
+    fornecedor: "Segura+ Vigilância Ltda.", valor: 9200, dataVencimento: ymd(-8),
+    dataPagamento: ymd(-8), formaPagamento: "TED", origemRecurso: "SALDO", status: "PAGO",
+    registradoPor: "Joao Silva",
+  },
+  {
+    categoria: "LIMPEZA", descricao: "Empresa de limpeza e conservação",
+    fornecedor: "CleanCond Serviços", valor: 8500, dataVencimento: ymd(-6),
+    dataPagamento: ymd(-6), formaPagamento: "TED", origemRecurso: "SALDO", status: "PAGO",
+    registradoPor: "Joao Silva",
+  },
+  {
+    categoria: "AGUA_ESGOTO", descricao: "Conta de água e esgoto — áreas comuns",
+    fornecedor: "Companhia de Saneamento", valor: 1800, dataVencimento: ymd(-2),
+    dataPagamento: ymd(-1), formaPagamento: "DEBITO_AUTOMATICO", origemRecurso: "SALDO", status: "PAGO",
+    registradoPor: "Joao Silva",
+  },
+  {
+    categoria: "MANUTENCAO_PREDIAL", descricao: "Reforma extraordinária do telhado",
+    fornecedor: "Construtora Horizonte", valor: 2200, dataVencimento: ymd(-5),
+    dataPagamento: ymd(-5), formaPagamento: "TED", origemRecurso: "FUNDO_RESERVA", status: "PAGO",
+    registradoPor: "Joao Silva",
+  },
+  {
+    categoria: "ELEVADORES", descricao: "Manutenção mensal dos elevadores",
+    fornecedor: "Elevadores Atlas Ltda.", valor: 4300, dataVencimento: ymd(7),
+    origemRecurso: "SALDO", status: "PENDENTE", registradoPor: "Joao Silva",
+  },
+  {
+    categoria: "ENERGIA", descricao: "Energia elétrica — áreas comuns (em atraso)",
+    fornecedor: "Distribuidora de Energia", valor: 4200, dataVencimento: ymd(-3),
+    origemRecurso: "SALDO", status: "PENDENTE", registradoPor: "Joao Silva",
+  },
+];
+for (const d of despesas) {
+  await prisma.despesa.create({ data: { condominiumId: condo.id, ...d } });
+}
+console.log("Seed ok -> " + despesas.length + " despesas");
 
 // --- Dashboard da unidade (documentos / solicitacoes / manutencoes) ----------
 
