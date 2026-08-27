@@ -6,7 +6,7 @@ import { anchorMetadataOnChain } from '@/app/actions/blockchain';
 
 export interface BlockchainRecord {
   id: string;
-  type: 'proposal' | 'vote' | 'financial' | 'document' | 'user';
+  type: 'proposal' | 'vote' | 'financial' | 'document' | 'user' | 'unit';
   title: string;
   description: string;
   timestamp: string;
@@ -226,6 +226,39 @@ export function useBlockchainAutoRegistry() {
     );
   }, [registerOnBlockchain]);
 
+  // SÍN-021: registra na trilha de Auditoria uma alteração no cadastro de
+  // unidades (informação alterada, valor anterior e novo, responsável). Silent:
+  // não interrompe o fluxo de cadastro com o toast de ancoragem.
+  const registerUnitChange = useCallback(async (data: {
+    acao: 'criada' | 'atualizada' | 'status' | 'removida';
+    rotulo: string;
+    responsavel: string;
+    alteracoes?: { campo: string; de: string; para: string }[];
+  }) => {
+    const acaoLabel =
+      data.acao === 'criada' ? 'cadastrada' :
+      data.acao === 'atualizada' ? 'atualizada' :
+      data.acao === 'status' ? 'teve o status atualizado' :
+      'removida';
+    const title = `Unidade ${acaoLabel}: ${data.rotulo}`;
+    const description = data.alteracoes && data.alteracoes.length
+      ? data.alteracoes.map(a => `${a.campo}: ${a.de} → ${a.para}`).join(' · ')
+      : `Alteração registrada por ${data.responsavel}`;
+    return registerOnBlockchain(
+      'unit',
+      title,
+      description,
+      {
+        rotulo: data.rotulo,
+        acao: data.acao,
+        responsavel: data.responsavel,
+        alteracoes: data.alteracoes ?? [],
+        registradoEm: new Date().toISOString(),
+      },
+      true,
+    );
+  }, [registerOnBlockchain]);
+
   return {
     records,
     registerUser,
@@ -233,6 +266,7 @@ export function useBlockchainAutoRegistry() {
     registerVote,
     registerPayment,
     registerTransaction,
-    registerDocument
+    registerDocument,
+    registerUnitChange,
   };
 }

@@ -53,6 +53,7 @@ await prisma.proposta.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.aviso.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.boleto.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.despesa.deleteMany({ where: { condominiumId: condo.id } });
+await prisma.unidade.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.documentoUnidade.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.solicitacaoServico.deleteMany({ where: { condominiumId: condo.id } });
 await prisma.manutencaoUnidade.deleteMany({ where: { condominiumId: condo.id } });
@@ -248,6 +249,22 @@ for (const d of despesas) {
   await prisma.despesa.create({ data: { condominiumId: condo.id, ...d } });
 }
 console.log("Seed ok -> " + despesas.length + " despesas");
+
+// --- Unidades (SÍN-021) ------------------------------------------------------
+// Mix de tipos e status (Ocupada/Vaga/Em obra), com/sem inquilino, para
+// exercitar o cadastro, filtros e a trilha de auditoria.
+const unidades = [
+  { bloco: "A", andar: "1", numero: "101", tipo: "APARTAMENTO", fracaoIdeal: 0.0125, areaPrivativa: 85, vagas: 1, status: "OCUPADA", proprietarioNome: "Joao Silva", proprietarioEmail: "joao@email.com", proprietarioTelefone: "(21) 99999-0101" },
+  { bloco: "A", andar: "2", numero: "203", tipo: "APARTAMENTO", fracaoIdeal: 0.0130, areaPrivativa: 92, vagas: 1, status: "OCUPADA", proprietarioNome: "Juliana Mendes", inquilinoNome: "Lucas Pereira", inquilinoTelefone: "(21) 98888-2030" },
+  { bloco: "A", andar: "3", numero: "302", tipo: "COBERTURA", fracaoIdeal: 0.0240, areaPrivativa: 160, vagas: 2, status: "VAGA", proprietarioNome: "Empresa XYZ Ltda", proprietarioEmail: "contato@xyz.com" },
+  { bloco: "B", andar: "1", numero: "104", tipo: "APARTAMENTO", fracaoIdeal: 0.0125, areaPrivativa: 85, vagas: 1, status: "EM_OBRA", proprietarioNome: "Ana Lima", proprietarioTelefone: "(21) 99999-0104" },
+  { bloco: "", andar: "Térreo", numero: "L01", tipo: "LOJA", fracaoIdeal: 0.0300, areaPrivativa: 48, vagas: 0, status: "OCUPADA", proprietarioNome: "Padaria Trigo Dourado", proprietarioTelefone: "(21) 3333-1001" },
+  { bloco: "", andar: "Subsolo", numero: "V12", tipo: "VAGA_AUTONOMA", fracaoIdeal: 0.0010, areaPrivativa: 12, vagas: 1, status: "VAGA", proprietarioNome: "Roberto Dias" },
+];
+for (const u of unidades) {
+  await prisma.unidade.create({ data: { condominiumId: condo.id, ...u } });
+}
+console.log("Seed ok -> " + unidades.length + " unidades");
 
 // --- Dashboard da unidade (documentos / solicitacoes / manutencoes) ----------
 

@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   Shield, ExternalLink, Search, CheckCircle, XCircle, Clock,
   DollarSign, FileText, Vote, User, AlertCircle, Receipt, Filter,
-  AlertTriangle, Wrench, ChevronRight, ShieldCheck, ShieldAlert, Loader2, X,
+  AlertTriangle, Wrench, ChevronRight, ShieldCheck, ShieldAlert, Loader2, X, Home,
 } from 'lucide-react';
 import { useBlockchainAutoRegistry } from '@/hooks/useBlockchainAutoRegistry';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -15,7 +15,7 @@ import { verifyDocumentOnChain } from '@/app/actions/blockchain';
 // Tipos internos
 // ---------------------------------------------------------------------------
 
-type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document';
+type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document' | 'unit';
 type MoradorTab = 'pagamentos' | 'votacoes' | 'documentos';
 
 const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
@@ -24,6 +24,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
   vote:      { label: 'Voto',      icon: Vote,       color: 'text-blue-700',   bg: 'bg-blue-100'    },
   document:  { label: 'Documento', icon: FileText,   color: 'text-amber-700',  bg: 'bg-amber-100'   },
   user:      { label: 'Usuário',   icon: User,       color: 'text-gray-700',   bg: 'bg-gray-100'    },
+  unit:      { label: 'Unidade',   icon: Home,       color: 'text-wave-600',   bg: 'bg-wave-100'    },
 };
 
 const MORADOR_TABS: { key: MoradorTab; label: string; icon: React.ElementType }[] = [
@@ -1092,7 +1093,7 @@ function AdminAuditView({ records }: { records: any[] }) {
               className="w-full pl-9 pr-4 py-2 bg-wave-50 border border-wave-200 rounded-xl text-wave-800 text-sm focus:outline-none focus:ring-2 focus:ring-wave-300"
             />
           </div>
-          {(['all', 'financial', 'proposal', 'vote', 'document'] as const).map(f => (
+          {(['all', 'financial', 'proposal', 'vote', 'document', 'unit'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -1103,7 +1104,8 @@ function AdminAuditView({ records }: { records: any[] }) {
               {f === 'all' ? 'Todos' :
                f === 'financial' ? 'Pagamentos' :
                f === 'proposal' ? 'Propostas' :
-               f === 'vote' ? 'Votos' : 'Documentos'}
+               f === 'vote' ? 'Votos' :
+               f === 'document' ? 'Documentos' : 'Unidades'}
             </button>
           ))}
         </div>

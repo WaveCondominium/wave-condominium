@@ -48,6 +48,7 @@ model Condominium {
   boletos   Boleto[]
   propostas Proposta[]
   despesas  Despesa[]
+  unidades  Unidade[]
 
   @@index([administradoraId])
 }
@@ -473,4 +474,60 @@ model Despesa {
 
   @@index([condominiumId, status])
   @@index([condominiumId, categoria])
+}
+
+// --- Unidades (SÍN-021) ------------------------------------------------------
+//
+// Cadastro estrutural e de ocupação das unidades do condomínio. Escopado por
+// condominiumId (multi-tenant). A trilha de auditoria das alterações é
+// registrada no módulo Auditoria (client-side + âncora Stellar), fora daqui.
+//
+// Unicidade: (condominiumId, bloco, numero). `bloco` usa "" (vazio) para "sem
+// bloco" — evita o comportamento de NULLs distintos do Postgres e garante a
+// deduplicação exigida pela importação em massa.
+
+enum TipoUnidade {
+  APARTAMENTO
+  SALA
+  LOJA
+  COBERTURA
+  VAGA_AUTONOMA
+}
+
+enum StatusUnidade {
+  OCUPADA
+  VAGA
+  EM_OBRA
+}
+
+model Unidade {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  // Identificação
+  bloco  String @default("") // bloco ou torre ("" = sem bloco)
+  andar  String @default("") // andar (texto: "Térreo", "1", "12"...)
+  numero String // número da unidade
+
+  // Características
+  tipo          TipoUnidade   @default(APARTAMENTO)
+  fracaoIdeal   Decimal?      @db.Decimal(9, 6) // fração ideal (ex.: 0.012345)
+  areaPrivativa Decimal?      @db.Decimal(10, 2) // m²
+  vagas         Int           @default(0)
+  status        StatusUnidade @default(VAGA)
+
+  // Vínculos (nome + contato). A unidade pode ter proprietário mesmo vaga.
+  proprietarioNome     String?
+  proprietarioEmail    String?
+  proprietarioTelefone String?
+  inquilinoNome        String?
+  inquilinoEmail       String?
+  inquilinoTelefone    String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@unique([condominiumId, bloco, numero])
+  @@index([condominiumId, status])
 }
