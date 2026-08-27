@@ -32,7 +32,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "Wave · Gestão Condominial Inteligente",
-  description: "Plataforma de gestão condominial com transparência e governança auditável na rede Stellar",
+  description: "Plataforma de gestão condominial com transparência e governança auditável",
 };
 
 export default function RootLayout({
