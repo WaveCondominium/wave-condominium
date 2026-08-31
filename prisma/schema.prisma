@@ -55,6 +55,7 @@ model Condominium {
   despesas  Despesa[]
   unidades  Unidade[]
   convites  ConviteAcesso[]
+  reunioes  Reuniao[]
 
   @@index([administradoraId])
 }
@@ -612,4 +613,62 @@ model ConviteAcesso {
   @@index([condominiumId, status])
   @@index([condominiumId, unidadeId])
   @@index([email])
+}
+
+// --- Reuniões & Atas (SÍN-026, migração p/ banco) ----------------------------
+//
+// Migração do módulo de Reuniões (antes em localStorage) para o Postgres.
+// Escopado por condominiumId (multi-tenant). A ata é o registro oficial da
+// reunião, com um código de integridade (MOR-033). Presenças são confirmadas
+// pelos moradores com a identidade da sessão (MOR-032), uma por usuário/reunião.
+
+enum StatusReuniao {
+  AGENDADA
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+model Reuniao {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  titulo    String
+  descricao String
+  data      String // 'YYYY-MM-DD'
+  horario   String // 'HH:mm'
+  duracao   Int           @default(120) // minutos
+  meetLink  String        @default("")
+  status    StatusReuniao @default(AGENDADA)
+  maxParticipantes Int    @default(100)
+  pauta     String[] // itens da pauta
+
+  // Ata (registro oficial) + integridade (MOR-033). Ancoragem Stellar fica p/ depois.
+  ataContent   String?
+  ataHash      String?
+  recordingUrl String?
+
+  criadoPor    String
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  confirmacoes ConfirmacaoPresenca[]
+
+  @@index([condominiumId, status])
+  @@index([condominiumId, data])
+}
+
+model ConfirmacaoPresenca {
+  id            String   @id @default(cuid())
+  reuniaoId     String
+  reuniao       Reuniao  @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  condominiumId String
+  userId        String // identidade da sessão (MOR-032)
+  nome          String
+  unidade       String   @default("")
+  confirmadoEm  DateTime @default(now())
+
+  // Uma confirmação por usuário em cada reunião.
+  @@unique([reuniaoId, userId])
+  @@index([reuniaoId])
 }

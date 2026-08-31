@@ -291,6 +291,49 @@ for (const m of manutencoes) await prisma.manutencaoUnidade.create({ data: { con
 
 console.log("Seed ok -> unidade 203: " + docsUnidade.length + " docs, " + solicitacoes.length + " solicitacoes, " + manutencoes.length + " manutencoes");
 
+// --- Reunioes & Atas (SIN-026: migracao p/ banco) ----------------------------
+
+
+await prisma.reuniao.deleteMany({ where: { condominiumId: condo.id } });
+
+const reunioes = [
+  {
+    titulo: "Assembleia Ordinaria - Proxima",
+    descricao: "Assembleia ordinaria para aprovacao de contas e discussao de melhorias",
+    data: ymd(15), horario: "19:00", duracao: 120,
+    meetLink: "https://meet.google.com/abc-defg-hij", status: "AGENDADA", maxParticipantes: 100,
+    pauta: ["Aprovacao da ata anterior", "Prestacao de contas", "Proposta: paineis solares", "Assuntos gerais"],
+    criadoPor: "Sindico Joao Silva",
+  },
+  {
+    titulo: "Reuniao Extraordinaria - Seguranca",
+    descricao: "Discussao sobre melhorias no sistema de seguranca do condominio",
+    data: ymd(22), horario: "20:00", duracao: 90,
+    meetLink: "https://meet.google.com/xyz-abcd-efg", status: "AGENDADA", maxParticipantes: 100,
+    pauta: ["Apresentacao de propostas de seguranca", "Analise de custos", "Votacao de implementacao"],
+    criadoPor: "Sindico Joao Silva",
+  },
+  {
+    titulo: "Assembleia Ordinaria - Junho 2026",
+    descricao: "Assembleia ordinaria mensal",
+    data: ymd(-45), horario: "19:00", duracao: 120,
+    meetLink: "https://meet.google.com/old-meet-link", status: "CONCLUIDA", maxParticipantes: 100,
+    pauta: ["Aprovacao da ata anterior", "Prestacao de contas", "Assuntos gerais"],
+    criadoPor: "Sindico Joao Silva",
+    // Ata oficial com codigo de integridade (MOR-033) — texto e hash consistentes.
+    ataContent: `ATA — Assembleia Ordinária de Junho/2026
+
+1. Aprovação da ata anterior: aprovada por unanimidade.
+2. Prestação de contas: saldo e despesas do mês apresentados e aprovados.
+3. Assuntos gerais: definido reforço na limpeza das áreas comuns.
+
+Encerramento às 20h30. Quórum: 42 unidades presentes.`,
+    ataHash: "EC739E9B9E85E62B",
+  },
+];
+for (const r of reunioes) await prisma.reuniao.create({ data: { condominiumId: condo.id, ...r } });
+console.log("Seed ok -> " + reunioes.length + " reunioes");
+
 // --- Administradora + condominios (Entregavel 2: multi-condominio) ------------
 
 const adm = await prisma.administradora.upsert({

@@ -1,43 +1,20 @@
 ﻿import { useState } from 'react';
-import { Video, Calendar, Users, Clock, FileText, Plus, ExternalLink, CheckCircle, Bell, Download } from 'lucide-react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { Video, Calendar, Users, Clock, FileText, Plus, ExternalLink, CheckCircle, Bell, Download, Loader2, AlertCircle } from 'lucide-react';
 import { CreateMeetingModal } from './CreateMeetingModal';
 import { temLinkReuniaoValido } from './meetingUtils';
 import { AtasAnterioresModal } from './meetings/AtasAnterioresModal';
-import { calcularHashAta } from './meetings/atasIntegridade';
 import { ParticipantesModal } from './meetings/ParticipantesModal';
 import {
   jaConfirmou,
-  adicionarConfirmacao,
   confirmacoesDaReuniao,
   totalConfirmados,
-  type ConfirmacaoPresenca,
 } from './meetings/presencaConfirmacoes';
+import { useReunioes } from '@/hooks/useReunioes';
+import type { Reuniao } from '@/components/meetings/reunioes';
 import { isManager, type Role } from '@/lib/rbac';
 
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
-
-interface Meeting {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  time: string;
-  duration: number;
-  meetLink: string;
-  status: 'scheduled' | 'ongoing' | 'completed';
-  participants: number;
-  maxParticipants: number;
-  agenda: string[];
-  createdBy: string;
-  createdAt: string;
-  minutesUrl?: string;
-  recordingUrl?: string;
-  ataContent?: string;
-  /** Código de integridade registrado no momento em que a ata foi salva (MOR-033). */
-  ataHash?: string;
-}
 
 interface MeetingsProps {
   userProfile: {
@@ -49,150 +26,57 @@ interface MeetingsProps {
 }
 
 export function Meetings({ userProfile }: MeetingsProps) {
-  const [meetings, setMeetings] = useLocalStorage<Meeting[]>('wave_meetings', [
-    {
-      id: '1',
-      title: 'Assembleia Ordinária - Julho 2026',
-      description: 'Assembleia ordinária para aprovação de contas e discussão de melhorias',
-      date: '2026-07-15',
-      time: '19:00',
-      duration: 120,
-      meetLink: 'https://meet.google.com/abc-defg-hij',
-      status: 'scheduled',
-      participants: 0,
-      maxParticipants: 100,
-      agenda: [
-        'Aprovação da ata anterior',
-        'Prestação de contas - Junho 2026',
-        'Proposta: Instalação de painéis solares',
-        'Proposta: Renovação da academia',
-        'Assuntos gerais'
-      ],
-      createdBy: 'Síndico João',
-      createdAt: '2026-06-01'
-    },
-    {
-      id: '2',
-      title: 'Reunião Extraordinária - Segurança',
-      description: 'Discussão sobre melhorias no sistema de segurança do condomínio',
-      date: '2026-07-20',
-      time: '20:00',
-      duration: 90,
-      meetLink: 'https://meet.google.com/xyz-abcd-efg',
-      status: 'scheduled',
-      participants: 0,
-      maxParticipants: 100,
-      agenda: [
-        'Apresentação de propostas de segurança',
-        'Análise de custos',
-        'Votação de implementação',
-        'Definição de cronograma'
-      ],
-      createdBy: 'Síndico João',
-      createdAt: '2026-06-05'
-    },
-    {
-      id: '3',
-      title: 'Assembleia Ordinária - Junho 2026',
-      description: 'Assembleia ordinária mensal',
-      date: '2026-06-15',
-      time: '19:00',
-      duration: 120,
-      meetLink: 'https://meet.google.com/old-meet-link',
-      status: 'completed',
-      participants: 42,
-      maxParticipants: 100,
-      agenda: [
-        'Aprovação da ata anterior',
-        'Prestação de contas',
-        'Assuntos gerais'
-      ],
-      createdBy: 'Síndico João',
-      createdAt: '2026-05-01',
-      minutesUrl: '#',
-      recordingUrl: '#',
-      ataContent: `ATA — Assembleia Ordinária de Junho/2026
-
-1. Aprovação da ata anterior: aprovada por unanimidade.
-2. Prestação de contas: saldo e despesas do mês apresentados e aprovados.
-3. Assuntos gerais: definido reforço na limpeza das áreas comuns.
-
-Encerramento às 20h30. Quórum: 42 unidades presentes.`,
-      ataHash: 'EC739E9B9E85E62B'
-    }
-  ]);
+  // SÍN-026: fonte real = PostgreSQL (antes localStorage). Reuniões +
+  // confirmações vêm do servidor, escopadas por condomínio.
+  const { reunioes: meetings, confirmacoes, loading, error, criar, salvarAta, confirmarPresenca } = useReunioes();
 
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'completed'>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  // MOR-032: confirmações vinculadas ao morador/unidade (registro de participantes).
-  const [confirmacoes, setConfirmacoes] = useLocalStorage<ConfirmacaoPresenca[]>('wave_meeting_confirmations', []);
-  const [participantesMeeting, setParticipantesMeeting] = useState<Meeting | null>(null);
+  const [participantesMeeting, setParticipantesMeeting] = useState<Reuniao | null>(null);
   const [showAtaModal, setShowAtaModal] = useState(false);
-  const [selectedMeetingForAta, setSelectedMeetingForAta] = useState<Meeting | null>(null);
+  const [selectedMeetingForAta, setSelectedMeetingForAta] = useState<Reuniao | null>(null);
   const [ataText, setAtaText] = useState('');
   const [showAtasAnteriores, setShowAtasAnteriores] = useState(false);
+  const [salvandoAta, setSalvandoAta] = useState(false);
 
   const canCreateMeeting = isManager(userProfile.role);
 
-  const handleCreateMeeting = (data: Omit<Meeting, 'id' | 'participants' | 'createdBy' | 'createdAt' | 'status'>) => {
-    const newMeeting: Meeting = {
-      ...data,
-      id: Date.now().toString(),
-      participants: 0,
-      status: 'scheduled',
-      createdBy: userProfile.name,
-      createdAt: new Date().toLocaleDateString('pt-BR')
-    };
-
-    setMeetings([newMeeting, ...meetings]);
+  const handleCreateMeeting = async (data: {
+    title: string; description: string; date: string; time: string;
+    duration: number; meetLink: string; maxParticipants: number; agenda: string[];
+  }) => {
+    const res = await criar(data);
+    if (!res.ok) { toast.error(res.error); return; }
     setShowCreateModal(false);
+    toast.success('Reunião agendada com sucesso!');
   };
 
-  const handleConfirmPresence = (meetingId: string) => {
-    const unidade = userProfile.unit ?? '';
-    const nome = userProfile.name;
-
-    if (jaConfirmou(confirmacoes, meetingId, unidade, nome)) return;
-
-    setConfirmacoes(adicionarConfirmacao(confirmacoes, {
-      meetingId,
-      nome,
-      unidade,
-      confirmadoEm: new Date().toISOString(),
-    }));
-
-    setMeetings(meetings.map(m =>
-      m.id === meetingId
-        ? { ...m, participants: m.participants + 1 }
-        : m
-    ));
-
+  const handleConfirmPresence = async (meetingId: string) => {
+    if (jaConfirmou(confirmacoes, meetingId, userProfile.unit ?? '', userProfile.name)) return;
+    const res = await confirmarPresenca(meetingId);
+    if (!res.ok) { toast.error(res.error ?? 'Não foi possível confirmar a presença.'); return; }
     toast.success('Presença confirmada!', { description: 'Você receberá um lembrete antes da reunião.' });
   };
 
-  const handleOpenAtaModal = (meeting: Meeting) => {
+  const handleOpenAtaModal = (meeting: Reuniao) => {
     setSelectedMeetingForAta(meeting);
     setAtaText(meeting.ataContent || '');
     setShowAtaModal(true);
   };
 
-  const handleSaveAta = () => {
+  const handleSaveAta = async () => {
     if (!selectedMeetingForAta || !ataText.trim()) {
       toast.error('Por favor, insira o conteúdo da ata');
       return;
     }
-
-    setMeetings(meetings.map(m =>
-      m.id === selectedMeetingForAta.id
-        // Registra o código de integridade da versão oficial salva (MOR-033).
-        ? { ...m, ataContent: ataText, ataHash: calcularHashAta(ataText), status: 'completed' }
-        : m
-    ));
+    setSalvandoAta(true);
+    const res = await salvarAta(selectedMeetingForAta.id, ataText);
+    setSalvandoAta(false);
+    if (!res.ok) { toast.error(res.error); return; }
 
     setShowAtaModal(false);
     setSelectedMeetingForAta(null);
     setAtaText('');
-    
     toast.success('Ata da reunião registrada com sucesso!', {
       description: 'A ata foi salva e está disponível para consulta.'
     });
@@ -342,7 +226,16 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
       </div>
 
       {/* Meetings List */}
-      {filteredMeetings.length === 0 ? (
+      {loading ? (
+        <div className="space-y-6 relative z-10" aria-busy="true">
+          {[0, 1].map((i) => <div key={i} className="h-48 rounded-2xl bg-wave-100 animate-pulse" />)}
+        </div>
+      ) : error ? (
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 border border-wave-100 shadow-lg text-center relative z-10">
+          <AlertCircle className="w-10 h-10 text-orange-500 mx-auto mb-3" />
+          <p className="text-wave-600">{error}</p>
+        </div>
+      ) : filteredMeetings.length === 0 ? (
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-12 border border-wave-100 shadow-lg text-center relative z-10">
           <Video className="w-16 h-16 text-wave-300 mx-auto mb-4" />
           <h3 className="text-wave-800 text-xl mb-2">Nenhuma reunião encontrada</h3>
@@ -616,9 +509,11 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
               </button>
               <button
                 onClick={handleSaveAta}
-                className="flex-1 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg"
+                disabled={salvandoAta}
+                className="flex-1 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                Salvar Ata
+                {salvandoAta && <Loader2 className="w-4 h-4 animate-spin" />}
+                {salvandoAta ? 'Salvando...' : 'Salvar Ata'}
               </button>
             </div>
           </div>
