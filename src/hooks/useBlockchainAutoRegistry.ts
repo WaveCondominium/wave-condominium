@@ -262,6 +262,36 @@ export function useBlockchainAutoRegistry() {
     );
   }, [registerOnBlockchain]);
 
+  // SÍN-022: registra na trilha de Auditoria uma alteração de ACESSO de morador
+  // (convite gerado, reenviado ou acesso revogado). Reusa o tipo 'user' (eventos
+  // de conta/acesso). Silent: não interrompe o fluxo com o toast de ancoragem.
+  const registerAccessChange = useCallback(async (data: {
+    acao: 'convite_gerado' | 'convite_reenviado' | 'acesso_revogado';
+    morador: string;
+    unidadeRotulo: string;
+    vinculo: string;
+    responsavel: string;
+  }) => {
+    const acaoLabel =
+      data.acao === 'convite_gerado' ? 'Convite de acesso gerado' :
+      data.acao === 'convite_reenviado' ? 'Convite de acesso reenviado' :
+      'Acesso de morador revogado';
+    return registerOnBlockchain(
+      'user',
+      `${acaoLabel}: ${data.morador}`,
+      `${data.vinculo} · ${data.unidadeRotulo} — por ${data.responsavel}`,
+      {
+        acao: data.acao,
+        morador: data.morador,
+        unidade: data.unidadeRotulo,
+        vinculo: data.vinculo,
+        responsavel: data.responsavel,
+        registradoEm: new Date().toISOString(),
+      },
+      true,
+    );
+  }, [registerOnBlockchain]);
+
   return {
     records,
     registerUser,
@@ -271,5 +301,6 @@ export function useBlockchainAutoRegistry() {
     registerTransaction,
     registerDocument,
     registerUnitChange,
+    registerAccessChange,
   };
 }

@@ -18,6 +18,7 @@ import {
   diffUnidade, type Unidade, type UnidadeInput, type StatusUnidade,
 } from './units/unidades';
 import { importarUnidadesAction, type ImportRelatorio } from '@/app/actions/unidadesImport';
+import { GerenciarAcessosModal } from '@/components/access/GerenciarAcessosModal';
 
 interface Unit {
   id: string;
@@ -337,6 +338,7 @@ function AdminUnitsView() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Unidade | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showAcessos, setShowAcessos] = useState<Unidade | null>(null);
 
   const responsavel = userProfile.name || 'Gestor';
 
@@ -517,6 +519,16 @@ function AdminUnitsView() {
           onEditar={() => abrirEditar(selected)}
           onStatus={(status) => handleStatus(selected, status)}
           onRemover={() => handleRemove(selected)}
+          onAcessos={() => { setShowAcessos(selected); setSelected(null); }}
+        />
+      )}
+
+      {/* Gestão de acessos de moradores (SÍN-022) */}
+      {showAcessos && (
+        <GerenciarAcessosModal
+          unidade={showAcessos}
+          responsavel={responsavel}
+          onClose={() => setShowAcessos(null)}
         />
       )}
 
@@ -544,12 +556,13 @@ function AdminUnitsView() {
 // Modal — Detalhes da unidade (Síndico)
 // ---------------------------------------------------------------------------
 
-function UnidadeDetailModal({ unidade, onClose, onEditar, onStatus, onRemover }: {
+function UnidadeDetailModal({ unidade, onClose, onEditar, onStatus, onRemover, onAcessos }: {
   unidade: Unidade;
   onClose: () => void;
   onEditar: () => void;
   onStatus: (status: StatusUnidade) => void;
   onRemover: () => void;
+  onAcessos: () => void;
 }) {
   const [confirmarRemocao, setConfirmarRemocao] = useState(false);
 
@@ -603,6 +616,9 @@ function UnidadeDetailModal({ unidade, onClose, onEditar, onStatus, onRemover }:
         </div>
 
         <div className="p-6 pt-0 space-y-3">
+          <button onClick={onAcessos} className="w-full py-2.5 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2 text-sm">
+            <Key className="w-4 h-4" /> Gerenciar acessos
+          </button>
           <div className="flex gap-3">
             <button onClick={onEditar} className="flex-1 py-2.5 bg-wave-100 text-wave-600 rounded-xl hover:bg-wave-200 transition-all flex items-center justify-center gap-2 text-sm">
               <Edit2 className="w-4 h-4" /> Editar

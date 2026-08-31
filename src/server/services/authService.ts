@@ -44,6 +44,7 @@ type DbUser = {
   unit: string | null; photoUrl: string | null;
   condominiumId: string | null; administradoraId: string | null;
   mustChangePassword?: boolean;
+  acessoRevogado?: boolean;
 };
 
 /** Perfis disponíveis do usuário, em rótulos de app (primário + secundário). */
@@ -78,6 +79,12 @@ export async function login(email: string, password: string): Promise<LoginResul
   // verifyPassword roda mesmo sem user (dummy hash) para nao vazar por timing.
   const valid = await verifyPassword(user?.passwordHash, password);
   if (!user || !valid) return { ok: false, error: "E-mail ou senha invalidos." };
+
+  // SÍN-022: acesso revogado pelo síndico bloqueia o login (verificado só após
+  // credenciais válidas, para não revelar existência de conta a terceiros).
+  if (user.acessoRevogado) {
+    return { ok: false, error: "Seu acesso foi revogado. Fale com o síndico do condomínio." };
+  }
 
   // Perfil ativo inicial = primário. Se houver mais de um perfil, a UI oferece
   // a escolha (needsProfileChoice) e chama setActiveProfile depois.
@@ -137,8 +144,11 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
   const session = await getSession();
   if (!session) return null;
   const user = await userRepository.findById(session.userId);
+  if (!user) return null;
+  // SÍN-022: acesso revogado invalida a sessão em curso (próxima requisição).
+  if (user.acessoRevogado) return null;
   // `role` reflete o PERFIL ATIVO da sessão (SÍN-003), não o papel de cadastro.
-  return user ? toPublic(user, session.role) : null;
+  return toPublic(user, session.role);
 }
 
 export interface RegisterInput {
@@ -191,6 +201,69 @@ export async function registerMorador(input: RegisterMoradorInput): Promise<Publ
     mustChangePassword: true,
   });
   return toPublic(created);
+}
+
+// ---------------------------------------------------------------------------
+// Ativação de acesso do Morador (SÍN-022)
+// ---------------------------------------------------------------------------
+//
+// Chamado pela ação pública de ativação, DEPOIS de o convite ter sido validado
+// (token válido, não expirado, não revogado, uso único). A senha vem do próprio
+// morador — o Síndico nunca a define nem a vê. Cria a conta (ou reativa uma já
+// existente do mesmo e-mail no condomínio) e abre a sessão (auto-login).
+
+export interface AtivarMoradorInput {
+  email: string;
+  password: string; // definida pelo morador na ativação
+  name: string;
+  unit?: string | null;
+  condominiumId: string;
+}
+
+export type AtivarMoradorResult =
+  | { ok: true; user: PublicUser }
+  | { ok: false; error: string };
+
+export async function ativarAcessoMorador(input: AtivarMoradorInput): Promise<AtivarMoradorResult> {
+  const passwordHash = await hashPassword(input.password);
+  const existente = await userRepository.findByEmailInCondominium(input.email, input.condominiumId);
+
+  let user: DbUser;
+  if (existente) {
+    // Só é permitido "assumir" uma conta existente se ela for de Morador — evita
+    // que um convite de morador redefina a senha de um gestor com o mesmo e-mail.
+    if (existente.role !== "MORADOR") {
+      return {
+        ok: false,
+        error: "Já existe uma conta com este e-mail. Fale com o síndico do condomínio.",
+      };
+    }
+    user = await userRepository.reativarMoradorComSenha(existente.id, {
+      passwordHash,
+      name: input.name,
+      unit: input.unit ?? null,
+    });
+  } else {
+    user = await userRepository.create({
+      email: input.email,
+      passwordHash,
+      name: input.name,
+      role: "MORADOR",
+      unit: input.unit ?? null,
+      condominiumId: input.condominiumId,
+      mustChangePassword: false,
+    });
+  }
+
+  await createSession({
+    userId: user.id,
+    role: "Morador",
+    condominiumId: user.condominiumId ?? null,
+    administradoraId: user.administradoraId ?? null,
+    mustChangePassword: false,
+  });
+
+  return { ok: true, user: toPublic(user, "Morador") };
 }
 
 // ---------------------------------------------------------------------------

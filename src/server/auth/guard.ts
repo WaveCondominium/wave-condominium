@@ -1,5 +1,6 @@
 import { getSession, type SessionPayload } from "./session";
 import { isManager, isPlatformAdmin, isAdministradora } from "@/lib/rbac";
+import { userRepository } from "@/server/repositories/userRepository";
 
 export class AuthError extends Error {
   constructor(public code: "NAO_AUTENTICADO" | "SEM_PERMISSAO") {
@@ -8,10 +9,19 @@ export class AuthError extends Error {
   }
 }
 
-/** Exige apenas estar autenticado. */
+/**
+ * Exige apenas estar autenticado.
+ *
+ * SÍN-022: como o JWT é stateless, a revogação de acesso é aplicada aqui — uma
+ * leitura leve (apenas a flag `acessoRevogado`) barra qualquer requisição de um
+ * usuário revogado, mesmo que o cookie ainda seja criptograficamente válido.
+ * Se o usuário não existe mais, a sessão também é considerada inválida.
+ */
 export async function requireSession(): Promise<SessionPayload> {
   const session = await getSession();
   if (!session) throw new AuthError("NAO_AUTENTICADO");
+  const revogado = await userRepository.isAcessoRevogado(session.userId);
+  if (revogado === null || revogado) throw new AuthError("NAO_AUTENTICADO");
   return session;
 }
 

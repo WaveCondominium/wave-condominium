@@ -49,6 +49,7 @@ model Condominium {
   propostas Proposta[]
   despesas  Despesa[]
   unidades  Unidade[]
+  convites  ConviteAcesso[]
 
   @@index([administradoraId])
 }
@@ -75,6 +76,10 @@ model User {
   // Primeiro acesso: quando true, o usuario DEVE trocar a senha provisoria
   // antes de acessar qualquer funcionalidade da plataforma.
   mustChangePassword Boolean @default(false)
+
+  // SÍN-022: acesso revogado pelo síndico. Quando true, o login é bloqueado e
+  // as sessões deixam de ser válidas (verificado no login/guard/getCurrentUser).
+  acessoRevogado Boolean @default(false)
 
   // Vinculo com condominio (sindico/morador) OU administradora.
   condominiumId String?
@@ -528,6 +533,66 @@ model Unidade {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
+  convites ConviteAcesso[]
+
   @@unique([condominiumId, bloco, numero])
   @@index([condominiumId, status])
+}
+
+// --- Acessos de moradores (SÍN-022) ------------------------------------------
+//
+// Convite de acesso gerado pelo Síndico a partir de uma unidade. O morador
+// define a própria senha na ativação — o Síndico NUNCA vê/define a senha.
+//
+// Segurança: guardamos apenas o SHA-256 do token de ativação (`tokenHash`),
+// nunca o token em claro. O link tem expiração (`expiresAt`) e uso único
+// (após ativar, `status = ATIVADO` e `usadoEm` preenchido). Revogar bloqueia o
+// acesso do usuário (User.acessoRevogado) e invalida o convite.
+//
+// "EXPIRADO" é DERIVADO (PENDENTE + expiresAt < agora), não armazenado.
+
+enum VinculoMorador {
+  PROPRIETARIO
+  INQUILINO
+  DEPENDENTE
+}
+
+enum StatusConvite {
+  PENDENTE
+  ATIVADO
+  REVOGADO
+}
+
+model ConviteAcesso {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  // Unidade de origem (SÍN-021). Guardamos também o rótulo p/ rastreabilidade
+  // mesmo que a unidade seja removida.
+  unidadeId     String?
+  unidade       Unidade? @relation(fields: [unidadeId], references: [id], onDelete: SetNull)
+  unidadeRotulo String
+
+  nome     String
+  email    String
+  telefone String?
+  vinculo  VinculoMorador
+
+  tokenHash String        @unique // SHA-256 hex do token de ativação
+  status    StatusConvite @default(PENDENTE)
+  expiresAt DateTime
+
+  usuarioId  String? // User criado/ativado por este convite
+  usadoEm    DateTime?
+  revogadoEm DateTime?
+  revogadoPor String?
+
+  criadoPor    String // nome do gestor que gerou o convite (auditoria)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([condominiumId, status])
+  @@index([condominiumId, unidadeId])
+  @@index([email])
 }
