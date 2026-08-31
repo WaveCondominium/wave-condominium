@@ -44,6 +44,18 @@ export const conviteRepository = {
     });
   },
 
+  /**
+   * SÍN-022 Fase 2: convites AINDA VÁLIDOS (pendentes ou ativados) de uma
+   * unidade para um vínculo específico — os "anteriores" a revogar numa
+   * transferência de titularidade (PROPRIETARIO) ou nova locação (INQUILINO).
+   */
+  listAtivosByUnidadeVinculo(condominiumId: string, unidadeId: string, vinculo: "PROPRIETARIO" | "INQUILINO" | "DEPENDENTE") {
+    return prisma.conviteAcesso.findMany({
+      where: { condominiumId, unidadeId, vinculo, status: { in: ["PENDENTE", "ATIVADO"] } },
+      orderBy: { criadoEm: "desc" },
+    });
+  },
+
   create(data: Prisma.ConviteAcessoUncheckedCreateInput) {
     return prisma.conviteAcesso.create({ data });
   },

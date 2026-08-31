@@ -529,6 +529,7 @@ function AdminUnitsView() {
           unidade={showAcessos}
           responsavel={responsavel}
           onClose={() => setShowAcessos(null)}
+          onUnidadeChanged={() => { void recarregar(); }}
         />
       )}
 

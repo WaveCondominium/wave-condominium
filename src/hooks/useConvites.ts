@@ -20,10 +20,13 @@ import {
   gerarConviteAction,
   reenviarConviteAction,
   revogarConviteAction,
+  registrarTrocaAction,
   type GerarConviteInput,
   type GerarConviteResult,
   type ReenviarConviteResult,
   type RevogarConviteResult,
+  type RegistrarTrocaInput,
+  type RegistrarTrocaResult,
 } from '@/app/actions/convites';
 import type { ConviteAcesso } from '@/components/access/convites';
 
@@ -35,6 +38,7 @@ export interface UseConvitesResult {
   gerar: (input: GerarConviteInput) => Promise<GerarConviteResult>;
   reenviar: (id: string) => Promise<ReenviarConviteResult>;
   revogar: (id: string) => Promise<RevogarConviteResult>;
+  registrarTroca: (input: RegistrarTrocaInput) => Promise<RegistrarTrocaResult>;
 }
 
 export function useConvites(): UseConvitesResult {
@@ -88,5 +92,13 @@ export function useConvites(): UseConvitesResult {
     return res;
   }, []);
 
-  return { convites, loading, error, recarregar, gerar, reenviar, revogar };
+  // Troca (venda/locação): mexe em vários convites (revoga anterior + cria
+  // novo), então recarrega a lista para refletir o estado consistente.
+  const registrarTroca = useCallback(async (input: RegistrarTrocaInput): Promise<RegistrarTrocaResult> => {
+    const res = await registrarTrocaAction(input);
+    if (res.ok) await recarregar();
+    return res;
+  }, [recarregar]);
+
+  return { convites, loading, error, recarregar, gerar, reenviar, revogar, registrarTroca };
 }

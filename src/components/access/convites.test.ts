@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import {
   VINCULOS,
   VINCULO_LABEL,
+  TIPO_TROCA_LABEL,
+  vinculoDaTroca,
   STATUS_CONVITE_LABEL,
   CONVITE_VALIDADE_HORAS,
   calcularExpiracao,
@@ -57,6 +59,17 @@ describe('catálogos', () => {
     expect(STATUS_CONVITE_LABEL.ATIVADO).toBe('Ativado');
     expect(STATUS_CONVITE_LABEL.EXPIRADO).toBe('Expirado');
     expect(STATUS_CONVITE_LABEL.REVOGADO).toBe('Revogado');
+  });
+});
+
+describe('troca de morador (venda / locação)', () => {
+  it('mapeia o tipo de troca ao vínculo afetado', () => {
+    expect(vinculoDaTroca('VENDA')).toBe('PROPRIETARIO');
+    expect(vinculoDaTroca('LOCACAO')).toBe('INQUILINO');
+  });
+  it('rotula os tipos de troca', () => {
+    expect(TIPO_TROCA_LABEL.VENDA).toMatch(/titularidade/i);
+    expect(TIPO_TROCA_LABEL.LOCACAO).toMatch(/loca/i);
   });
 });
 

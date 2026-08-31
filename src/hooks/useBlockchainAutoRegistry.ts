@@ -266,23 +266,29 @@ export function useBlockchainAutoRegistry() {
   // (convite gerado, reenviado ou acesso revogado). Reusa o tipo 'user' (eventos
   // de conta/acesso). Silent: não interrompe o fluxo com o toast de ancoragem.
   const registerAccessChange = useCallback(async (data: {
-    acao: 'convite_gerado' | 'convite_reenviado' | 'acesso_revogado';
+    acao: 'convite_gerado' | 'convite_reenviado' | 'acesso_revogado' | 'titularidade_transferida' | 'locacao_registrada';
     morador: string;
     unidadeRotulo: string;
     vinculo: string;
     responsavel: string;
+    /** Nome do morador anterior (trocas de venda/locação). */
+    anterior?: string | null;
   }) => {
     const acaoLabel =
       data.acao === 'convite_gerado' ? 'Convite de acesso gerado' :
       data.acao === 'convite_reenviado' ? 'Convite de acesso reenviado' :
+      data.acao === 'titularidade_transferida' ? 'Transferência de titularidade' :
+      data.acao === 'locacao_registrada' ? 'Nova locação registrada' :
       'Acesso de morador revogado';
+    const anteriorTxt = data.anterior ? ` (anterior: ${data.anterior})` : '';
     return registerOnBlockchain(
       'user',
       `${acaoLabel}: ${data.morador}`,
-      `${data.vinculo} · ${data.unidadeRotulo} — por ${data.responsavel}`,
+      `${data.vinculo} · ${data.unidadeRotulo} — por ${data.responsavel}${anteriorTxt}`,
       {
         acao: data.acao,
         morador: data.morador,
+        anterior: data.anterior ?? null,
         unidade: data.unidadeRotulo,
         vinculo: data.vinculo,
         responsavel: data.responsavel,

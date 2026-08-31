@@ -26,6 +26,24 @@ export const VINCULO_LABEL: Record<VinculoMorador, string> = {
 
 export const VINCULOS: VinculoMorador[] = ['PROPRIETARIO', 'INQUILINO', 'DEPENDENTE'];
 
+// --- Troca de morador: venda (titularidade) e nova locação (SÍN-022 Fase 2) --
+//
+// A transferência de titularidade troca o PROPRIETÁRIO; a nova locação troca o
+// INQUILINO. Em ambos os casos, o acesso do morador anterior (mesmo vínculo) é
+// revogado e um novo convite é gerado para o novo morador.
+
+export type TipoTroca = 'VENDA' | 'LOCACAO';
+
+export const TIPO_TROCA_LABEL: Record<TipoTroca, string> = {
+  VENDA: 'Transferência de titularidade',
+  LOCACAO: 'Nova locação',
+};
+
+/** Vínculo afetado por cada tipo de troca. */
+export function vinculoDaTroca(tipo: TipoTroca): VinculoMorador {
+  return tipo === 'VENDA' ? 'PROPRIETARIO' : 'INQUILINO';
+}
+
 // --- Status do convite -------------------------------------------------------
 //
 // Persistidos no banco: PENDENTE | ATIVADO | REVOGADO.

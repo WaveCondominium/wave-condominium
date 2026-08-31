@@ -21,6 +21,7 @@
 
 import { requireManager } from "@/server/auth/guard";
 import { conviteRepository } from "@/server/repositories/conviteRepository";
+import { unidadeRepository } from "@/server/repositories/unidadeRepository";
 import { userRepository } from "@/server/repositories/userRepository";
 import { ativarAcessoMorador } from "@/server/services/authService";
 import { gerarToken, hashToken } from "@/server/access/token";
@@ -34,11 +35,15 @@ import {
   statusConviteView,
   podeReenviar,
   podeRevogar,
+  vinculoDaTroca,
   MOTIVO_ATIVACAO_MENSAGEM,
   type ConviteAcesso,
   type MoradorInput,
   type MotivoAtivacaoInvalida,
+  type TipoTroca,
+  type VinculoMorador,
 } from "@/components/access/convites";
+import { rotuloUnidade } from "@/components/units/unidades";
 
 // --- Mapeamento banco -> app (NUNCA expõe tokenHash) -------------------------
 
@@ -99,6 +104,56 @@ export async function listConvitesAction(): Promise<ConviteAcesso[]> {
   return rows.map(toApp);
 }
 
+// --- Helper interno: cria o convite + "envia" o e-mail (DRY) ------------------
+//
+// Não é uma Server Action (não exportado). Gera token/hash, persiste o convite
+// e dispara a entrega (simulada). Reusado pela geração avulsa e pela troca de
+// morador (venda/locação).
+
+async function criarEEnviarConvite(params: {
+  condominiumId: string;
+  unidadeId: string | null;
+  unidadeRotulo: string;
+  nome: string;
+  email: string;
+  telefone: string | null;
+  vinculo: VinculoMorador;
+  criadoPor: string;
+}): Promise<ConviteGerado> {
+  const { token, tokenHash } = gerarToken();
+  const expiresAt = calcularExpiracao();
+
+  const row = await conviteRepository.create({
+    condominiumId: params.condominiumId,
+    unidadeId: params.unidadeId,
+    unidadeRotulo: params.unidadeRotulo,
+    nome: params.nome,
+    email: params.email,
+    telefone: params.telefone,
+    vinculo: params.vinculo,
+    tokenHash,
+    expiresAt,
+    criadoPor: params.criadoPor,
+  });
+
+  const path = ativacaoPath(token);
+  const { simulado } = await getEmailService().enviarConvite({
+    para: params.email,
+    nome: row.nome,
+    unidadeRotulo: row.unidadeRotulo,
+    ativacaoPath: path,
+    expiraEm: expiresAt.toISOString(),
+  });
+
+  return { convite: toApp(row), ativacaoPath: path, token, emailSimulado: simulado };
+}
+
+/** Nome do gestor autenticado para rastreabilidade (auditoria). */
+async function nomeGestor(userId: string): Promise<string> {
+  const gestor = await userRepository.findById(userId);
+  return gestor?.name ?? "Gestor";
+}
+
 // --- Geração (gestor) --------------------------------------------------------
 
 export interface GerarConviteInput {
@@ -128,16 +183,8 @@ export async function gerarConviteAction(input: GerarConviteInput): Promise<Gera
     };
   }
 
-  // Nome do gestor para rastreabilidade (auditoria).
-  const gestor = await userRepository.findById(session.userId);
-  const criadoPor = gestor?.name ?? "Gestor";
-
-  const { token, tokenHash } = gerarToken();
-  const expiresAt = calcularExpiracao();
-
-  let row;
   try {
-    row = await conviteRepository.create({
+    const resultado = await criarEEnviarConvite({
       condominiumId: session.condominiumId,
       unidadeId,
       unidadeRotulo: input.unidadeRotulo,
@@ -145,28 +192,13 @@ export async function gerarConviteAction(input: GerarConviteInput): Promise<Gera
       email,
       telefone: input.morador.telefone?.trim() || null,
       vinculo: input.morador.vinculo,
-      tokenHash,
-      expiresAt,
-      criadoPor,
+      criadoPor: await nomeGestor(session.userId),
     });
+    return { ok: true, resultado };
   } catch (e) {
     console.error("[SÍN-022] Falha ao gerar convite", e);
     return { ok: false, error: "Não foi possível gerar o convite. Tente novamente." };
   }
-
-  const path = ativacaoPath(token);
-  const { simulado } = await getEmailService().enviarConvite({
-    para: email,
-    nome: row.nome,
-    unidadeRotulo: row.unidadeRotulo,
-    ativacaoPath: path,
-    expiraEm: expiresAt.toISOString(),
-  });
-
-  return {
-    ok: true,
-    resultado: { convite: toApp(row), ativacaoPath: path, token, emailSimulado: simulado },
-  };
 }
 
 // --- Reenvio (gestor) --------------------------------------------------------
@@ -244,6 +276,114 @@ export async function revogarConviteAction(id: string): Promise<RevogarConviteRe
   return atualizado
     ? { ok: true, convite: toApp(atualizado) }
     : { ok: false, error: "Não foi possível revogar o convite." };
+}
+
+// --- Troca de morador: venda (titularidade) e nova locação (Fase 2) ----------
+//
+// Fluxo (por unidade, escopo do condomínio):
+//   1. atualiza o vínculo na unidade (proprietário na venda; inquilino na
+//      locação) com os dados do novo morador;
+//   2. REVOGA o acesso do morador anterior de mesmo vínculo (convites
+//      pendentes/ativados) e bloqueia o usuário correspondente;
+//   3. gera um novo convite de acesso para o novo morador (link copiável).
+//
+// Observação de integridade: seguimos o padrão do projeto (awaits sequenciais,
+// sem transação cross-repo). A ordem garante segurança — o anterior é revogado
+// antes de o novo assumir; se a etapa 3 falhar, o gestor apenas regenera o
+// convite pelo botão normal, sem reexpor o acesso anterior.
+
+export interface RegistrarTrocaInput {
+  unidadeId: string;
+  tipo: TipoTroca; // VENDA -> proprietário; LOCACAO -> inquilino
+  novoMorador: { nome: string; email: string; telefone?: string };
+}
+
+export type RegistrarTrocaResult =
+  | { ok: true; resultado: ConviteGerado; revogados: number; unidadeRotulo: string; anteriorNome: string | null }
+  | { ok: false; error: string };
+
+/** Revoga uma lista de convites (mesmo vínculo/unidade) e bloqueia seus usuários. */
+async function revogarAnteriores(
+  anteriores: { id: string; usuarioId: string | null }[],
+  condominiumId: string,
+  revogadoPor: string,
+): Promise<void> {
+  for (const c of anteriores) {
+    await conviteRepository.marcarRevogado(c.id, condominiumId, revogadoPor);
+    if (c.usuarioId) {
+      try {
+        await userRepository.setAcessoRevogado(c.usuarioId, true);
+      } catch (e) {
+        console.error("[SÍN-022] Falha ao bloquear usuário anterior na troca", e);
+      }
+    }
+  }
+}
+
+export async function registrarTrocaAction(input: RegistrarTrocaInput): Promise<RegistrarTrocaResult> {
+  const session = await requireManager();
+  if (!session.condominiumId) {
+    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+  }
+
+  const vinculo = vinculoDaTroca(input.tipo);
+
+  // Reusa a validação de morador com o vínculo derivado do tipo de troca.
+  const erro = validarMorador({ ...input.novoMorador, vinculo });
+  if (erro) return { ok: false, error: erro };
+
+  const unidade = await unidadeRepository.findById(input.unidadeId, session.condominiumId);
+  if (!unidade) return { ok: false, error: "Unidade não encontrada." };
+
+  const rotulo = rotuloUnidade({ bloco: unidade.bloco ?? "", numero: unidade.numero });
+  const nome = input.novoMorador.nome.trim();
+  const email = normalizarEmail(input.novoMorador.email);
+  const telefone = input.novoMorador.telefone?.trim() || null;
+  const criadoPor = await nomeGestor(session.userId);
+
+  // 1) Atualiza o vínculo na unidade (só os campos do vínculo afetado).
+  const patch =
+    input.tipo === "VENDA"
+      ? { proprietarioNome: nome, proprietarioEmail: email, proprietarioTelefone: telefone }
+      : { inquilinoNome: nome, inquilinoEmail: email, inquilinoTelefone: telefone };
+  try {
+    await unidadeRepository.update(input.unidadeId, session.condominiumId, patch);
+  } catch (e) {
+    console.error("[SÍN-022] Falha ao atualizar vínculo da unidade na troca", e);
+    return { ok: false, error: "Não foi possível atualizar os dados da unidade." };
+  }
+
+  // 2) Revoga o acesso do morador anterior de mesmo vínculo.
+  const anteriores = await conviteRepository.listAtivosByUnidadeVinculo(
+    session.condominiumId,
+    input.unidadeId,
+    vinculo,
+  );
+  const anteriorNome = anteriores[0]?.nome ?? null;
+  await revogarAnteriores(anteriores, session.condominiumId, criadoPor);
+
+  // 3) Gera o novo convite para o novo morador.
+  let resultado: ConviteGerado;
+  try {
+    resultado = await criarEEnviarConvite({
+      condominiumId: session.condominiumId,
+      unidadeId: input.unidadeId,
+      unidadeRotulo: rotulo,
+      nome,
+      email,
+      telefone,
+      vinculo,
+      criadoPor,
+    });
+  } catch (e) {
+    console.error("[SÍN-022] Falha ao gerar convite do novo morador na troca", e);
+    return {
+      ok: false,
+      error: "O acesso anterior foi revogado, mas não foi possível gerar o novo convite. Gere-o manualmente em Gerenciar acessos.",
+    };
+  }
+
+  return { ok: true, resultado, revogados: anteriores.length, unidadeRotulo: rotulo, anteriorNome };
 }
 
 // --- Consulta pública do convite (para a tela de ativação) -------------------

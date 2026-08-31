@@ -16,6 +16,7 @@
 import { useMemo, useState } from 'react';
 import {
   X, UserPlus, Copy, Check, Send, Ban, Loader2, ShieldCheck, Mail, Clock, AlertCircle,
+  ArrowLeftRight, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -24,7 +25,8 @@ import { useBlockchainAutoRegistry } from '@/hooks/useBlockchainAutoRegistry';
 import {
   VINCULOS, VINCULO_LABEL, STATUS_CONVITE_LABEL, STATUS_CONVITE_COR,
   CONVITE_VALIDADE_HORAS, validarMorador, statusConviteView, podeReenviar, podeRevogar,
-  type ConviteAcesso, type MoradorInput, type VinculoMorador,
+  TIPO_TROCA_LABEL, vinculoDaTroca,
+  type ConviteAcesso, type MoradorInput, type VinculoMorador, type TipoTroca,
 } from '@/components/access/convites';
 import type { Unidade } from '@/components/units/unidades';
 import { rotuloUnidade } from '@/components/units/unidades';
@@ -41,12 +43,15 @@ export function GerenciarAcessosModal({
   unidade,
   responsavel,
   onClose,
+  onUnidadeChanged,
 }: {
   unidade: Unidade;
   responsavel: string;
   onClose: () => void;
+  /** Chamado após uma troca (venda/locação) alterar o vínculo da unidade. */
+  onUnidadeChanged?: () => void;
 }) {
-  const { convites, loading, error, gerar, reenviar, revogar } = useConvites();
+  const { convites, loading, error, gerar, reenviar, revogar, registrarTroca } = useConvites();
   const { registerAccessChange } = useBlockchainAutoRegistry();
 
   const daUnidade = useMemo(
@@ -66,6 +71,15 @@ export function GerenciarAcessosModal({
   const [copiado, setCopiado] = useState(false);
   const [acaoEmCurso, setAcaoEmCurso] = useState<string | null>(null);
   const [confirmarRevogar, setConfirmarRevogar] = useState<string | null>(null);
+
+  // Troca de morador (venda / locação)
+  const [trocaAberta, setTrocaAberta] = useState(false);
+  const [trocaTipo, setTrocaTipo] = useState<TipoTroca>('VENDA');
+  const [trocaNome, setTrocaNome] = useState('');
+  const [trocaEmail, setTrocaEmail] = useState('');
+  const [trocaTel, setTrocaTel] = useState('');
+  const [trocando, setTrocando] = useState(false);
+  const [confirmarTroca, setConfirmarTroca] = useState(false);
 
   const rotulo = rotuloUnidade(unidade);
 
@@ -114,6 +128,37 @@ export function GerenciarAcessosModal({
       vinculo: VINCULO_LABEL[c.vinculo], responsavel,
     });
     toast.success('Novo convite gerado — copie o link abaixo.');
+  }
+
+  async function handleTroca() {
+    const erro = validarMorador({ nome: trocaNome, email: trocaEmail, telefone: trocaTel.trim() || undefined, vinculo: vinculoDaTroca(trocaTipo) });
+    if (erro) { toast.error(erro); return; }
+
+    setTrocando(true);
+    setLinkGerado(null);
+    const res = await registrarTroca({
+      unidadeId: unidade.id,
+      tipo: trocaTipo,
+      novoMorador: { nome: trocaNome, email: trocaEmail, telefone: trocaTel.trim() || undefined },
+    });
+    setTrocando(false);
+    setConfirmarTroca(false);
+
+    if (!res.ok) { toast.error(res.error); return; }
+
+    const url = linkAbsoluto(res.resultado.ativacaoPath);
+    setLinkGerado({ conviteId: res.resultado.convite.id, url, para: res.resultado.convite.email });
+    void registerAccessChange({
+      acao: trocaTipo === 'VENDA' ? 'titularidade_transferida' : 'locacao_registrada',
+      morador: res.resultado.convite.nome, unidadeRotulo: rotulo,
+      vinculo: VINCULO_LABEL[vinculoDaTroca(trocaTipo)], responsavel, anterior: res.anteriorNome,
+    });
+    const msgRevogados = res.revogados > 0
+      ? `Acesso anterior revogado. `
+      : '';
+    toast.success(`${TIPO_TROCA_LABEL[trocaTipo]} registrada. ${msgRevogados}Convite enviado — copie o link abaixo.`);
+    setTrocaNome(''); setTrocaEmail(''); setTrocaTel(''); setTrocaAberta(false);
+    onUnidadeChanged?.();
   }
 
   async function handleRevogar(c: ConviteAcesso) {
@@ -187,6 +232,76 @@ export function GerenciarAcessosModal({
               <ShieldCheck className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               A senha é definida pelo próprio morador na ativação. Você nunca a vê nem a define. O link expira em {CONVITE_VALIDADE_HORAS}h e é de uso único.
             </p>
+          </section>
+
+          {/* Troca de morador: venda (titularidade) / nova locação */}
+          <section className="border border-wave-100 rounded-xl">
+            <button
+              onClick={() => setTrocaAberta((v) => !v)}
+              aria-expanded={trocaAberta}
+              className="w-full flex items-center justify-between p-3 text-left"
+            >
+              <span className="text-wave-700 text-sm font-medium flex items-center gap-2">
+                <ArrowLeftRight className="w-4 h-4" /> Transferir titularidade ou registrar locação
+              </span>
+              <ChevronDown className={`w-4 h-4 text-wave-400 transition-transform ${trocaAberta ? 'rotate-180' : ''}`} />
+            </button>
+
+            {trocaAberta && (
+              <div className="p-3 pt-0 space-y-3">
+                {/* Tipo de troca */}
+                <div className="grid grid-cols-2 gap-2">
+                  {(['VENDA', 'LOCACAO'] as TipoTroca[]).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTrocaTipo(t)}
+                      className={`py-2 rounded-lg text-xs font-medium transition-all ${trocaTipo === t ? 'bg-wave-700 text-white shadow' : 'bg-wave-50 text-wave-500 hover:bg-wave-100'}`}
+                    >
+                      {TIPO_TROCA_LABEL[t]}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label htmlFor="tr-nome" className="block text-wave-500 text-xs mb-1.5">
+                      Nome do novo {trocaTipo === 'VENDA' ? 'proprietário' : 'inquilino'}
+                    </label>
+                    <input id="tr-nome" value={trocaNome} onChange={(e) => setTrocaNome(e.target.value)} className={inputCls} placeholder="Ex.: João Souza" />
+                  </div>
+                  <div>
+                    <label htmlFor="tr-email" className="block text-wave-500 text-xs mb-1.5">E-mail</label>
+                    <input id="tr-email" type="email" value={trocaEmail} onChange={(e) => setTrocaEmail(e.target.value)} className={inputCls} placeholder="joao@email.com" />
+                  </div>
+                  <div>
+                    <label htmlFor="tr-tel" className="block text-wave-500 text-xs mb-1.5">Telefone <span className="text-wave-300">(opcional)</span></label>
+                    <input id="tr-tel" value={trocaTel} onChange={(e) => setTrocaTel(e.target.value)} className={inputCls} placeholder="(21) 99999-0000" />
+                  </div>
+                </div>
+
+                {confirmarTroca ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                    <p className="text-amber-800 text-xs">
+                      Isto vai <strong>revogar o acesso do {trocaTipo === 'VENDA' ? 'proprietário' : 'inquilino'} atual</strong> desta unidade, atualizar o vínculo e gerar um novo convite. Confirmar?
+                    </p>
+                    <div className="flex gap-2">
+                      <button onClick={handleTroca} disabled={trocando} className="flex-1 py-2 bg-wave-800 text-white rounded-lg text-xs flex items-center justify-center gap-1.5 hover:bg-wave-700 disabled:opacity-60">
+                        {trocando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                        {trocando ? 'Registrando...' : 'Confirmar'}
+                      </button>
+                      <button onClick={() => setConfirmarTroca(false)} disabled={trocando} className="px-3 py-2 bg-white border border-wave-200 text-wave-600 rounded-lg text-xs">Cancelar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmarTroca(true)}
+                    className="w-full py-2.5 bg-wave-100 text-wave-700 rounded-xl flex items-center justify-center gap-2 text-sm hover:bg-wave-200 transition-all"
+                  >
+                    <ArrowLeftRight className="w-4 h-4" /> Registrar {TIPO_TROCA_LABEL[trocaTipo].toLowerCase()}
+                  </button>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Link recém-gerado (copiável — e-mail simulado) */}
