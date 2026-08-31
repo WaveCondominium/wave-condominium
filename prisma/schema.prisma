@@ -41,6 +41,11 @@ model Condominium {
   administradora   Administradora? @relation(fields: [administradoraId], references: [id])
   createdAt        DateTime        @default(now())
 
+  // SÍN-026 (financeiro): alçada de aprovação. Despesas com valor ACIMA deste
+  // teto exigem aprovação do síndico na Central. null = sem alçada (toda
+  // despesa segue direto para PENDENTE — comportamento anterior preservado).
+  alcadaAprovacao Decimal? @db.Decimal(12, 2)
+
   users     User[]
   avisos    Aviso[]
   reservas  Reserva[]
@@ -430,6 +435,10 @@ enum CategoriaDespesa {
 enum StatusDespesa {
   PENDENTE
   PAGO
+  // SÍN-026 (financeiro): despesa acima da alçada aguardando decisão do síndico.
+  AGUARDANDO_APROVACAO
+  // Reprovada pelo síndico na Central (rastreabilidade; não é excluída).
+  REPROVADA
 }
 
 enum FormaPagamentoDespesa {
@@ -474,6 +483,14 @@ model Despesa {
   stellarExplorerUrl     String?
 
   registradoPor String // nome do gestor que registrou (auditoria)
+
+  // SÍN-026 (financeiro): rastreabilidade da decisão sobre a alçada.
+  aprovadaPor      String?
+  aprovadaEm       DateTime?
+  reprovadaPor     String?
+  reprovadaEm      DateTime?
+  motivoReprovacao String?
+
   criadoEm      DateTime @default(now())
   atualizadoEm  DateTime @updatedAt
 

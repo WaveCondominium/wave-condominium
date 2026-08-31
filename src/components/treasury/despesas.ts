@@ -91,12 +91,16 @@ export const CATEGORIA_DESPESA_COR: Record<CategoriaDespesa, string> = {
 // Persistimos apenas PENDENTE/PAGO. "VENCIDO" é DERIVADO (não armazenado):
 // status PENDENTE + dataVencimento < hoje. Mesmo padrão de `isBoletoOverdue`.
 
-export type StatusDespesa = 'PENDENTE' | 'PAGO';
+// SÍN-026 (financeiro): AGUARDANDO_APROVACAO e REPROVADA entram no fluxo de
+// alçada — despesas acima do teto do condomínio dependem da decisão do síndico.
+export type StatusDespesa = 'PENDENTE' | 'PAGO' | 'AGUARDANDO_APROVACAO' | 'REPROVADA';
 export type StatusDespesaView = StatusDespesa | 'VENCIDO';
 
 export const STATUS_DESPESA_LABEL: Record<StatusDespesaView, string> = {
   PENDENTE: 'Pendente',
   PAGO: 'Pago',
+  AGUARDANDO_APROVACAO: 'Aguardando aprovação',
+  REPROVADA: 'Reprovada',
   VENCIDO: 'Vencido',
 };
 
@@ -174,6 +178,14 @@ export interface Despesa {
   stellarExplorerUrl?: string;
 
   registradoPor: string;
+
+  // SÍN-026 (financeiro): rastreabilidade da decisão sobre a alçada.
+  aprovadaPor?: string;
+  aprovadaEm?: string;
+  reprovadaPor?: string;
+  reprovadaEm?: string;
+  motivoReprovacao?: string;
+
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -281,6 +293,33 @@ export function statusDeInput(
   input: Pick<NovaDespesaInput, 'dataPagamento'>,
 ): StatusDespesa {
   return input.dataPagamento ? 'PAGO' : 'PENDENTE';
+}
+
+// --- Alçada de aprovação (SÍN-026, financeiro) -------------------------------
+
+/** Uma despesa exige aprovação quando há alçada definida e o valor a ultrapassa. */
+export function requerAprovacao(valor: number, alcada: number | null | undefined): boolean {
+  return alcada != null && !Number.isNaN(alcada) && valor > alcada;
+}
+
+/**
+ * Status inicial da despesa considerando a alçada do condomínio:
+ * - com data de pagamento → PAGO (registro de um pagamento já efetuado);
+ * - sem pagamento e acima da alçada → AGUARDANDO_APROVACAO;
+ * - caso contrário → PENDENTE (comportamento anterior).
+ */
+export function statusInicialDespesa(
+  input: Pick<NovaDespesaInput, 'dataPagamento' | 'valor'>,
+  alcada: number | null | undefined,
+): StatusDespesa {
+  if (input.dataPagamento) return 'PAGO';
+  if (requerAprovacao(input.valor, alcada)) return 'AGUARDANDO_APROVACAO';
+  return 'PENDENTE';
+}
+
+/** Só despesas pendentes (ou vencidas, que são pendentes) podem ser pagas. */
+export function despesaPodePagar(sv: StatusDespesaView): boolean {
+  return sv === 'PENDENTE' || sv === 'VENCIDO';
 }
 
 // --- Registro de pagamento de uma despesa pendente ---------------------------

@@ -41,6 +41,25 @@ export const condominiumRepository = {
     return prisma.condominium.findUnique({ where: { id: condominiumId } });
   },
 
+  // SÍN-026 (financeiro): alçada de aprovação de despesas.
+
+  /** Lê a alçada de aprovação (null = sem alçada configurada). */
+  async getAlcada(condominiumId: string): Promise<number | null> {
+    const c = await prisma.condominium.findUnique({
+      where: { id: condominiumId },
+      select: { alcadaAprovacao: true },
+    });
+    return c && c.alcadaAprovacao != null ? Number(c.alcadaAprovacao) : null;
+  },
+
+  /** Define (valor) ou limpa (null) a alçada de aprovação. */
+  setAlcada(condominiumId: string, valor: number | null) {
+    return prisma.condominium.update({
+      where: { id: condominiumId },
+      data: { alcadaAprovacao: valor },
+    });
+  },
+
   /** Metricas agregadas de um condominio para o painel da administradora. */
   async metrics(condominiumId: string): Promise<CondominioMetrics> {
     const [totalMoradores, boletosEmAberto, propostasAtivas] = await Promise.all([

@@ -20,6 +20,7 @@
 import { requireManager } from "@/server/auth/guard";
 import { listReservasAction, aprovarReservaAction, rejeitarReservaAction } from "@/app/actions/reservas";
 import { listPropostasAction, homologarPropostaAction, rejeitarPropostaAction } from "@/app/actions/governanca";
+import { listDespesasAction, aprovarDespesaAction, reprovarDespesaAction } from "@/app/actions/despesas";
 import {
   ordenarPendencias,
   type Pendencia,
@@ -28,6 +29,7 @@ import {
 } from "@/components/approvals/pendencias";
 import type { Reserva, EspacoId } from "@/components/communication/reservas/types";
 import type { Proposta } from "@/components/dao/governanceCore";
+import { formatBRL, type Despesa, CATEGORIA_DESPESA_LABEL } from "@/components/treasury/despesas";
 
 // Rótulos de espaço (decoupled da constante .tsx da UI, que carrega ícones).
 const ESPACO_LABEL: Record<EspacoId, string> = {
@@ -94,15 +96,35 @@ function mapProposta(p: Proposta): Pendencia {
   };
 }
 
+function mapDespesa(d: Despesa): Pendencia {
+  return {
+    tipo: "DESPESA",
+    id: d.id,
+    titulo: `${d.descricao} · ${formatBRL(d.valor)}`,
+    solicitante: d.registradoPor,
+    dataEntrada: d.criadoEm,
+    // Prazo natural: o vencimento — decidir antes de vencer evita atraso no pagamento.
+    prazo: `${d.dataVencimento}T00:00:00`,
+    detalhes: [
+      { label: "Valor", valor: formatBRL(d.valor) },
+      { label: "Categoria", valor: CATEGORIA_DESPESA_LABEL[d.categoria] },
+      ...(d.fornecedor ? [{ label: "Fornecedor", valor: d.fornecedor }] : []),
+      { label: "Vencimento", valor: formatDataBR(d.dataVencimento) },
+    ],
+    rejeicaoMotivoObrigatorio: true, // reprovação de despesa exige motivo
+  };
+}
+
 // --- Leitura: lista agregada -------------------------------------------------
 
 export async function listPendenciasAction(): Promise<Pendencia[]> {
   const session = await requireManager();
   if (!session.condominiumId) return [];
 
-  const [reservasData, governanca] = await Promise.all([
+  const [reservasData, governanca, despesas] = await Promise.all([
     listReservasAction(),
     listPropostasAction(),
+    listDespesasAction(),
   ]);
 
   const pendencias: Pendencia[] = [];
@@ -111,6 +133,9 @@ export async function listPendenciasAction(): Promise<Pendencia[]> {
   }
   for (const p of governanca.propostas) {
     if (p.status === "aprovada_comunidade") pendencias.push(mapProposta(p));
+  }
+  for (const d of despesas) {
+    if (d.status === "AGUARDANDO_APROVACAO") pendencias.push(mapDespesa(d));
   }
 
   return ordenarPendencias(pendencias);
@@ -147,6 +172,15 @@ export async function decidirPendenciaAction(input: DecidirPendenciaInput): Prom
       return r.ok ? { ok: true } : { ok: false, error: r.error ?? "Não foi possível aprovar a proposta." };
     }
     const r = await rejeitarPropostaAction(input.id, motivo);
+    return r.ok ? { ok: true } : { ok: false, error: r.error };
+  }
+
+  if (input.tipo === "DESPESA") {
+    if (input.decisao === "aprovar") {
+      const r = await aprovarDespesaAction(input.id);
+      return r.ok ? { ok: true } : { ok: false, error: r.error };
+    }
+    const r = await reprovarDespesaAction(input.id, motivo);
     return r.ok ? { ok: true } : { ok: false, error: r.error };
   }
 

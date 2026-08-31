@@ -23,6 +23,7 @@
 import { requireSession, requireManager } from "@/server/auth/guard";
 import { despesaRepository } from "@/server/repositories/despesaRepository";
 import { userRepository } from "@/server/repositories/userRepository";
+import { condominiumRepository } from "@/server/repositories/condominiumRepository";
 import { anchorHashOnStellar, verifyAnchoredHash } from "@/lib/stellar";
 import {
   uploadComprovante,
@@ -32,7 +33,7 @@ import {
 import {
   validarNovaDespesa,
   validarPagamento,
-  statusDeInput,
+  statusInicialDespesa,
   type Despesa,
   type NovaDespesaInput,
   type RegistrarPagamentoInput,
@@ -66,6 +67,11 @@ function toApp(d: any): Despesa {
       : undefined,
     stellarExplorerUrl: d.stellarExplorerUrl ?? undefined,
     registradoPor: d.registradoPor,
+    aprovadaPor: d.aprovadaPor ?? undefined,
+    aprovadaEm: d.aprovadaEm ? new Date(d.aprovadaEm).toISOString() : undefined,
+    reprovadaPor: d.reprovadaPor ?? undefined,
+    reprovadaEm: d.reprovadaEm ? new Date(d.reprovadaEm).toISOString() : undefined,
+    motivoReprovacao: d.motivoReprovacao ?? undefined,
     criadoEm: new Date(d.criadoEm).toISOString(),
     atualizadoEm: new Date(d.atualizadoEm).toISOString(),
   };
@@ -185,7 +191,9 @@ export async function criarDespesaAction(input: CriarDespesaInput): Promise<Desp
   if (erro) return { ok: false, error: erro };
 
   const responsavel = await userRepository.findById(session.userId);
-  const status = statusDeInput(input);
+  // SÍN-026: despesa acima da alçada do condomínio nasce AGUARDANDO_APROVACAO.
+  const alcada = await condominiumRepository.getAlcada(session.condominiumId);
+  const status = statusInicialDespesa(input, alcada);
 
   let comprovanteFields: Partial<ComprovanteFields> = {};
   if (input.comprovante) {
@@ -234,6 +242,15 @@ export async function registrarPagamentoDespesaAction(
   const despesa = await despesaRepository.findById(id, session.condominiumId);
   if (!despesa) return { ok: false, error: "Despesa não encontrada." };
 
+  // SÍN-026: só despesas pendentes podem ser pagas. Uma despesa aguardando
+  // aprovação (acima da alçada) precisa ser aprovada antes; uma reprovada não paga.
+  if (despesa.status === "AGUARDANDO_APROVACAO") {
+    return { ok: false, error: "Esta despesa aguarda aprovação do síndico antes de ser paga." };
+  }
+  if (despesa.status === "REPROVADA") {
+    return { ok: false, error: "Esta despesa foi reprovada e não pode ser paga." };
+  }
+
   let comprovanteFields: Partial<ComprovanteFields> = {};
   if (input.comprovante) {
     const proc = await processarComprovante(input.comprovante);
@@ -253,6 +270,62 @@ export async function registrarPagamentoDespesaAction(
   return atualizado
     ? { ok: true, despesa: toApp(atualizado) }
     : { ok: false, error: "Falha ao registrar o pagamento." };
+}
+
+// --- Aprovação / reprovação de despesa acima da alçada (SÍN-026, gestor) -----
+
+/** Aprova uma despesa que aguardava aprovação → volta ao fluxo normal (PENDENTE). */
+export async function aprovarDespesaAction(id: string): Promise<DespesaResult> {
+  const session = await requireManager();
+  if (!session.condominiumId) {
+    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+  }
+  const despesa = await despesaRepository.findById(id, session.condominiumId);
+  if (!despesa) return { ok: false, error: "Despesa não encontrada." };
+  if (despesa.status !== "AGUARDANDO_APROVACAO") {
+    return { ok: false, error: "Só é possível aprovar despesas que aguardam aprovação." };
+  }
+
+  const responsavel = await userRepository.findById(session.userId);
+  await despesaRepository.update(id, session.condominiumId, {
+    status: "PENDENTE",
+    aprovadaPor: responsavel?.name ?? "Gestor",
+    aprovadaEm: new Date(),
+  });
+
+  const atualizado = await despesaRepository.findById(id, session.condominiumId);
+  return atualizado
+    ? { ok: true, despesa: toApp(atualizado) }
+    : { ok: false, error: "Falha ao aprovar a despesa." };
+}
+
+/** Reprova uma despesa acima da alçada (motivo obrigatório; preserva o registro). */
+export async function reprovarDespesaAction(id: string, motivo: string): Promise<DespesaResult> {
+  const session = await requireManager();
+  if (!session.condominiumId) {
+    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+  }
+  if (!motivo || motivo.trim().length < 3) {
+    return { ok: false, error: "Informe o motivo da reprovação." };
+  }
+  const despesa = await despesaRepository.findById(id, session.condominiumId);
+  if (!despesa) return { ok: false, error: "Despesa não encontrada." };
+  if (despesa.status !== "AGUARDANDO_APROVACAO") {
+    return { ok: false, error: "Só é possível reprovar despesas que aguardam aprovação." };
+  }
+
+  const responsavel = await userRepository.findById(session.userId);
+  await despesaRepository.update(id, session.condominiumId, {
+    status: "REPROVADA",
+    reprovadaPor: responsavel?.name ?? "Gestor",
+    reprovadaEm: new Date(),
+    motivoReprovacao: motivo.trim(),
+  });
+
+  const atualizado = await despesaRepository.findById(id, session.condominiumId);
+  return atualizado
+    ? { ok: true, despesa: toApp(atualizado) }
+    : { ok: false, error: "Falha ao reprovar a despesa." };
 }
 
 // --- Anexar/atualizar comprovante de uma despesa existente (gestor) ----------

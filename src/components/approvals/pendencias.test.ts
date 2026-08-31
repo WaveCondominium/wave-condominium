@@ -29,6 +29,7 @@ describe('catálogo', () => {
   it('rotula os tipos de fonte', () => {
     expect(PENDENCIA_TIPO_LABEL.RESERVA).toMatch(/reserva/i);
     expect(PENDENCIA_TIPO_LABEL.PROPOSTA).toMatch(/proposta/i);
+    expect(PENDENCIA_TIPO_LABEL.DESPESA).toMatch(/alçada|despesa/i);
   });
 });
 

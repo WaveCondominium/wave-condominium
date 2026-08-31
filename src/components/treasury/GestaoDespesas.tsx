@@ -25,6 +25,7 @@ import {
   STATUS_DESPESA_LABEL,
   formatBRL,
   statusView,
+  despesaPodePagar,
   type CategoriaDespesa,
   type StatusDespesaView,
   type Despesa,
@@ -171,9 +172,11 @@ export function GestaoDespesas({
               className="w-full px-4 py-2.5 bg-wave-50 border border-wave-200 rounded-xl text-wave-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <option value="TODAS">Todos os status</option>
+              <option value="AGUARDANDO_APROVACAO">Aguardando aprovação</option>
               <option value="PENDENTE">Pendentes</option>
               <option value="VENCIDO">Vencidas</option>
               <option value="PAGO">Pagas</option>
+              <option value="REPROVADA">Reprovadas</option>
             </select>
           </div>
           <div className="flex-1">
@@ -242,7 +245,7 @@ export function GestaoDespesas({
                       <td className="px-4 py-3"><StatusBadge sv={sv} /></td>
                       <td className="px-4 py-3"><ComprovanteCell d={d} estado={verificacoes[d.id]} onVerificar={() => verificar(d)} /></td>
                       <td className="px-4 py-3 text-right">
-                        {sv !== 'PAGO' && (
+                        {despesaPodePagar(sv) && (
                           <button
                             onClick={() => setPagando(d)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-teal/10 text-brand-teal hover:bg-brand-teal/20 transition-colors text-sm"
@@ -309,6 +312,8 @@ function StatusBadge({ sv }: { sv: StatusDespesaView }) {
   const styles: Record<StatusDespesaView, string> = {
     PENDENTE: 'bg-orange-100 text-orange-700',
     PAGO: 'bg-brand-teal/15 text-brand-teal',
+    AGUARDANDO_APROVACAO: 'bg-amber-100 text-amber-700',
+    REPROVADA: 'bg-red-100 text-red-700',
     VENCIDO: 'bg-red-100 text-red-700',
   };
   return (

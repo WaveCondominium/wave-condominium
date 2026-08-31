@@ -7,6 +7,9 @@ import {
   validarNovaDespesa,
   validarPagamento,
   statusDeInput,
+  statusInicialDespesa,
+  requerAprovacao,
+  despesaPodePagar,
   isDespesaVencida,
   statusView,
   totalDespesas,
@@ -15,6 +18,35 @@ import {
   type Despesa,
   type NovaDespesaInput,
 } from './despesas';
+
+describe('alçada de aprovação (SÍN-026)', () => {
+  it('requerAprovacao só quando há alçada e o valor a ultrapassa', () => {
+    expect(requerAprovacao(5000, null)).toBe(false);      // sem alçada
+    expect(requerAprovacao(5000, undefined)).toBe(false);
+    expect(requerAprovacao(5000, 5000)).toBe(false);      // igual ao teto não exige
+    expect(requerAprovacao(5001, 5000)).toBe(true);       // acima exige
+    expect(requerAprovacao(100, 5000)).toBe(false);
+  });
+
+  it('statusInicialDespesa: pago > aguardando > pendente', () => {
+    // já paga (tem dataPagamento) — não passa por aprovação
+    expect(statusInicialDespesa({ valor: 9000, dataPagamento: '2026-08-10' }, 5000)).toBe('PAGO');
+    // acima da alçada e não paga → aguardando aprovação
+    expect(statusInicialDespesa({ valor: 9000 }, 5000)).toBe('AGUARDANDO_APROVACAO');
+    // dentro da alçada → pendente
+    expect(statusInicialDespesa({ valor: 3000 }, 5000)).toBe('PENDENTE');
+    // sem alçada → pendente (comportamento anterior)
+    expect(statusInicialDespesa({ valor: 9000 }, null)).toBe('PENDENTE');
+  });
+
+  it('despesaPodePagar só para pendente/vencida', () => {
+    expect(despesaPodePagar('PENDENTE')).toBe(true);
+    expect(despesaPodePagar('VENCIDO')).toBe(true);
+    expect(despesaPodePagar('AGUARDANDO_APROVACAO')).toBe(false);
+    expect(despesaPodePagar('REPROVADA')).toBe(false);
+    expect(despesaPodePagar('PAGO')).toBe(false);
+  });
+});
 
 function novaDespesa(overrides: Partial<NovaDespesaInput> = {}): NovaDespesaInput {
   return {

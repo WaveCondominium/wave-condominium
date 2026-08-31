@@ -1,0 +1,693 @@
+diff --git a/prisma/migrations/20260901000000_add_despesa_alcada/migration.sql b/prisma/migrations/20260901000000_add_despesa_alcada/migration.sql
+new file mode 100644
+index 0000000..efa9dd8
+--- /dev/null
++++ b/prisma/migrations/20260901000000_add_despesa_alcada/migration.sql
+@@ -0,0 +1,18 @@
++-- SÍN-026 (financeiro): alçada de aprovação. Despesas acima do teto configurado
++-- por condomínio passam a exigir aprovação do síndico na Central de Aprovações.
++-- Aditiva/retrocompatível: coluna de alçada é NULL (sem alçada = comportamento
++-- anterior), e os novos status/colunas não afetam as despesas existentes.
++
++-- AlterEnum: novos status de despesa (acima da alçada / reprovada).
++ALTER TYPE "StatusDespesa" ADD VALUE IF NOT EXISTS 'AGUARDANDO_APROVACAO';
++ALTER TYPE "StatusDespesa" ADD VALUE IF NOT EXISTS 'REPROVADA';
++
++-- AlterTable: teto de alçada por condomínio (NULL = sem alçada).
++ALTER TABLE "Condominium" ADD COLUMN "alcadaAprovacao" DECIMAL(12,2);
++
++-- AlterTable: rastreabilidade da decisão sobre a despesa.
++ALTER TABLE "Despesa" ADD COLUMN "aprovadaPor" TEXT;
++ALTER TABLE "Despesa" ADD COLUMN "aprovadaEm" TIMESTAMP(3);
++ALTER TABLE "Despesa" ADD COLUMN "reprovadaPor" TEXT;
++ALTER TABLE "Despesa" ADD COLUMN "reprovadaEm" TIMESTAMP(3);
++ALTER TABLE "Despesa" ADD COLUMN "motivoReprovacao" TEXT;
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index 897cdef..9a74494 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -41,6 +41,11 @@ model Condominium {
+   administradora   Administradora? @relation(fields: [administradoraId], references: [id])
+   createdAt        DateTime        @default(now())
+ 
++  // SÍN-026 (financeiro): alçada de aprovação. Despesas com valor ACIMA deste
++  // teto exigem aprovação do síndico na Central. null = sem alçada (toda
++  // despesa segue direto para PENDENTE — comportamento anterior preservado).
++  alcadaAprovacao Decimal? @db.Decimal(12, 2)
++
+   users     User[]
+   avisos    Aviso[]
+   reservas  Reserva[]
+@@ -430,6 +435,10 @@ enum CategoriaDespesa {
+ enum StatusDespesa {
+   PENDENTE
+   PAGO
++  // SÍN-026 (financeiro): despesa acima da alçada aguardando decisão do síndico.
++  AGUARDANDO_APROVACAO
++  // Reprovada pelo síndico na Central (rastreabilidade; não é excluída).
++  REPROVADA
+ }
+ 
+ enum FormaPagamentoDespesa {
+@@ -474,6 +483,14 @@ model Despesa {
+   stellarExplorerUrl     String?
+ 
+   registradoPor String // nome do gestor que registrou (auditoria)
++
++  // SÍN-026 (financeiro): rastreabilidade da decisão sobre a alçada.
++  aprovadaPor      String?
++  aprovadaEm       DateTime?
++  reprovadaPor     String?
++  reprovadaEm      DateTime?
++  motivoReprovacao String?
++
+   criadoEm      DateTime @default(now())
+   atualizadoEm  DateTime @updatedAt
+ 
+diff --git a/src/app/actions/aprovacoes.ts b/src/app/actions/aprovacoes.ts
+index 7ae2939..b735864 100644
+--- a/src/app/actions/aprovacoes.ts
++++ b/src/app/actions/aprovacoes.ts
+@@ -20,6 +20,7 @@
+ import { requireManager } from "@/server/auth/guard";
+ import { listReservasAction, aprovarReservaAction, rejeitarReservaAction } from "@/app/actions/reservas";
+ import { listPropostasAction, homologarPropostaAction, rejeitarPropostaAction } from "@/app/actions/governanca";
++import { listDespesasAction, aprovarDespesaAction, reprovarDespesaAction } from "@/app/actions/despesas";
+ import {
+   ordenarPendencias,
+   type Pendencia,
+@@ -28,6 +29,7 @@ import {
+ } from "@/components/approvals/pendencias";
+ import type { Reserva, EspacoId } from "@/components/communication/reservas/types";
+ import type { Proposta } from "@/components/dao/governanceCore";
++import { formatBRL, type Despesa, CATEGORIA_DESPESA_LABEL } from "@/components/treasury/despesas";
+ 
+ // Rótulos de espaço (decoupled da constante .tsx da UI, que carrega ícones).
+ const ESPACO_LABEL: Record<EspacoId, string> = {
+@@ -94,15 +96,35 @@ function mapProposta(p: Proposta): Pendencia {
+   };
+ }
+ 
++function mapDespesa(d: Despesa): Pendencia {
++  return {
++    tipo: "DESPESA",
++    id: d.id,
++    titulo: `${d.descricao} · ${formatBRL(d.valor)}`,
++    solicitante: d.registradoPor,
++    dataEntrada: d.criadoEm,
++    // Prazo natural: o vencimento — decidir antes de vencer evita atraso no pagamento.
++    prazo: `${d.dataVencimento}T00:00:00`,
++    detalhes: [
++      { label: "Valor", valor: formatBRL(d.valor) },
++      { label: "Categoria", valor: CATEGORIA_DESPESA_LABEL[d.categoria] },
++      ...(d.fornecedor ? [{ label: "Fornecedor", valor: d.fornecedor }] : []),
++      { label: "Vencimento", valor: formatDataBR(d.dataVencimento) },
++    ],
++    rejeicaoMotivoObrigatorio: true, // reprovação de despesa exige motivo
++  };
++}
++
+ // --- Leitura: lista agregada -------------------------------------------------
+ 
+ export async function listPendenciasAction(): Promise<Pendencia[]> {
+   const session = await requireManager();
+   if (!session.condominiumId) return [];
+ 
+-  const [reservasData, governanca] = await Promise.all([
++  const [reservasData, governanca, despesas] = await Promise.all([
+     listReservasAction(),
+     listPropostasAction(),
++    listDespesasAction(),
+   ]);
+ 
+   const pendencias: Pendencia[] = [];
+@@ -112,6 +134,9 @@ export async function listPendenciasAction(): Promise<Pendencia[]> {
+   for (const p of governanca.propostas) {
+     if (p.status === "aprovada_comunidade") pendencias.push(mapProposta(p));
+   }
++  for (const d of despesas) {
++    if (d.status === "AGUARDANDO_APROVACAO") pendencias.push(mapDespesa(d));
++  }
+ 
+   return ordenarPendencias(pendencias);
+ }
+@@ -150,5 +175,14 @@ export async function decidirPendenciaAction(input: DecidirPendenciaInput): Prom
+     return r.ok ? { ok: true } : { ok: false, error: r.error };
+   }
+ 
++  if (input.tipo === "DESPESA") {
++    if (input.decisao === "aprovar") {
++      const r = await aprovarDespesaAction(input.id);
++      return r.ok ? { ok: true } : { ok: false, error: r.error };
++    }
++    const r = await reprovarDespesaAction(input.id, motivo);
++    return r.ok ? { ok: true } : { ok: false, error: r.error };
++  }
++
+   return { ok: false, error: "Tipo de pendência não suportado." };
+ }
+diff --git a/src/app/actions/configuracoes.ts b/src/app/actions/configuracoes.ts
+new file mode 100644
+index 0000000..0230be0
+--- /dev/null
++++ b/src/app/actions/configuracoes.ts
+@@ -0,0 +1,39 @@
++"use server";
++
++// ---------------------------------------------------------------------------
++// src/app/actions/configuracoes.ts
++//
++// Server Actions de configuração do condomínio. Nesta fase, a alçada de
++// aprovação de despesas (SÍN-026, financeiro). Escopado por condomínio e
++// exclusivo de gestão (requireManager) — validado no servidor.
++// ---------------------------------------------------------------------------
++
++import { requireSession, requireManager } from "@/server/auth/guard";
++import { condominiumRepository } from "@/server/repositories/condominiumRepository";
++
++/** Lê a alçada de aprovação do condomínio ativo (null = sem alçada). */
++export async function getAlcadaAction(): Promise<number | null> {
++  const session = await requireSession();
++  if (!session.condominiumId) return null;
++  return condominiumRepository.getAlcada(session.condominiumId);
++}
++
++export type SetAlcadaResult = { ok: true; alcada: number | null } | { ok: false; error: string };
++
++/**
++ * Define a alçada de aprovação. `null` (ou <= 0) remove a alçada — nesse caso
++ * toda despesa segue direto para PENDENTE (comportamento anterior).
++ */
++export async function setAlcadaAction(valor: number | null): Promise<SetAlcadaResult> {
++  const session = await requireManager();
++  if (!session.condominiumId) {
++    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
++  }
++  if (valor != null && (Number.isNaN(valor) || valor < 0)) {
++    return { ok: false, error: "Informe um valor de alçada válido." };
++  }
++  // 0 ou negativo = sem alçada (limpa).
++  const normalizado = valor != null && valor > 0 ? valor : null;
++  await condominiumRepository.setAlcada(session.condominiumId, normalizado);
++  return { ok: true, alcada: normalizado };
++}
+diff --git a/src/app/actions/despesas.ts b/src/app/actions/despesas.ts
+index 4261d8b..ae95a9a 100644
+--- a/src/app/actions/despesas.ts
++++ b/src/app/actions/despesas.ts
+@@ -23,6 +23,7 @@
+ import { requireSession, requireManager } from "@/server/auth/guard";
+ import { despesaRepository } from "@/server/repositories/despesaRepository";
+ import { userRepository } from "@/server/repositories/userRepository";
++import { condominiumRepository } from "@/server/repositories/condominiumRepository";
+ import { anchorHashOnStellar, verifyAnchoredHash } from "@/lib/stellar";
+ import {
+   uploadComprovante,
+@@ -32,7 +33,7 @@ import {
+ import {
+   validarNovaDespesa,
+   validarPagamento,
+-  statusDeInput,
++  statusInicialDespesa,
+   type Despesa,
+   type NovaDespesaInput,
+   type RegistrarPagamentoInput,
+@@ -66,6 +67,11 @@ function toApp(d: any): Despesa {
+       : undefined,
+     stellarExplorerUrl: d.stellarExplorerUrl ?? undefined,
+     registradoPor: d.registradoPor,
++    aprovadaPor: d.aprovadaPor ?? undefined,
++    aprovadaEm: d.aprovadaEm ? new Date(d.aprovadaEm).toISOString() : undefined,
++    reprovadaPor: d.reprovadaPor ?? undefined,
++    reprovadaEm: d.reprovadaEm ? new Date(d.reprovadaEm).toISOString() : undefined,
++    motivoReprovacao: d.motivoReprovacao ?? undefined,
+     criadoEm: new Date(d.criadoEm).toISOString(),
+     atualizadoEm: new Date(d.atualizadoEm).toISOString(),
+   };
+@@ -185,7 +191,9 @@ export async function criarDespesaAction(input: CriarDespesaInput): Promise<Desp
+   if (erro) return { ok: false, error: erro };
+ 
+   const responsavel = await userRepository.findById(session.userId);
+-  const status = statusDeInput(input);
++  // SÍN-026: despesa acima da alçada do condomínio nasce AGUARDANDO_APROVACAO.
++  const alcada = await condominiumRepository.getAlcada(session.condominiumId);
++  const status = statusInicialDespesa(input, alcada);
+ 
+   let comprovanteFields: Partial<ComprovanteFields> = {};
+   if (input.comprovante) {
+@@ -234,6 +242,15 @@ export async function registrarPagamentoDespesaAction(
+   const despesa = await despesaRepository.findById(id, session.condominiumId);
+   if (!despesa) return { ok: false, error: "Despesa não encontrada." };
+ 
++  // SÍN-026: só despesas pendentes podem ser pagas. Uma despesa aguardando
++  // aprovação (acima da alçada) precisa ser aprovada antes; uma reprovada não paga.
++  if (despesa.status === "AGUARDANDO_APROVACAO") {
++    return { ok: false, error: "Esta despesa aguarda aprovação do síndico antes de ser paga." };
++  }
++  if (despesa.status === "REPROVADA") {
++    return { ok: false, error: "Esta despesa foi reprovada e não pode ser paga." };
++  }
++
+   let comprovanteFields: Partial<ComprovanteFields> = {};
+   if (input.comprovante) {
+     const proc = await processarComprovante(input.comprovante);
+@@ -255,6 +272,62 @@ export async function registrarPagamentoDespesaAction(
+     : { ok: false, error: "Falha ao registrar o pagamento." };
+ }
+ 
++// --- Aprovação / reprovação de despesa acima da alçada (SÍN-026, gestor) -----
++
++/** Aprova uma despesa que aguardava aprovação → volta ao fluxo normal (PENDENTE). */
++export async function aprovarDespesaAction(id: string): Promise<DespesaResult> {
++  const session = await requireManager();
++  if (!session.condominiumId) {
++    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
++  }
++  const despesa = await despesaRepository.findById(id, session.condominiumId);
++  if (!despesa) return { ok: false, error: "Despesa não encontrada." };
++  if (despesa.status !== "AGUARDANDO_APROVACAO") {
++    return { ok: false, error: "Só é possível aprovar despesas que aguardam aprovação." };
++  }
++
++  const responsavel = await userRepository.findById(session.userId);
++  await despesaRepository.update(id, session.condominiumId, {
++    status: "PENDENTE",
++    aprovadaPor: responsavel?.name ?? "Gestor",
++    aprovadaEm: new Date(),
++  });
++
++  const atualizado = await despesaRepository.findById(id, session.condominiumId);
++  return atualizado
++    ? { ok: true, despesa: toApp(atualizado) }
++    : { ok: false, error: "Falha ao aprovar a despesa." };
++}
++
++/** Reprova uma despesa acima da alçada (motivo obrigatório; preserva o registro). */
++export async function reprovarDespesaAction(id: string, motivo: string): Promise<DespesaResult> {
++  const session = await requireManager();
++  if (!session.condominiumId) {
++    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
++  }
++  if (!motivo || motivo.trim().length < 3) {
++    return { ok: false, error: "Informe o motivo da reprovação." };
++  }
++  const despesa = await despesaRepository.findById(id, session.condominiumId);
++  if (!despesa) return { ok: false, error: "Despesa não encontrada." };
++  if (despesa.status !== "AGUARDANDO_APROVACAO") {
++    return { ok: false, error: "Só é possível reprovar despesas que aguardam aprovação." };
++  }
++
++  const responsavel = await userRepository.findById(session.userId);
++  await despesaRepository.update(id, session.condominiumId, {
++    status: "REPROVADA",
++    reprovadaPor: responsavel?.name ?? "Gestor",
++    reprovadaEm: new Date(),
++    motivoReprovacao: motivo.trim(),
++  });
++
++  const atualizado = await despesaRepository.findById(id, session.condominiumId);
++  return atualizado
++    ? { ok: true, despesa: toApp(atualizado) }
++    : { ok: false, error: "Falha ao reprovar a despesa." };
++}
++
+ // --- Anexar/atualizar comprovante de uma despesa existente (gestor) ----------
+ 
+ export async function anexarComprovanteDespesaAction(
+diff --git a/src/components/CondominiumSettings.tsx b/src/components/CondominiumSettings.tsx
+index 5e16cdd..21f4baf 100644
+--- a/src/components/CondominiumSettings.tsx
++++ b/src/components/CondominiumSettings.tsx
+@@ -1,8 +1,8 @@
+ ﻿'use client';
+ 
+-import { useState } from 'react';
++import { useEffect, useState } from 'react';
+ import Link from 'next/link';
+-import { ArrowLeft, ShieldAlert, MessageCircle, Save, Trash2, Check } from 'lucide-react';
++import { ArrowLeft, ShieldAlert, MessageCircle, Save, Trash2, Check, CircleDollarSign, Loader2 } from 'lucide-react';
+ import { toast } from 'sonner';
+ import { useUser } from '@/contexts/UserContext';
+ import { isManager } from '@/lib/rbac';
+@@ -13,6 +13,8 @@ import {
+   isValidWhatsappGroupLink,
+   type CondominiumSettings as CondominiumSettingsType,
+ } from '@/lib/condominiumSettings';
++import { getAlcadaAction, setAlcadaAction } from '@/app/actions/configuracoes';
++import { formatBRL } from '@/components/treasury/despesas';
+ 
+ export function CondominiumSettings() {
+   const { userProfile } = useUser();
+@@ -156,7 +158,128 @@ export function CondominiumSettings() {
+             )}
+           </div>
+         </div>
++
++        {/* Alçada de aprovação de despesas (SÍN-026, financeiro) */}
++        <AlcadaConfigCard />
+       </div>
+     </div>
+   );
++}
++
++// ---------------------------------------------------------------------------
++// Alçada de aprovação: despesas acima do teto exigem aprovação do síndico na
++// Central de Aprovações. Persistido no servidor (por condomínio).
++// ---------------------------------------------------------------------------
++
++function AlcadaConfigCard() {
++  const [alcada, setAlcada] = useState<number | null>(null);
++  const [input, setInput] = useState('');
++  const [loading, setLoading] = useState(true);
++  const [saving, setSaving] = useState(false);
++
++  useEffect(() => {
++    let alive = true;
++    getAlcadaAction()
++      .then((v) => { if (alive) { setAlcada(v); setInput(v != null ? String(v) : ''); } })
++      .catch(() => { /* mantém vazio */ })
++      .finally(() => { if (alive) setLoading(false); });
++    return () => { alive = false; };
++  }, []);
++
++  async function salvar() {
++    const raw = input.trim();
++    const valor = raw === '' ? null : Number(raw);
++    if (valor != null && (Number.isNaN(valor) || valor < 0)) {
++      toast.error('Informe um valor de alçada válido (em reais).');
++      return;
++    }
++    setSaving(true);
++    const res = await setAlcadaAction(valor);
++    setSaving(false);
++    if (!res.ok) { toast.error(res.error); return; }
++    setAlcada(res.alcada);
++    setInput(res.alcada != null ? String(res.alcada) : '');
++    toast.success(
++      res.alcada != null
++        ? `Alçada definida em ${formatBRL(res.alcada)}. Despesas acima disso irão para aprovação.`
++        : 'Alçada removida — nenhuma despesa exigirá aprovação.',
++    );
++  }
++
++  async function remover() {
++    setSaving(true);
++    const res = await setAlcadaAction(null);
++    setSaving(false);
++    if (!res.ok) { toast.error(res.error); return; }
++    setAlcada(null);
++    setInput('');
++    toast.success('Alçada removida — nenhuma despesa exigirá aprovação.');
++  }
++
++  const temAlcada = alcada != null;
++
++  return (
++    <div className="bg-white rounded-2xl border border-wave-100 shadow-sm p-6 md:p-8 mt-6">
++      <div className="flex items-center gap-3 mb-6">
++        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
++          <CircleDollarSign className="w-5 h-5 text-amber-700" />
++        </div>
++        <div>
++          <h2 className="text-wave-800 font-medium">Alçada de aprovação de despesas</h2>
++          <p className="text-wave-500 text-sm">
++            Despesas com valor acima deste teto exigem sua aprovação na Central de Aprovações.
++          </p>
++        </div>
++      </div>
++
++      {loading ? (
++        <div className="h-11 rounded-xl bg-wave-100 animate-pulse" />
++      ) : (
++        <>
++          {temAlcada && (
++            <div className="flex items-center gap-2 mb-4 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm">
++              <Check className="w-4 h-4 shrink-0" />
++              Alçada ativa: despesas acima de <strong className="mx-1">{formatBRL(alcada!)}</strong> vão para aprovação.
++            </div>
++          )}
++
++          <label htmlFor="alcada-input" className="block text-wave-600 text-sm mb-1.5">Valor da alçada (R$)</label>
++          <input
++            id="alcada-input"
++            type="number"
++            min={0}
++            step="0.01"
++            value={input}
++            onChange={(e) => setInput(e.target.value)}
++            placeholder="Ex.: 5000"
++            className="w-full px-4 py-2.5 bg-white border border-wave-200 rounded-xl text-wave-800 placeholder-wave-300 focus:outline-none focus:ring-2 focus:ring-wave-300 focus:border-wave-400 transition-all text-sm"
++          />
++          <p className="text-wave-400 text-xs mt-1.5">
++            Deixe em branco (ou remova) para não exigir aprovação de nenhuma despesa.
++          </p>
++
++          <div className="flex flex-col sm:flex-row gap-3 pt-6 mt-6 border-t border-wave-100">
++            <button
++              onClick={salvar}
++              disabled={saving}
++              className="flex-1 py-3 bg-wave-500 text-white rounded-xl hover:bg-wave-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 font-medium text-sm"
++            >
++              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
++              {temAlcada ? 'Atualizar alçada' : 'Definir alçada'}
++            </button>
++            {temAlcada && (
++              <button
++                onClick={remover}
++                disabled={saving}
++                className="flex-1 py-3 bg-red-50 border border-red-100 text-red-600 rounded-xl hover:bg-red-100 transition-all font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-60"
++              >
++                <Trash2 className="w-4 h-4" />
++                Remover alçada
++              </button>
++            )}
++          </div>
++        </>
++      )}
++    </div>
++  );
+ }
+\ No newline at end of file
+diff --git a/src/components/approvals/pendencias.test.ts b/src/components/approvals/pendencias.test.ts
+index 93fe843..9a04cc1 100644
+--- a/src/components/approvals/pendencias.test.ts
++++ b/src/components/approvals/pendencias.test.ts
+@@ -29,6 +29,7 @@ describe('catálogo', () => {
+   it('rotula os tipos de fonte', () => {
+     expect(PENDENCIA_TIPO_LABEL.RESERVA).toMatch(/reserva/i);
+     expect(PENDENCIA_TIPO_LABEL.PROPOSTA).toMatch(/proposta/i);
++    expect(PENDENCIA_TIPO_LABEL.DESPESA).toMatch(/alçada|despesa/i);
+   });
+ });
+ 
+diff --git a/src/components/approvals/pendencias.ts b/src/components/approvals/pendencias.ts
+index f64f105..cb7d0c2 100644
+--- a/src/components/approvals/pendencias.ts
++++ b/src/components/approvals/pendencias.ts
+@@ -12,11 +12,12 @@
+ 
+ // --- Tipos de fonte (extensível: financeiro, reuniões, manutenção... depois) -
+ 
+-export type PendenciaTipo = 'RESERVA' | 'PROPOSTA';
++export type PendenciaTipo = 'RESERVA' | 'PROPOSTA' | 'DESPESA';
+ 
+ export const PENDENCIA_TIPO_LABEL: Record<PendenciaTipo, string> = {
+   RESERVA: 'Reserva de área comum',
+   PROPOSTA: 'Proposta de governança',
++  DESPESA: 'Despesa acima da alçada',
+ };
+ 
+ // --- Entidade unificada ------------------------------------------------------
+diff --git a/src/components/treasury/GestaoDespesas.tsx b/src/components/treasury/GestaoDespesas.tsx
+index 7abe429..7f54415 100644
+--- a/src/components/treasury/GestaoDespesas.tsx
++++ b/src/components/treasury/GestaoDespesas.tsx
+@@ -25,6 +25,7 @@ import {
+   STATUS_DESPESA_LABEL,
+   formatBRL,
+   statusView,
++  despesaPodePagar,
+   type CategoriaDespesa,
+   type StatusDespesaView,
+   type Despesa,
+@@ -171,9 +172,11 @@ export function GestaoDespesas({
+               className="w-full px-4 py-2.5 bg-wave-50 border border-wave-200 rounded-xl text-wave-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+             >
+               <option value="TODAS">Todos os status</option>
++              <option value="AGUARDANDO_APROVACAO">Aguardando aprovação</option>
+               <option value="PENDENTE">Pendentes</option>
+               <option value="VENCIDO">Vencidas</option>
+               <option value="PAGO">Pagas</option>
++              <option value="REPROVADA">Reprovadas</option>
+             </select>
+           </div>
+           <div className="flex-1">
+@@ -242,7 +245,7 @@ export function GestaoDespesas({
+                       <td className="px-4 py-3"><StatusBadge sv={sv} /></td>
+                       <td className="px-4 py-3"><ComprovanteCell d={d} estado={verificacoes[d.id]} onVerificar={() => verificar(d)} /></td>
+                       <td className="px-4 py-3 text-right">
+-                        {sv !== 'PAGO' && (
++                        {despesaPodePagar(sv) && (
+                           <button
+                             onClick={() => setPagando(d)}
+                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-teal/10 text-brand-teal hover:bg-brand-teal/20 transition-colors text-sm"
+@@ -309,6 +312,8 @@ function StatusBadge({ sv }: { sv: StatusDespesaView }) {
+   const styles: Record<StatusDespesaView, string> = {
+     PENDENTE: 'bg-orange-100 text-orange-700',
+     PAGO: 'bg-brand-teal/15 text-brand-teal',
++    AGUARDANDO_APROVACAO: 'bg-amber-100 text-amber-700',
++    REPROVADA: 'bg-red-100 text-red-700',
+     VENCIDO: 'bg-red-100 text-red-700',
+   };
+   return (
+diff --git a/src/components/treasury/despesas.test.ts b/src/components/treasury/despesas.test.ts
+index 3febb6c..440b7c6 100644
+--- a/src/components/treasury/despesas.test.ts
++++ b/src/components/treasury/despesas.test.ts
+@@ -7,6 +7,9 @@ import {
+   validarNovaDespesa,
+   validarPagamento,
+   statusDeInput,
++  statusInicialDespesa,
++  requerAprovacao,
++  despesaPodePagar,
+   isDespesaVencida,
+   statusView,
+   totalDespesas,
+@@ -16,6 +19,35 @@ import {
+   type NovaDespesaInput,
+ } from './despesas';
+ 
++describe('alçada de aprovação (SÍN-026)', () => {
++  it('requerAprovacao só quando há alçada e o valor a ultrapassa', () => {
++    expect(requerAprovacao(5000, null)).toBe(false);      // sem alçada
++    expect(requerAprovacao(5000, undefined)).toBe(false);
++    expect(requerAprovacao(5000, 5000)).toBe(false);      // igual ao teto não exige
++    expect(requerAprovacao(5001, 5000)).toBe(true);       // acima exige
++    expect(requerAprovacao(100, 5000)).toBe(false);
++  });
++
++  it('statusInicialDespesa: pago > aguardando > pendente', () => {
++    // já paga (tem dataPagamento) — não passa por aprovação
++    expect(statusInicialDespesa({ valor: 9000, dataPagamento: '2026-08-10' }, 5000)).toBe('PAGO');
++    // acima da alçada e não paga → aguardando aprovação
++    expect(statusInicialDespesa({ valor: 9000 }, 5000)).toBe('AGUARDANDO_APROVACAO');
++    // dentro da alçada → pendente
++    expect(statusInicialDespesa({ valor: 3000 }, 5000)).toBe('PENDENTE');
++    // sem alçada → pendente (comportamento anterior)
++    expect(statusInicialDespesa({ valor: 9000 }, null)).toBe('PENDENTE');
++  });
++
++  it('despesaPodePagar só para pendente/vencida', () => {
++    expect(despesaPodePagar('PENDENTE')).toBe(true);
++    expect(despesaPodePagar('VENCIDO')).toBe(true);
++    expect(despesaPodePagar('AGUARDANDO_APROVACAO')).toBe(false);
++    expect(despesaPodePagar('REPROVADA')).toBe(false);
++    expect(despesaPodePagar('PAGO')).toBe(false);
++  });
++});
++
+ function novaDespesa(overrides: Partial<NovaDespesaInput> = {}): NovaDespesaInput {
+   return {
+     categoria: 'MANUTENCAO_PREDIAL',
+diff --git a/src/components/treasury/despesas.ts b/src/components/treasury/despesas.ts
+index e5fa1d4..3e38b1c 100644
+--- a/src/components/treasury/despesas.ts
++++ b/src/components/treasury/despesas.ts
+@@ -91,12 +91,16 @@ export const CATEGORIA_DESPESA_COR: Record<CategoriaDespesa, string> = {
+ // Persistimos apenas PENDENTE/PAGO. "VENCIDO" é DERIVADO (não armazenado):
+ // status PENDENTE + dataVencimento < hoje. Mesmo padrão de `isBoletoOverdue`.
+ 
+-export type StatusDespesa = 'PENDENTE' | 'PAGO';
++// SÍN-026 (financeiro): AGUARDANDO_APROVACAO e REPROVADA entram no fluxo de
++// alçada — despesas acima do teto do condomínio dependem da decisão do síndico.
++export type StatusDespesa = 'PENDENTE' | 'PAGO' | 'AGUARDANDO_APROVACAO' | 'REPROVADA';
+ export type StatusDespesaView = StatusDespesa | 'VENCIDO';
+ 
+ export const STATUS_DESPESA_LABEL: Record<StatusDespesaView, string> = {
+   PENDENTE: 'Pendente',
+   PAGO: 'Pago',
++  AGUARDANDO_APROVACAO: 'Aguardando aprovação',
++  REPROVADA: 'Reprovada',
+   VENCIDO: 'Vencido',
+ };
+ 
+@@ -174,6 +178,14 @@ export interface Despesa {
+   stellarExplorerUrl?: string;
+ 
+   registradoPor: string;
++
++  // SÍN-026 (financeiro): rastreabilidade da decisão sobre a alçada.
++  aprovadaPor?: string;
++  aprovadaEm?: string;
++  reprovadaPor?: string;
++  reprovadaEm?: string;
++  motivoReprovacao?: string;
++
+   criadoEm: string;
+   atualizadoEm: string;
+ }
+@@ -283,6 +295,33 @@ export function statusDeInput(
+   return input.dataPagamento ? 'PAGO' : 'PENDENTE';
+ }
+ 
++// --- Alçada de aprovação (SÍN-026, financeiro) -------------------------------
++
++/** Uma despesa exige aprovação quando há alçada definida e o valor a ultrapassa. */
++export function requerAprovacao(valor: number, alcada: number | null | undefined): boolean {
++  return alcada != null && !Number.isNaN(alcada) && valor > alcada;
++}
++
++/**
++ * Status inicial da despesa considerando a alçada do condomínio:
++ * - com data de pagamento → PAGO (registro de um pagamento já efetuado);
++ * - sem pagamento e acima da alçada → AGUARDANDO_APROVACAO;
++ * - caso contrário → PENDENTE (comportamento anterior).
++ */
++export function statusInicialDespesa(
++  input: Pick<NovaDespesaInput, 'dataPagamento' | 'valor'>,
++  alcada: number | null | undefined,
++): StatusDespesa {
++  if (input.dataPagamento) return 'PAGO';
++  if (requerAprovacao(input.valor, alcada)) return 'AGUARDANDO_APROVACAO';
++  return 'PENDENTE';
++}
++
++/** Só despesas pendentes (ou vencidas, que são pendentes) podem ser pagas. */
++export function despesaPodePagar(sv: StatusDespesaView): boolean {
++  return sv === 'PENDENTE' || sv === 'VENCIDO';
++}
++
+ // --- Registro de pagamento de uma despesa pendente ---------------------------
+ 
+ export interface RegistrarPagamentoInput {
+diff --git a/src/server/repositories/condominiumRepository.ts b/src/server/repositories/condominiumRepository.ts
+index 4b11b5c..b0f36ad 100644
+--- a/src/server/repositories/condominiumRepository.ts
++++ b/src/server/repositories/condominiumRepository.ts
+@@ -41,6 +41,25 @@ export const condominiumRepository = {
+     return prisma.condominium.findUnique({ where: { id: condominiumId } });
+   },
+ 
++  // SÍN-026 (financeiro): alçada de aprovação de despesas.
++
++  /** Lê a alçada de aprovação (null = sem alçada configurada). */
++  async getAlcada(condominiumId: string): Promise<number | null> {
++    const c = await prisma.condominium.findUnique({
++      where: { id: condominiumId },
++      select: { alcadaAprovacao: true },
++    });
++    return c && c.alcadaAprovacao != null ? Number(c.alcadaAprovacao) : null;
++  },
++
++  /** Define (valor) ou limpa (null) a alçada de aprovação. */
++  setAlcada(condominiumId: string, valor: number | null) {
++    return prisma.condominium.update({
++      where: { id: condominiumId },
++      data: { alcadaAprovacao: valor },
++    });
++  },
++
+   /** Metricas agregadas de um condominio para o painel da administradora. */
+   async metrics(condominiumId: string): Promise<CondominioMetrics> {
+     const [totalMoradores, boletosEmAberto, propostasAtivas] = await Promise.all([
