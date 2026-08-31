@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Menu, Building2, ChevronLeft } from 'lucide-react';
 import { Sidebar } from '@/components/Sidebar';
 import { useUser } from '@/contexts/UserContext';
+import { PendenciasProvider } from '@/contexts/PendenciasContext';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   contextoAdministradoraAction,
@@ -76,6 +77,7 @@ export default function DashboardLayout({
     pathname !== PAINEL_ADM;
 
   return (
+    <PendenciasProvider>
     <div className="flex min-h-screen bg-wave-50">
       <Sidebar
         userProfile={userProfile}
@@ -126,5 +128,6 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </PendenciasProvider>
   );
 }

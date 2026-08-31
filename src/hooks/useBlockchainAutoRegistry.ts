@@ -6,7 +6,7 @@ import { anchorMetadataOnChain } from '@/app/actions/blockchain';
 
 export interface BlockchainRecord {
   id: string;
-  type: 'proposal' | 'vote' | 'financial' | 'document' | 'user' | 'unit';
+  type: 'proposal' | 'vote' | 'financial' | 'document' | 'user' | 'unit' | 'approval';
   title: string;
   description: string;
   timestamp: string;
@@ -298,6 +298,36 @@ export function useBlockchainAutoRegistry() {
     );
   }, [registerOnBlockchain]);
 
+  // SÍN-026: registra na trilha de Auditoria uma decisão do Síndico na Central
+  // de Aprovações (aprovação/rejeição de uma pendência). Silent: não interrompe
+  // o fluxo com o toast de ancoragem.
+  const registerApprovalDecision = useCallback(async (data: {
+    decisao: 'aprovada' | 'rejeitada';
+    tipoLabel: string;
+    titulo: string;
+    solicitante: string;
+    responsavel: string;
+    motivo?: string;
+  }) => {
+    const acaoLabel = data.decisao === 'aprovada' ? 'Aprovação' : 'Rejeição';
+    const motivoTxt = data.motivo ? ` (motivo: ${data.motivo})` : '';
+    return registerOnBlockchain(
+      'approval',
+      `${acaoLabel}: ${data.titulo}`,
+      `${data.tipoLabel} · solicitado por ${data.solicitante} — decidido por ${data.responsavel}${motivoTxt}`,
+      {
+        decisao: data.decisao,
+        tipo: data.tipoLabel,
+        titulo: data.titulo,
+        solicitante: data.solicitante,
+        responsavel: data.responsavel,
+        motivo: data.motivo ?? null,
+        registradoEm: new Date().toISOString(),
+      },
+      true,
+    );
+  }, [registerOnBlockchain]);
+
   return {
     records,
     registerUser,
@@ -308,5 +338,6 @@ export function useBlockchainAutoRegistry() {
     registerDocument,
     registerUnitChange,
     registerAccessChange,
+    registerApprovalDecision,
   };
 }

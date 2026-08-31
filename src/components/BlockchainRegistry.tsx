@@ -15,7 +15,7 @@ import { verifyDocumentOnChain } from '@/app/actions/blockchain';
 // Tipos internos
 // ---------------------------------------------------------------------------
 
-type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document' | 'unit';
+type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document' | 'unit' | 'approval';
 type MoradorTab = 'pagamentos' | 'votacoes' | 'documentos';
 
 const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
@@ -25,6 +25,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
   document:  { label: 'Documento', icon: FileText,   color: 'text-amber-700',  bg: 'bg-amber-100'   },
   user:      { label: 'Usuário',   icon: User,       color: 'text-gray-700',   bg: 'bg-gray-100'    },
   unit:      { label: 'Unidade',   icon: Home,       color: 'text-wave-600',   bg: 'bg-wave-100'    },
+  approval:  { label: 'Aprovação', icon: CheckCircle, color: 'text-emerald-700', bg: 'bg-emerald-100' },
 };
 
 const MORADOR_TABS: { key: MoradorTab; label: string; icon: React.ElementType }[] = [

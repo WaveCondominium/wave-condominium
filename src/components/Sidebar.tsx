@@ -1,9 +1,10 @@
 ﻿'use client';
 
-import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, SlidersHorizontal, Video, Receipt, Shield, MessageSquare, UserPlus, User, X, Building2, Repeat } from 'lucide-react';
+import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, SlidersHorizontal, Video, Receipt, Shield, MessageSquare, UserPlus, User, X, Building2, Repeat, ClipboardCheck } from 'lucide-react';
 import { formatDisplayName } from '@/lib/formatName';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMenuBadges } from '@/hooks/useMenuBadges';
+import { usePendencias } from '@/contexts/PendenciasContext';
 import { isManager, isAdministradora, type Role } from '@/lib/rbac';
 import { ThemeToggle } from './ThemeToggle';
 import Link from 'next/link';
@@ -38,6 +39,8 @@ export function Sidebar({ userProfile, onLogout, onSwitchProfile, isMobileOpen =
   );
   const { unreadCount } = useNotifications();
   const { governanceCount, communicationCount, meetingsCount, boletosCount, maintenanceCount } = useMenuBadges();
+  // SÍN-026: contador de pendências da Central de Aprovações (só gestão).
+  const { count: pendenciasCount } = usePendencias();
 
   // Fecha o menu mobile automaticamente ao navegar para outra rota —
   // melhoria de UX (sem isso, o menu ficaria aberto cobrindo a tela nova)
@@ -64,6 +67,7 @@ export function Sidebar({ userProfile, onLogout, onSwitchProfile, isMobileOpen =
     // RBAC (regra permanente do projeto): "Criar Nova Conta" é restrito a
     // Síndico/Administrador — Morador não deve ver esse item no menu.
     ...(isManagerRole ? [
+      { href: '/dashboard/approvals', label: 'Aprovações', icon: ClipboardCheck, badge: pendenciasCount > 0 ? pendenciasCount : undefined },
       { href: '/dashboard/create-account', label: 'Criar Nova Conta', icon: UserPlus },
       { href: '/dashboard/admin', label: 'Admin Panel', icon: Settings },
       { href: '/dashboard/settings', label: 'Configurações', icon: SlidersHorizontal },

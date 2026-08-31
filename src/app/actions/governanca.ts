@@ -172,6 +172,37 @@ export async function encerrarVotacaoAction(propostaId: string): Promise<{ ok: b
   return { ok: true };
 }
 
+/**
+ * Homologa (aprova) uma proposta APROVADA pela comunidade, encaminhando-a para
+ * a assembleia (SÍN-026). É a decisão positiva do Síndico na Central de
+ * Aprovações: só transita de APROVADA_COMUNIDADE -> EM_ASSEMBLEIA, preservando
+ * a rastreabilidade e sem interferir no fluxo de votação.
+ */
+export async function homologarPropostaAction(propostaId: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await requireManager();
+  if (!session.condominiumId) return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+
+  const p = await propostaRepository.findById(propostaId, session.condominiumId);
+  if (!p) return { ok: false, error: "Proposta não encontrada." };
+  if (p.status !== "APROVADA_COMUNIDADE") {
+    return { ok: false, error: "Só é possível homologar propostas aprovadas pela comunidade." };
+  }
+
+  await propostaRepository.update(propostaId, session.condominiumId, { status: "EM_ASSEMBLEIA" });
+
+  console.info(
+    "[governanca.homologarProposta]",
+    JSON.stringify({
+      evento: "PROPOSTA_HOMOLOGADA",
+      propostaId,
+      condominiumId: session.condominiumId,
+      responsavelId: session.userId,
+      em: new Date().toISOString(),
+    }),
+  );
+  return { ok: true };
+}
+
 export type RejeitarResult =
   | { ok: true; proposta: Proposta }
   | { ok: false; error: string };
