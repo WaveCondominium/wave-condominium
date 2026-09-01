@@ -279,6 +279,8 @@ for (const d of docsUnidade) await prisma.documentoUnidade.create({ data: { cond
 const solicitacoes = [
   { unidade: "203", protocolo: "2026-000123", tipo: "Reparo hidraulico", status: "EM_ANDAMENTO", descricao: "Vazamento na tubulacao da pia da cozinha.", aberturaEm: daysFromNow(-10) },
   { unidade: "203", protocolo: "2026-000098", tipo: "Manutencao de fechadura", status: "CONCLUIDA", descricao: "Troca da fechadura da porta principal.", aberturaEm: daysFromNow(-30) },
+  // SIN-026: solicitacao aguardando decisao do sindico (aparece na Central).
+  { unidade: "203", protocolo: "2026-000150", tipo: "Eletrica", titulo: "Tomada sem energia no quarto", prioridade: "high", status: "AGUARDANDO_APROVACAO", descricao: "A tomada do quarto parou de funcionar.", solicitanteId: usersByEmail["morador@wave.com"], solicitante: "Maria Santos", aberturaEm: daysFromNow(-1) },
 ];
 for (const s of solicitacoes) await prisma.solicitacaoServico.create({ data: { condominiumId: condo.id, ...s } });
 

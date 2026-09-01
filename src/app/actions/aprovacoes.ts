@@ -24,6 +24,12 @@ import { listDespesasAction, aprovarDespesaAction, reprovarDespesaAction } from 
 import { listReunioesAction, aprovarAtaAction, rejeitarAtaAction } from "@/app/actions/reunioes";
 import type { Reuniao } from "@/components/meetings/reunioes";
 import {
+  listSolicitacoesAguardandoAction,
+  aprovarSolicitacaoAction,
+  recusarSolicitacaoAction,
+} from "@/app/actions/manutencao";
+import { PRIORIDADE_LABEL, type Solicitacao } from "@/components/maintenance/solicitacoes";
+import {
   ordenarPendencias,
   type Pendencia,
   type PendenciaTipo,
@@ -139,17 +145,36 @@ function mapAta(r: Reuniao): Pendencia {
   };
 }
 
+function mapSolicitacao(s: Solicitacao): Pendencia {
+  return {
+    tipo: "MANUTENCAO",
+    id: s.id,
+    titulo: `${s.titulo} · Unidade ${s.unidade}`,
+    solicitante: s.solicitante ?? `Unidade ${s.unidade}`,
+    dataEntrada: s.aberturaEm,
+    detalhes: [
+      { label: "Protocolo", valor: s.protocolo },
+      { label: "Categoria", valor: s.categoria },
+      { label: "Prioridade", valor: PRIORIDADE_LABEL[s.prioridade] },
+      { label: "Unidade", valor: s.unidade },
+      ...(s.descricao ? [{ label: "Descrição", valor: s.descricao }] : []),
+    ],
+    rejeicaoMotivoObrigatorio: true,
+  };
+}
+
 // --- Leitura: lista agregada -------------------------------------------------
 
 export async function listPendenciasAction(): Promise<Pendencia[]> {
   const session = await requireManager();
   if (!session.condominiumId) return [];
 
-  const [reservasData, governanca, despesas, reunioes] = await Promise.all([
+  const [reservasData, governanca, despesas, reunioes, solicitacoes] = await Promise.all([
     listReservasAction(),
     listPropostasAction(),
     listDespesasAction(),
     listReunioesAction(),
+    listSolicitacoesAguardandoAction(),
   ]);
 
   const pendencias: Pendencia[] = [];
@@ -164,6 +189,9 @@ export async function listPendenciasAction(): Promise<Pendencia[]> {
   }
   for (const r of reunioes) {
     if (r.ataStatus === "AGUARDANDO_APROVACAO") pendencias.push(mapAta(r));
+  }
+  for (const s of solicitacoes) {
+    pendencias.push(mapSolicitacao(s));
   }
 
   return ordenarPendencias(pendencias);
@@ -218,6 +246,15 @@ export async function decidirPendenciaAction(input: DecidirPendenciaInput): Prom
       return r.ok ? { ok: true } : { ok: false, error: r.error };
     }
     const r = await rejeitarAtaAction(input.id, motivo);
+    return r.ok ? { ok: true } : { ok: false, error: r.error };
+  }
+
+  if (input.tipo === "MANUTENCAO") {
+    if (input.decisao === "aprovar") {
+      const r = await aprovarSolicitacaoAction(input.id);
+      return r.ok ? { ok: true } : { ok: false, error: r.error };
+    }
+    const r = await recusarSolicitacaoAction(input.id, motivo);
     return r.ok ? { ok: true } : { ok: false, error: r.error };
   }
 

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 import { CreateMaintenanceModal } from './maintenance/CreateMaintenanceModal';
+import { SolicitacoesCorretivas } from './maintenance/SolicitacoesCorretivas';
 import { InspectionOrderModal } from './maintenance/InspectionOrderModal';
 import { BuildingMaintenanceSection } from './maintenance/BuildingMaintenanceSection';
 import {
@@ -42,12 +43,6 @@ export function Maintenance() {
 // ===========================================================================
 // MORADOR — Preventiva + Corretiva (abas)
 // ===========================================================================
-
-const MORADOR_STATUS_CONFIG = {
-  pending: { label: 'Aberta', color: 'text-orange-700', bg: 'bg-orange-100', Icon: Clock },
-  progress: { label: 'Em Andamento', color: 'text-blue-700', bg: 'bg-blue-100', Icon: Wrench },
-  completed: { label: 'Concluída', color: 'text-emerald-700', bg: 'bg-emerald-100', Icon: CheckCircle },
-} as const;
 
 const MORADOR_CATEGORIES = [
   'Elétrica',
@@ -145,16 +140,11 @@ const DEFAULT_PREVENTIVE_ITEMS: PreventiveItem[] = [
 function MoradorMaintenanceView() {
   const { userProfile } = useUser();
   const [activeTab, setActiveTab] = useState<'preventiva' | 'corretiva' | 'predio'>('preventiva');
-  const [filter, setFilter] = useState<'all' | 'pending' | 'progress' | 'completed'>('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<MaintenanceOrder | null>(null);
   const [selectedPreventive, setSelectedPreventive] = useState<PreventiveItem | null>(null);
 
-  const {
-    allOrders,
-    maintenanceOrders,
-    setMaintenanceOrders,
-  } = useMaintenanceOrders();
+  // `allOrders` continua alimentando a aba "Prédio" (manutenção coletiva, MOR-033).
+  // A aba "Corretiva" agora é DB-backed (SolicitacoesCorretivas).
+  const { allOrders } = useMaintenanceOrders();
 
   const [preventiveItems] = useLocalStorage<PreventiveItem[]>(
     'wave_preventive_maintenance',
@@ -176,59 +166,6 @@ function MoradorMaintenanceView() {
     });
   }, [preventiveItems, userUnit]);
 
-  // --- Corretiva: OS da unidade ---
-  const myOrders = useMemo(() => {
-    if (!userUnit) return [];
-    return allOrders.filter((o) => {
-      const orderUnit = (o.unit || '').replace(/^apto\s*/i, '').trim();
-      return orderUnit === userUnit;
-    });
-  }, [allOrders, userUnit]);
-
-  const filteredOrders = useMemo(() => {
-    if (filter === 'all') return myOrders;
-    return myOrders.filter((o) => o.status === filter);
-  }, [myOrders, filter]);
-
-  const counts = useMemo(() => ({
-    all: myOrders.length,
-    pending: myOrders.filter((o) => o.status === 'pending').length,
-    progress: myOrders.filter((o) => o.status === 'progress').length,
-    completed: myOrders.filter((o) => o.status === 'completed').length,
-  }), [myOrders]);
-
-  const handleCreateOrder = useCallback((formData: {
-    title: string;
-    category: string;
-    priority: string;
-    description: string;
-  }) => {
-    if (!userUnit) {
-      toast.error('Não foi possível identificar sua unidade.');
-      return;
-    }
-
-    const newOrder: MaintenanceOrder = {
-      id: `OS-${Date.now().toString().slice(-4)}`,
-      title: formData.title,
-      priority: formData.priority as 'high' | 'medium' | 'low',
-      status: 'pending',
-      openedDate: new Date().toLocaleDateString('pt-BR'),
-      assignedTo: null,
-      category: formData.category,
-      hasDocument: false,
-      description: formData.description,
-      unit: userUnit,
-      origin: 'morador',
-      createdByName: userProfile.name,
-      createdById: userProfile.id,
-    };
-
-    setMaintenanceOrders([...maintenanceOrders, newOrder]);
-    setShowCreateModal(false);
-    toast.success('Solicitação registrada! Acompanhe o andamento aqui.');
-  }, [userUnit, userProfile, maintenanceOrders, setMaintenanceOrders]);
-
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-brand-light min-h-screen">
       {/* Header */}
@@ -242,15 +179,6 @@ function MoradorMaintenanceView() {
             {userUnit && <span className="font-medium text-wave-700"> — Unidade {userUnit}</span>}
           </p>
         </div>
-        {activeTab === 'corretiva' && (
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-5 py-3 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:from-wave-700 hover:to-wave-500 transition-all shadow-lg flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Nova Solicitação
-          </button>
-        )}
       </div>
 
       {/* Tabs — Preventiva / Corretiva / Prédio */}
@@ -276,11 +204,6 @@ function MoradorMaintenanceView() {
         >
           <Wrench className="w-4 h-4" />
           Corretiva
-          {counts.pending > 0 && (
-            <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded-full leading-none">
-              {counts.pending}
-            </span>
-          )}
         </button>
         <button
           onClick={() => setActiveTab('predio')}
@@ -392,129 +315,15 @@ function MoradorMaintenanceView() {
       {/* ================================================================= */}
       {activeTab === 'corretiva' && (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-wave-100 p-4 text-center shadow-sm">
-              <p className="text-2xl font-bold text-orange-600">{counts.pending}</p>
-              <p className="text-sm text-wave-500">Abertas</p>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-wave-100 p-4 text-center shadow-sm">
-              <p className="text-2xl font-bold text-blue-600">{counts.progress}</p>
-              <p className="text-sm text-wave-500">Em Andamento</p>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-wave-100 p-4 text-center shadow-sm">
-              <p className="text-2xl font-bold text-emerald-600">{counts.completed}</p>
-              <p className="text-sm text-wave-500">Concluídas</p>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-3 border border-wave-100 mb-6 shadow-sm">
-            <div className="flex gap-2 overflow-x-auto">
-              {([
-                { key: 'all', label: 'Todas' },
-                { key: 'pending', label: 'Abertas' },
-                { key: 'progress', label: 'Em Andamento' },
-                { key: 'completed', label: 'Concluídas' },
-              ] as const).map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={`px-4 py-2 rounded-xl transition-all whitespace-nowrap text-sm ${
-                    filter === key
-                      ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white shadow-lg'
-                      : 'bg-wave-50 text-wave-500 hover:bg-wave-100'
-                  }`}
-                >
-                  {label} ({counts[key]})
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Orders List */}
-          {filteredOrders.length === 0 ? (
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-12 text-center shadow-sm">
-              <Wrench className="w-12 h-12 text-wave-300 mx-auto mb-4" />
-              <h3 className="text-wave-700 text-lg mb-2">
-                {filter === 'all'
-                  ? 'Nenhuma solicitação registrada'
-                  : `Nenhuma solicitação ${filter === 'pending' ? 'aberta' : filter === 'progress' ? 'em andamento' : 'concluída'}`}
-              </h3>
-              <p className="text-wave-400 text-sm mb-4">
-                {filter === 'all'
-                  ? 'Precisa de um reparo na sua unidade? Clique em "Nova Solicitação".'
-                  : 'Tente outro filtro para ver suas solicitações.'}
-              </p>
-              {filter === 'all' && (
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="px-5 py-2.5 bg-gradient-to-r from-brand-deep to-brand-steel text-white rounded-xl hover:opacity-90 transition-all shadow-lg inline-flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nova Solicitação
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredOrders.map((order) => {
-                const cfg = MORADOR_STATUS_CONFIG[order.status] || MORADOR_STATUS_CONFIG.pending;
-                const StatusIcon = cfg.Icon;
-                return (
-                  <div
-                    key={order.id}
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 p-5 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                    onClick={() => setSelectedOrder(order as MaintenanceOrder)}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                          <h3 className="text-wave-800 text-lg truncate">{order.title}</h3>
-                          <span className={`px-2.5 py-0.5 rounded text-xs font-medium ${
-                            order.priority === 'high' ? 'bg-red-100 text-red-700' :
-                            order.priority === 'medium' ? 'bg-orange-100 text-orange-700' :
-                            'bg-blue-100 text-blue-700'
-                          }`}>
-                            {order.priority === 'high' ? 'Urgente' : order.priority === 'medium' ? 'Média' : 'Baixa'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-sm text-wave-500 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {order.openedDate}
-                          </span>
-                          <span>•</span>
-                          <span>{order.category}</span>
-                          <span className="text-wave-300">|</span>
-                          <span className="text-wave-400">{order.id}</span>
-                        </div>
-                        {order.assignedTo && (
-                          <p className="text-sm text-wave-500 mt-1.5">
-                            Responsável: <span className="text-wave-700">{order.assignedTo}</span>
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`px-3 py-1.5 rounded-full text-sm flex items-center gap-1.5 ${cfg.bg} ${cfg.color}`}>
-                          <StatusIcon className="w-3.5 h-3.5" />
-                          {cfg.label}
-                        </span>
-                        <ChevronRight className="w-4 h-4 text-wave-300" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {/* SÍN-026: solicitações do morador em banco, decididas pelo síndico na Central. */}
+          <SolicitacoesCorretivas />
 
           {/* Info box */}
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
             <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
             <p className="text-blue-700 text-sm">
               A manutenção corretiva resolve problemas que já aconteceram. Aqui você solicita
-              reparos e acompanha o andamento das suas solicitações.
+              reparos e o síndico analisa cada pedido antes de encaminhar.
             </p>
           </div>
         </>
@@ -527,28 +336,11 @@ function MoradorMaintenanceView() {
         <BuildingMaintenanceSection orders={allOrders} />
       )}
 
-      {/* Order Detail Modal (Corretiva) */}
-      {selectedOrder && (
-        <MoradorOrderDetailModal
-          order={selectedOrder}
-          onClose={() => setSelectedOrder(null)}
-        />
-      )}
-
       {/* Preventive Detail Modal */}
       {selectedPreventive && (
         <PreventiveDetailModal
           item={selectedPreventive}
           onClose={() => setSelectedPreventive(null)}
-        />
-      )}
-
-      {/* Create Order Modal (Corretiva) */}
-      {showCreateModal && (
-        <MoradorCreateOSModal
-          userUnit={userUnit}
-          onClose={() => setShowCreateModal(false)}
-          onCreate={handleCreateOrder}
         />
       )}
     </div>
@@ -651,291 +443,6 @@ function PreventiveDetailModal({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Modal — Detalhe da OS (Morador)
-// ---------------------------------------------------------------------------
-
-function MoradorOrderDetailModal({
-  order,
-  onClose,
-}: {
-  order: MaintenanceOrder;
-  onClose: () => void;
-}) {
-  const cfg = MORADOR_STATUS_CONFIG[order.status] || MORADOR_STATUS_CONFIG.pending;
-  const StatusIcon = cfg.Icon;
-
-  const steps = [
-    { key: 'pending', label: 'Aberta', done: true },
-    { key: 'progress', label: 'Em Andamento', done: order.status === 'progress' || order.status === 'completed' },
-    { key: 'completed', label: 'Concluída', done: order.status === 'completed' },
-  ];
-
-  return (
-    <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-blue-100">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-blue-100 p-5 z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-wave-400 rounded-xl">
-                <Eye className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-blue-900 text-xl">Detalhes da Solicitação</h2>
-                <p className="text-wave-400 text-sm">{order.id}</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-blue-50 rounded-lg transition-colors">
-              <X className="w-5 h-5 text-blue-600" />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-5 space-y-5">
-          {/* Title & Status */}
-          <div>
-            <h3 className="text-wave-800 text-lg mb-2">{order.title}</h3>
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm ${cfg.bg} ${cfg.color}`}>
-              <StatusIcon className="w-4 h-4" />
-              {cfg.label}
-            </span>
-          </div>
-
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-wave-50 rounded-xl p-3">
-              <p className="text-wave-400 text-xs mb-1">Categoria</p>
-              <p className="text-wave-800 text-sm font-medium">{order.category}</p>
-            </div>
-            <div className="bg-wave-50 rounded-xl p-3">
-              <p className="text-wave-400 text-xs mb-1">Prioridade</p>
-              <p className={`text-sm font-medium ${
-                order.priority === 'high' ? 'text-red-600' :
-                order.priority === 'medium' ? 'text-orange-600' : 'text-blue-600'
-              }`}>
-                {order.priority === 'high' ? 'Urgente' : order.priority === 'medium' ? 'Média' : 'Baixa'}
-              </p>
-            </div>
-            <div className="bg-wave-50 rounded-xl p-3">
-              <p className="text-wave-400 text-xs mb-1">Data de Abertura</p>
-              <p className="text-wave-800 text-sm font-medium">{order.openedDate}</p>
-            </div>
-            <div className="bg-wave-50 rounded-xl p-3">
-              <p className="text-wave-400 text-xs mb-1">Responsável</p>
-              <p className="text-wave-800 text-sm font-medium">{order.assignedTo || 'Aguardando designação'}</p>
-            </div>
-          </div>
-
-          {/* Description */}
-          {order.description && (
-            <div className="bg-wave-50 rounded-xl p-4">
-              <p className="text-wave-400 text-xs mb-1.5">Descrição</p>
-              <p className="text-wave-700 text-sm whitespace-pre-wrap">{order.description}</p>
-            </div>
-          )}
-
-          {/* Status Timeline */}
-          <div>
-            <p className="text-wave-700 text-sm font-medium mb-3">Andamento</p>
-            <div className="space-y-0">
-              {steps.map((step, i) => (
-                <div key={step.key} className="flex items-start gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                      step.done
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-wave-200 text-wave-400'
-                    }`}>
-                      {step.done ? <CheckCircle className="w-3.5 h-3.5" /> : <span className="w-2 h-2 rounded-full bg-wave-300" />}
-                    </div>
-                    {i < steps.length - 1 && (
-                      <div className={`w-0.5 h-8 ${step.done ? 'bg-emerald-300' : 'bg-wave-200'}`} />
-                    )}
-                  </div>
-                  <p className={`text-sm pt-0.5 ${step.done ? 'text-wave-800 font-medium' : 'text-wave-400'}`}>
-                    {step.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Info Note */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-            <p className="text-blue-700 text-sm">
-              Atualizações de status são feitas pela administração do condomínio.
-              Você será notificado quando houver mudanças.
-            </p>
-          </div>
-        </div>
-
-        {/* Close */}
-        <div className="p-5 border-t border-wave-100">
-          <button
-            onClick={onClose}
-            className="w-full py-3 bg-wave-100 text-wave-700 rounded-xl hover:bg-wave-200 transition-all"
-          >
-            Fechar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Modal — Criar Solicitação (Morador)
-// ---------------------------------------------------------------------------
-
-function MoradorCreateOSModal({
-  userUnit,
-  onClose,
-  onCreate,
-}: {
-  userUnit: string;
-  onClose: () => void;
-  onCreate: (data: { title: string; category: string; priority: string; description: string }) => void;
-}) {
-  const [formData, setFormData] = useState({
-    title: '',
-    category: 'Outros',
-    priority: 'medium',
-    description: '',
-  });
-
-  const canSubmit = formData.title.trim() && formData.description.trim();
-
-  const handleSubmit = () => {
-    if (!canSubmit) {
-      toast.error('Preencha o título e a descrição.');
-      return;
-    }
-    onCreate(formData);
-  };
-
-  return (
-    <div className="fixed inset-0 bg-blue-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-blue-100">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-blue-100 p-5 z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-wave-400 rounded-xl">
-                <Send className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-blue-900 text-xl">Nova Solicitação</h2>
-                <p className="text-wave-400 text-sm">Unidade {userUnit}</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-blue-50 rounded-lg transition-colors">
-              <X className="w-5 h-5 text-blue-600" />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-5 space-y-5">
-          {/* Unit — read-only */}
-          <div>
-            <label className="block text-wave-700 text-sm mb-1.5">Unidade</label>
-            <div className="px-4 py-3 bg-wave-50 border border-wave-200 rounded-xl text-wave-500 text-sm">
-              Unidade {userUnit} (preenchida automaticamente)
-            </div>
-          </div>
-
-          {/* Title */}
-          <div>
-            <label className="block text-wave-700 text-sm mb-1.5">
-              O que está precisando de reparo? *
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Ex: Vazamento na torneira da cozinha"
-              className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          {/* Category & Priority */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-wave-700 text-sm mb-1.5">Tipo do Problema</label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                {MORADOR_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-wave-700 text-sm mb-1.5">Urgência</label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="low">Pode esperar</option>
-                <option value="medium">Normal</option>
-                <option value="high">Urgente</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-wave-700 text-sm mb-1.5">
-              Descreva o problema *
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Descreva com o máximo de detalhes possível: onde fica, quando começou, o que está acontecendo..."
-              rows={4}
-              className="w-full px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          {/* Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-            <p className="text-blue-700 text-sm">
-              Sua solicitação será enviada para análise da administração.
-              Você poderá acompanhar o andamento por aqui.
-            </p>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="p-5 border-t border-wave-100 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 bg-wave-100 text-wave-700 rounded-xl hover:bg-wave-200 transition-all"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className={`flex-1 py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 ${
-              canSubmit
-                ? 'bg-gradient-to-r from-brand-deep to-brand-steel text-white hover:opacity-90'
-                : 'bg-wave-200 text-wave-400 cursor-not-allowed shadow-none'
-            }`}
-          >
-            <Send className="w-4 h-4" />
-            Enviar Solicitação
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ===========================================================================
 // MANAGER — Visão completa: Garantias, Conformidade, OS, Gestão

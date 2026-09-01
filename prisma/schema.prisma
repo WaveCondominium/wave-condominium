@@ -362,6 +362,10 @@ enum StatusOcorrencia {
   EM_ANDAMENTO
   CONCLUIDA
   CANCELADA
+  // SÍN-026 (manutenção): solicitação do morador aguardando decisão do síndico,
+  // e recusada (com motivo) — entram na Central de Aprovações.
+  AGUARDANDO_APROVACAO
+  RECUSADA
 }
 
 model DocumentoUnidade {
@@ -386,7 +390,17 @@ model SolicitacaoServico {
   aberturaEm    DateTime         @default(now())
   atualizadoEm  DateTime         @updatedAt
 
+  // SÍN-026 (manutenção): dados da solicitação do morador + decisão do síndico.
+  titulo       String?
+  prioridade   String? // 'high' | 'medium' | 'low'
+  solicitanteId String?
+  solicitante   String? // nome do solicitante (exibição/auditoria)
+  motivoRecusa  String?
+  decididoPor   String?
+  decididoEm    DateTime?
+
   @@index([condominiumId, unidade])
+  @@index([condominiumId, status])
 }
 
 model ManutencaoUnidade {
