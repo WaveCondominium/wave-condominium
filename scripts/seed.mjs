@@ -329,6 +329,7 @@ const reunioes = [
 
 Encerramento às 20h30. Quórum: 42 unidades presentes.`,
     ataHash: "EC739E9B9E85E62B",
+    ataStatus: "OFICIAL",
   },
 ];
 for (const r of reunioes) await prisma.reuniao.create({ data: { condominiumId: condo.id, ...r } });

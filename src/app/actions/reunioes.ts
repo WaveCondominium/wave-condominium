@@ -52,6 +52,8 @@ function toApp(r: any): Reuniao {
     ataContent: r.ataContent ?? undefined,
     ataHash: r.ataHash ?? undefined,
     recordingUrl: r.recordingUrl ?? undefined,
+    ataStatus: r.ataStatus ?? undefined,
+    ataMotivoRejeicao: r.ataMotivoRejeicao ?? undefined,
   };
 }
 
@@ -109,8 +111,22 @@ export async function criarReuniaoAction(input: NovaReuniaoInput): Promise<Reuni
   return { ok: true, reuniao: toApp({ ...row, _count: { confirmacoes: 0 } }) };
 }
 
-// --- Ata (gestor) — comportamento atual: salvar ata conclui a reunião --------
+// --- Ata (gestor) — Etapa B: salvar envia a ata para aprovação ---------------
 
+/** Recarrega uma reunião (com contagem) e devolve o resultado padronizado. */
+async function recarregarReuniao(id: string, condominiumId: string): Promise<ReuniaoResult> {
+  const rows = await reuniaoRepository.listByCondominium(condominiumId);
+  const atualizada = rows.find((r: any) => r.id === id);
+  return atualizada ? { ok: true, reuniao: toApp(atualizada) } : { ok: false, error: "Reunião não encontrada." };
+}
+
+/**
+ * Salva/atualiza a ata como RASCUNHO e a envia para aprovação
+ * (AGUARDANDO_APROVACAO). O código de integridade (MOR-033) é registrado já no
+ * envio; a ata só vira OFICIAL após a aprovação do síndico na Central.
+ * A reunião é marcada como CONCLUÍDA (a ata é redigida após a reunião).
+ * Uma ata já OFICIAL fica travada (integridade) e não é reeditada aqui.
+ */
 export async function salvarAtaAction(id: string, conteudo: string): Promise<ReuniaoResult> {
   const session = await requireManager();
   if (!session.condominiumId) {
@@ -121,19 +137,60 @@ export async function salvarAtaAction(id: string, conteudo: string): Promise<Reu
   }
   const existente = await reuniaoRepository.findById(id, session.condominiumId);
   if (!existente) return { ok: false, error: "Reunião não encontrada." };
+  if ((existente as any).ataStatus === "OFICIAL") {
+    return { ok: false, error: "Esta ata já é oficial e não pode ser reeditada." };
+  }
 
-  // Registra o código de integridade da versão oficial (MOR-033) e conclui.
   await reuniaoRepository.update(id, session.condominiumId, {
     ataContent: conteudo,
     ataHash: calcularHashAta(conteudo),
+    ataStatus: "AGUARDANDO_APROVACAO",
+    ataMotivoRejeicao: null,
     status: "CONCLUIDA",
   });
+  return recarregarReuniao(id, session.condominiumId);
+}
 
-  const rows = await reuniaoRepository.listByCondominium(session.condominiumId);
-  const atualizada = rows.find((r: any) => r.id === id);
-  return atualizada
-    ? { ok: true, reuniao: toApp(atualizada) }
-    : { ok: false, error: "Falha ao salvar a ata." };
+/** Aprova a ata (RASCUNHO/AGUARDANDO → OFICIAL). Decisão do síndico na Central. */
+export async function aprovarAtaAction(id: string): Promise<ReuniaoResult> {
+  const session = await requireManager();
+  if (!session.condominiumId) {
+    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+  }
+  const existente = await reuniaoRepository.findById(id, session.condominiumId);
+  if (!existente) return { ok: false, error: "Reunião não encontrada." };
+  if ((existente as any).ataStatus !== "AGUARDANDO_APROVACAO") {
+    return { ok: false, error: "Só é possível aprovar atas aguardando aprovação." };
+  }
+  const gestor = await userRepository.findById(session.userId);
+  await reuniaoRepository.update(id, session.condominiumId, {
+    ataStatus: "OFICIAL",
+    ataAprovadaPor: gestor?.name ?? "Gestor",
+    ataAprovadaEm: new Date(),
+    ataMotivoRejeicao: null,
+  });
+  return recarregarReuniao(id, session.condominiumId);
+}
+
+/** Rejeita a ata (AGUARDANDO → RASCUNHO), com motivo, para revisão e reenvio. */
+export async function rejeitarAtaAction(id: string, motivo: string): Promise<ReuniaoResult> {
+  const session = await requireManager();
+  if (!session.condominiumId) {
+    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+  }
+  if (!motivo || motivo.trim().length < 3) {
+    return { ok: false, error: "Informe o motivo da rejeição da ata." };
+  }
+  const existente = await reuniaoRepository.findById(id, session.condominiumId);
+  if (!existente) return { ok: false, error: "Reunião não encontrada." };
+  if ((existente as any).ataStatus !== "AGUARDANDO_APROVACAO") {
+    return { ok: false, error: "Só é possível rejeitar atas aguardando aprovação." };
+  }
+  await reuniaoRepository.update(id, session.condominiumId, {
+    ataStatus: "RASCUNHO",
+    ataMotivoRejeicao: motivo.trim(),
+  });
+  return recarregarReuniao(id, session.condominiumId);
 }
 
 // --- Confirmação de presença (morador) ---------------------------------------

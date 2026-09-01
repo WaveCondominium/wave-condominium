@@ -10,7 +10,7 @@ import {
   totalConfirmados,
 } from './meetings/presencaConfirmacoes';
 import { useReunioes } from '@/hooks/useReunioes';
-import type { Reuniao } from '@/components/meetings/reunioes';
+import { STATUS_ATA_LABEL, STATUS_ATA_COR, podeEditarAta, type Reuniao } from '@/components/meetings/reunioes';
 import { isManager, type Role } from '@/lib/rbac';
 
 import { toast } from 'sonner';
@@ -77,8 +77,8 @@ export function Meetings({ userProfile }: MeetingsProps) {
     setShowAtaModal(false);
     setSelectedMeetingForAta(null);
     setAtaText('');
-    toast.success('Ata da reunião registrada com sucesso!', {
-      description: 'A ata foi salva e está disponível para consulta.'
+    toast.success('Ata enviada para aprovação!', {
+      description: 'A ata ficará disponível na Central de Aprovações do síndico.'
     });
   };
 
@@ -362,7 +362,20 @@ export function Meetings({ userProfile }: MeetingsProps) {
                     )}
                   </div>
                 ) : (
-                  <div className="flex gap-3">
+                  <div className="space-y-3">
+                    {/* Etapa B: status da ata + motivo de rejeição (quando houver) */}
+                    {meeting.ataStatus && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-wave-500 text-sm">Ata:</span>
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_ATA_COR[meeting.ataStatus]}`}>
+                          {STATUS_ATA_LABEL[meeting.ataStatus]}
+                        </span>
+                        {meeting.ataStatus === 'RASCUNHO' && meeting.ataMotivoRejeicao && (
+                          <span className="text-red-600 text-xs">Devolvida: {meeting.ataMotivoRejeicao}</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex gap-3">
                     {meeting.ataContent && (
                       <button
                         onClick={() => {
@@ -385,7 +398,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
                         Baixar Ata
                       </button>
                     )}
-                    {canCreateMeeting && (
+                    {canCreateMeeting && podeEditarAta(meeting.ataStatus) && (
                       <button
                         onClick={() => handleOpenAtaModal(meeting)}
                         className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg flex items-center justify-center gap-2"
@@ -405,6 +418,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
                         Ver Gravação
                       </a>
                     )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -437,7 +451,7 @@ export function Meetings({ userProfile }: MeetingsProps) {
       {/* Atas Anteriores (MOR-033) — consulta read-only, todos os perfis */}
       {showAtasAnteriores && (
         <AtasAnterioresModal
-          atas={meetings}
+          atas={meetings.filter((m) => m.ataStatus === 'OFICIAL')}
           onClose={() => setShowAtasAnteriores(false)}
         />
       )}

@@ -21,6 +21,8 @@ import { requireManager } from "@/server/auth/guard";
 import { listReservasAction, aprovarReservaAction, rejeitarReservaAction } from "@/app/actions/reservas";
 import { listPropostasAction, homologarPropostaAction, rejeitarPropostaAction } from "@/app/actions/governanca";
 import { listDespesasAction, aprovarDespesaAction, reprovarDespesaAction } from "@/app/actions/despesas";
+import { listReunioesAction, aprovarAtaAction, rejeitarAtaAction } from "@/app/actions/reunioes";
+import type { Reuniao } from "@/components/meetings/reunioes";
 import {
   ordenarPendencias,
   type Pendencia,
@@ -115,16 +117,39 @@ function mapDespesa(d: Despesa): Pendencia {
   };
 }
 
+const SLA_DECISAO_ATA_DIAS = 7;
+
+function mapAta(r: Reuniao): Pendencia {
+  // Entrada = data da reunião; prazo = ata deve ser finalizada em até 7 dias.
+  const prazo = new Date(new Date(`${r.date}T00:00:00`).getTime() + SLA_DECISAO_ATA_DIAS * 86_400_000).toISOString();
+  const trecho = (r.ataContent ?? "").slice(0, 280);
+  return {
+    tipo: "ATA",
+    id: r.id,
+    titulo: `Ata · ${r.title}`,
+    solicitante: r.createdBy,
+    dataEntrada: `${r.date}T00:00:00`,
+    prazo,
+    detalhes: [
+      { label: "Reunião", valor: r.title },
+      { label: "Data da reunião", valor: formatDataBR(r.date) },
+      { label: "Trecho da ata", valor: trecho + ((r.ataContent ?? "").length > 280 ? "…" : "") },
+    ],
+    rejeicaoMotivoObrigatorio: true,
+  };
+}
+
 // --- Leitura: lista agregada -------------------------------------------------
 
 export async function listPendenciasAction(): Promise<Pendencia[]> {
   const session = await requireManager();
   if (!session.condominiumId) return [];
 
-  const [reservasData, governanca, despesas] = await Promise.all([
+  const [reservasData, governanca, despesas, reunioes] = await Promise.all([
     listReservasAction(),
     listPropostasAction(),
     listDespesasAction(),
+    listReunioesAction(),
   ]);
 
   const pendencias: Pendencia[] = [];
@@ -136,6 +161,9 @@ export async function listPendenciasAction(): Promise<Pendencia[]> {
   }
   for (const d of despesas) {
     if (d.status === "AGUARDANDO_APROVACAO") pendencias.push(mapDespesa(d));
+  }
+  for (const r of reunioes) {
+    if (r.ataStatus === "AGUARDANDO_APROVACAO") pendencias.push(mapAta(r));
   }
 
   return ordenarPendencias(pendencias);
@@ -181,6 +209,15 @@ export async function decidirPendenciaAction(input: DecidirPendenciaInput): Prom
       return r.ok ? { ok: true } : { ok: false, error: r.error };
     }
     const r = await reprovarDespesaAction(input.id, motivo);
+    return r.ok ? { ok: true } : { ok: false, error: r.error };
+  }
+
+  if (input.tipo === "ATA") {
+    if (input.decisao === "aprovar") {
+      const r = await aprovarAtaAction(input.id);
+      return r.ok ? { ok: true } : { ok: false, error: r.error };
+    }
+    const r = await rejeitarAtaAction(input.id, motivo);
     return r.ok ? { ok: true } : { ok: false, error: r.error };
   }
 

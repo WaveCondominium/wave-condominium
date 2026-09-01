@@ -628,6 +628,15 @@ enum StatusReuniao {
   CONCLUIDA
 }
 
+// SÍN-026 (reuniões, Etapa B): ciclo de aprovação da ata. A ata é redigida como
+// rascunho, enviada para aprovação e só vira OFICIAL quando o síndico aprova na
+// Central (rejeitar volta a RASCUNHO, com motivo). null = ainda sem ata.
+enum StatusAta {
+  RASCUNHO
+  AGUARDANDO_APROVACAO
+  OFICIAL
+}
+
 model Reuniao {
   id            String      @id @default(cuid())
   condominiumId String
@@ -647,6 +656,12 @@ model Reuniao {
   ataContent   String?
   ataHash      String?
   recordingUrl String?
+
+  // Ciclo de aprovação da ata (Etapa B). Rastreabilidade da decisão do síndico.
+  ataStatus         StatusAta?
+  ataAprovadaPor    String?
+  ataAprovadaEm     DateTime?
+  ataMotivoRejeicao String?
 
   criadoPor    String
   criadoEm     DateTime @default(now())

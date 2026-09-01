@@ -17,6 +17,26 @@ export const STATUS_REUNIAO_LABEL: Record<StatusReuniao, string> = {
   completed: 'Concluída',
 };
 
+// SÍN-026 (Etapa B): ciclo de aprovação da ata.
+export type StatusAta = 'RASCUNHO' | 'AGUARDANDO_APROVACAO' | 'OFICIAL';
+
+export const STATUS_ATA_LABEL: Record<StatusAta, string> = {
+  RASCUNHO: 'Rascunho',
+  AGUARDANDO_APROVACAO: 'Aguardando aprovação',
+  OFICIAL: 'Oficial',
+};
+
+export const STATUS_ATA_COR: Record<StatusAta, string> = {
+  RASCUNHO: 'bg-wave-100 text-wave-600',
+  AGUARDANDO_APROVACAO: 'bg-amber-100 text-amber-700',
+  OFICIAL: 'bg-brand-teal/15 text-brand-teal',
+};
+
+/** A ata só pode ser editada enquanto não for OFICIAL (integridade travada). */
+export function podeEditarAta(ataStatus?: StatusAta): boolean {
+  return ataStatus !== 'OFICIAL';
+}
+
 export interface Reuniao {
   id: string;
   title: string;
@@ -35,10 +55,13 @@ export interface Reuniao {
   agenda: string[];
   createdBy: string;
   createdAt: string;
-  /** Ata oficial + código de integridade (MOR-033). */
+  /** Ata + código de integridade (MOR-033). */
   ataContent?: string;
   ataHash?: string;
   recordingUrl?: string;
+  /** Ciclo de aprovação da ata (Etapa B). */
+  ataStatus?: StatusAta;
+  ataMotivoRejeicao?: string;
 }
 
 export interface NovaReuniaoInput {
