@@ -1,8 +1,13 @@
 import { userRepository } from "@/server/repositories/userRepository";
+import { membershipRepository } from "@/server/repositories/membershipRepository";
 import { hashPassword, verifyPassword } from "@/server/auth/password";
 import { createSession, destroySession, getSession } from "@/server/auth/session";
 import type { Role } from "@/lib/rbac";
-import { papeisDisponiveis } from "@/lib/perfis";
+import {
+  papeisNoCondominio,
+  resolverCondominioAtivo,
+  type CondominioMembership,
+} from "@/lib/memberships";
 import type { Role as PrismaRole } from "@prisma/client";
 
 // Ponto UNICO de conversao entre o enum do banco e o rotulo do app.
@@ -11,14 +16,42 @@ const DB_TO_LABEL: Record<PrismaRole, Role> = {
   ADMIN: "Admin",
   ADMINISTRADORA: "Administradora",
   SINDICO: "Síndico",
+  CONSELHO: "Conselho",
   MORADOR: "Morador",
 };
 const LABEL_TO_DB: Record<Role, PrismaRole> = {
   Admin: "ADMIN",
   Administradora: "ADMINISTRADORA",
   "Síndico": "SINDICO",
+  Conselho: "CONSELHO",
   Morador: "MORADOR",
 };
+
+/** Carrega os vínculos do usuário em rótulos de app (SÍN-031). */
+async function carregarMemberships(userId: string): Promise<CondominioMembership[]> {
+  const rows = await membershipRepository.listByUser(userId);
+  return rows.map((m: any) => ({
+    condominiumId: m.condominiumId,
+    condominiumName: m.condominium?.name ?? "",
+    role: DB_TO_LABEL[m.role as PrismaRole],
+  }));
+}
+
+/**
+ * Perfis disponíveis no condomínio ATIVO (SÍN-031 + SÍN-003): papel do vínculo
+ * naquele condomínio (fallback: papel de cadastro) + papel secundário somente
+ * quando o condomínio ativo é o "home" do usuário.
+ */
+function availableRolesForCondo(
+  u: DbUser,
+  memberships: CondominioMembership[],
+  activeCondominiumId: string | null,
+): Role[] {
+  const doVinculo = memberships.find((m) => m.condominiumId === activeCondominiumId)?.role ?? null;
+  const secundario = u.secondaryRole ? DB_TO_LABEL[u.secondaryRole] : null;
+  const ehHome = !!activeCondominiumId && activeCondominiumId === u.condominiumId;
+  return papeisNoCondominio(doVinculo, DB_TO_LABEL[u.role], secundario, ehHome);
+}
 
 export interface PublicUser {
   id: string;
@@ -47,24 +80,24 @@ type DbUser = {
   acessoRevogado?: boolean;
 };
 
-/** Perfis disponíveis do usuário, em rótulos de app (primário + secundário). */
-function availableRolesOf(u: DbUser): Role[] {
-  const secundario = u.secondaryRole ? DB_TO_LABEL[u.secondaryRole] : null;
-  return papeisDisponiveis(DB_TO_LABEL[u.role], secundario);
-}
-
 // `activeRole` é o perfil ATIVO da sessão; quando ausente, usa o papel de
-// cadastro (comportamento anterior para usuários de perfil único).
-function toPublic(u: DbUser, activeRole?: Role): PublicUser {
+// cadastro. `availableRoles` e `condominiumId` refletem o condomínio ATIVO
+// (SÍN-031); quando ausentes, caem no papel/condomínio de cadastro.
+function toPublic(
+  u: DbUser,
+  activeRole?: Role,
+  availableRoles?: Role[],
+  activeCondominiumId?: string | null,
+): PublicUser {
   return {
     id: u.id,
     email: u.email,
     name: u.name,
     role: activeRole ?? DB_TO_LABEL[u.role],
-    availableRoles: availableRolesOf(u),
+    availableRoles: availableRoles ?? [activeRole ?? DB_TO_LABEL[u.role]],
     unit: u.unit,
     photoUrl: u.photoUrl,
-    condominiumId: u.condominiumId,
+    condominiumId: activeCondominiumId !== undefined ? activeCondominiumId : u.condominiumId,
     administradoraId: u.administradoraId,
     mustChangePassword: u.mustChangePassword ?? false,
   };
@@ -86,19 +119,28 @@ export async function login(email: string, password: string): Promise<LoginResul
     return { ok: false, error: "Seu acesso foi revogado. Fale com o síndico do condomínio." };
   }
 
-  // Perfil ativo inicial = primário. Se houver mais de um perfil, a UI oferece
-  // a escolha (needsProfileChoice) e chama setActiveProfile depois.
-  const disponiveis = availableRolesOf(user);
+  // SÍN-031: resolve o condomínio ATIVO a partir dos vínculos (home preferido);
+  // o papel ativo é o papel do usuário NESSE condomínio (fallback: cadastro).
+  const memberships = await carregarMemberships(user.id);
+  const activeCondo = resolverCondominioAtivo(memberships, user.condominiumId ?? null);
+
+  // Perfil ativo inicial = primário do condomínio ativo. Se houver mais de um
+  // perfil, a UI oferece a escolha (needsProfileChoice) e chama setActiveProfile.
+  const disponiveis = availableRolesForCondo(user, memberships, activeCondo);
   const ativo = disponiveis[0];
 
   await createSession({
     userId: user.id,
     role: ativo,
-    condominiumId: user.condominiumId ?? null,
+    condominiumId: activeCondo,
     administradoraId: user.administradoraId ?? null,
     mustChangePassword: user.mustChangePassword ?? false,
   });
-  return { ok: true, user: toPublic(user, ativo), needsProfileChoice: disponiveis.length > 1 };
+  return {
+    ok: true,
+    user: toPublic(user, ativo, disponiveis, activeCondo),
+    needsProfileChoice: disponiveis.length > 1,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -121,19 +163,21 @@ export async function setActiveProfile(role: Role): Promise<SetActiveProfileResu
   if (!user) return { ok: false, error: "Usuário não encontrado." };
 
   // Regra crítica validada no SERVIDOR: o perfil pedido precisa estar entre os
-  // disponíveis do usuário (primário + secundário). Nunca confia no cliente.
-  if (!availableRolesOf(user).includes(role)) {
+  // disponíveis do usuário NO CONDOMÍNIO ATIVO da sessão. Nunca confia no cliente.
+  const memberships = await carregarMemberships(user.id);
+  const disponiveis = availableRolesForCondo(user, memberships, session.condominiumId);
+  if (!disponiveis.includes(role)) {
     return { ok: false, error: "Perfil não permitido para este usuário." };
   }
 
   await createSession({
     userId: user.id,
     role,
-    condominiumId: user.condominiumId ?? null,
+    condominiumId: session.condominiumId, // preserva o condomínio ativo
     administradoraId: user.administradoraId ?? null,
     mustChangePassword: user.mustChangePassword ?? false,
   });
-  return { ok: true, user: toPublic(user, role) };
+  return { ok: true, user: toPublic(user, role, disponiveis, session.condominiumId) };
 }
 
 export async function logout(): Promise<void> {
@@ -147,8 +191,11 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
   if (!user) return null;
   // SÍN-022: acesso revogado invalida a sessão em curso (próxima requisição).
   if (user.acessoRevogado) return null;
-  // `role` reflete o PERFIL ATIVO da sessão (SÍN-003), não o papel de cadastro.
-  return toPublic(user, session.role);
+  // `role`/`condominiumId` refletem o CONTEXTO ATIVO da sessão (SÍN-003/SÍN-031),
+  // não o papel/condomínio de cadastro. availableRoles = perfis no condo ativo.
+  const memberships = await carregarMemberships(user.id);
+  const disponiveis = availableRolesForCondo(user, memberships, session.condominiumId);
+  return toPublic(user, session.role, disponiveis, session.condominiumId);
 }
 
 export interface RegisterInput {
@@ -170,6 +217,8 @@ export async function register(input: RegisterInput): Promise<PublicUser> {
     unit: input.unit ?? null,
     condominiumId: input.condominiumId,
   });
+  // SÍN-031: mantém o modelo consistente — todo usuário de condomínio tem vínculo.
+  await membershipRepository.upsert(created.id, input.condominiumId, LABEL_TO_DB[input.role]);
   return toPublic(created);
 }
 
@@ -200,6 +249,7 @@ export async function registerMorador(input: RegisterMoradorInput): Promise<Publ
     condominiumId: input.condominiumId,
     mustChangePassword: true,
   });
+  await membershipRepository.upsert(created.id, input.condominiumId, "MORADOR");
   return toPublic(created);
 }
 
@@ -254,6 +304,9 @@ export async function ativarAcessoMorador(input: AtivarMoradorInput): Promise<At
       mustChangePassword: false,
     });
   }
+
+  // SÍN-031: garante o vínculo do morador com o condomínio do convite.
+  await membershipRepository.upsert(user.id, input.condominiumId, "MORADOR");
 
   await createSession({
     userId: user.id,

@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { ArrowRight, ArrowLeft, Shield, Vote, FileText, Home, Building2, Settings, User as UserIcon } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Shield, Vote, FileText, Home, Building2, Settings, Users, User as UserIcon } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -21,6 +21,7 @@ interface LoginProps {
 // Ícone por perfil — apoia a leitura rápida do porteiro/idoso (ícone + texto).
 const ROLE_ICON: Record<AppRole, LucideIcon> = {
   'Síndico': Shield,
+  Conselho: Users,
   Morador: Home,
   Administradora: Building2,
   Admin: Settings,

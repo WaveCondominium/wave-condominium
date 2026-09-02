@@ -1,6 +1,7 @@
 import { getSession, type SessionPayload } from "./session";
 import { isManager, isPlatformAdmin, isAdministradora } from "@/lib/rbac";
 import { userRepository } from "@/server/repositories/userRepository";
+import { membershipRepository } from "@/server/repositories/membershipRepository";
 
 export class AuthError extends Error {
   constructor(public code: "NAO_AUTENTICADO" | "SEM_PERMISSAO") {
@@ -62,5 +63,9 @@ export async function requireCondominioScope(condominiumId: string): Promise<Ses
   if (isPlatformAdmin(session.role)) return session;
   if (isAdministradora(session.role)) return session;
   if (session.condominiumId && session.condominiumId === condominiumId) return session;
+  // SÍN-031: o usuário pode agir num condomínio se tiver VÍNCULO com ele
+  // (papel por condomínio), mesmo que não seja o condomínio ativo da sessão.
+  const vinculo = await membershipRepository.findByUserAndCondominium(session.userId, condominiumId);
+  if (vinculo) return session;
   throw new AuthError("SEM_PERMISSAO");
 }

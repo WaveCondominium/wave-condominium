@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { loginAction, logoutAction, meAction, setActiveProfileAction } from "@/app/actions/auth";
 
-export type AppRole = "Admin" | "Morador" | "Síndico" | "Administradora";
+export type AppRole = "Admin" | "Morador" | "Síndico" | "Conselho" | "Administradora";
 
 export interface User {
   id: string;

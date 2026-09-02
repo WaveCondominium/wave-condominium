@@ -37,25 +37,34 @@ model Administradora {
 model Condominium {
   id               String          @id @default(cuid())
   name             String
+  // SÍN-031: 1 condomínio = 1 CNPJ. Identificação fiscal única na plataforma.
+  cnpj             String?         @unique
   administradoraId String?
   administradora   Administradora? @relation(fields: [administradoraId], references: [id])
   createdAt        DateTime        @default(now())
+
+  // SÍN-031 (isolamento financeiro): subconta independente do condomínio no PSP.
+  // Aqui modelamos o VÍNCULO (id externo da subconta); a integração real com o
+  // PSP fica para um card próprio. Receitas/despesas/boletos operam sempre no
+  // contexto do condomínio, então herdam esta subconta.
+  pspSubcontaId String? @unique
 
   // SÍN-026 (financeiro): alçada de aprovação. Despesas com valor ACIMA deste
   // teto exigem aprovação do síndico na Central. null = sem alçada (toda
   // despesa segue direto para PENDENTE — comportamento anterior preservado).
   alcadaAprovacao Decimal? @db.Decimal(12, 2)
 
-  users     User[]
-  avisos    Aviso[]
-  reservas  Reserva[]
-  bloqueios Bloqueio[]
-  boletos   Boleto[]
-  propostas Proposta[]
-  despesas  Despesa[]
-  unidades  Unidade[]
-  convites  ConviteAcesso[]
-  reunioes  Reuniao[]
+  users       User[]
+  memberships CondominiumMembership[]
+  avisos      Aviso[]
+  reservas    Reserva[]
+  bloqueios   Bloqueio[]
+  boletos     Boleto[]
+  propostas   Proposta[]
+  despesas    Despesa[]
+  unidades    Unidade[]
+  convites    ConviteAcesso[]
+  reunioes    Reuniao[]
 
   @@index([administradoraId])
 }
@@ -64,12 +73,15 @@ enum Role {
   ADMIN // Admin de plataforma (Wave)
   ADMINISTRADORA // Empresa que gere multiplos condominios
   SINDICO
+  CONSELHO // SÍN-031: conselho — leitura + participacao, sem acoes de gestao
   MORADOR
 }
 
 model User {
   id           String @id @default(cuid())
-  email        String
+  // SÍN-031: e-mail é identidade GLOBAL única (uma pessoa = uma conta). O acesso
+  // a cada condomínio e o papel nele vêm de CondominiumMembership, não do e-mail.
+  email        String @unique
   passwordHash String
   name         String
   role         Role   @default(MORADOR)
@@ -87,20 +99,40 @@ model User {
   // as sessões deixam de ser válidas (verificado no login/guard/getCurrentUser).
   acessoRevogado Boolean @default(false)
 
-  // Vinculo com condominio (sindico/morador) OU administradora.
+  // SÍN-031: `condominiumId`/`role` acima permanecem como o condomínio/papel
+  // PADRÃO (home) do usuário — usados como semente do backfill e fallback de
+  // sessão. A AUTORIDADE de acesso e papel por condomínio é `memberships`.
   condominiumId String?
   condominium   Condominium? @relation(fields: [condominiumId], references: [id])
 
   administradoraId String?
   administradora   Administradora? @relation(fields: [administradoraId], references: [id])
 
-  sessions  Session[]
-  votos     Voto[]
-  createdAt DateTime  @default(now())
+  memberships CondominiumMembership[]
+  sessions    Session[]
+  votos       Voto[]
+  createdAt   DateTime @default(now())
 
-  @@unique([condominiumId, email])
   @@index([condominiumId])
   @@index([administradoraId])
+}
+
+// SÍN-031: vínculo N:N usuário↔condomínio com PAPEL POR CONDOMÍNIO. Fonte de
+// verdade do acesso multi-condomínio: um mesmo usuário pode ser SINDICO em um
+// condomínio e CONSELHO em outro. Toda decisão de acesso valida este vínculo no
+// servidor (nunca confia no condomínio "ativo" escolhido pela interface).
+model CondominiumMembership {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+  role          Role
+  createdAt     DateTime    @default(now())
+
+  @@unique([userId, condominiumId])
+  @@index([condominiumId])
+  @@index([userId])
 }
 
 model Session {

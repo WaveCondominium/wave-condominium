@@ -13,8 +13,8 @@ function daysFromNow(days) {
 
 const condo = await prisma.condominium.upsert({
   where: { id: "seed-condo" },
-  update: {},
-  create: { id: "seed-condo", name: "Condominio Demo" },
+  update: { cnpj: "12.345.678/0001-90" },
+  create: { id: "seed-condo", name: "Condominio Demo", cnpj: "12.345.678/0001-90" },
 });
 
 const passwordHash = await bcrypt.hash("Senha@12345", 12);
@@ -31,14 +31,25 @@ const demoUsers = [
   { email: "morador5@wave.com", name: "Beatriz Rocha",      role: "MORADOR", unit: "Apto 207" },
 ];
 
+// SÍN-031: helper idempotente para o vínculo usuário↔condomínio (papel por condo).
+async function vincular(userId, condominiumId, role) {
+  await prisma.condominiumMembership.upsert({
+    where: { userId_condominiumId: { userId, condominiumId } },
+    update: { role },
+    create: { userId, condominiumId, role },
+  });
+}
+
 const usersByEmail = {};
 for (const u of demoUsers) {
   const saved = await prisma.user.upsert({
-    where: { condominiumId_email: { condominiumId: condo.id, email: u.email } },
-    update: { passwordHash, name: u.name, role: u.role, unit: u.unit, secondaryRole: u.secondaryRole ?? null },
+    where: { email: u.email },
+    update: { passwordHash, name: u.name, role: u.role, unit: u.unit, secondaryRole: u.secondaryRole ?? null, condominiumId: condo.id },
     create: { ...u, passwordHash, condominiumId: condo.id },
   });
   usersByEmail[u.email] = saved.id;
+  // ADMIN é papel de plataforma (sem condomínio); os demais ganham vínculo.
+  if (u.role !== "ADMIN") await vincular(saved.id, condo.id, u.role);
   console.log("Seed ok ->", u.email, "(" + u.role + ")");
 }
 
@@ -374,7 +385,7 @@ console.log("Seed ok -> administradora@wave.com (ADMINISTRADORA)");
 
 const condosAdm = [
   {
-    id: "seed-condo-aurora", name: "Residencial Aurora",
+    id: "seed-condo-aurora", name: "Residencial Aurora", cnpj: "23.456.789/0001-01",
     sindico: { email: "sindico.aurora@wave.com", name: "Roberto Alves", unit: "Apto 101" },
     moradores: [
       { email: "aurora.morador1@wave.com", name: "Fernanda Dias", unit: "Apto 201" },
@@ -384,7 +395,7 @@ const condosAdm = [
     avisos: 2, boletosPend: 3, propostasAbertas: 2,
   },
   {
-    id: "seed-condo-horizonte", name: "Edificio Horizonte",
+    id: "seed-condo-horizonte", name: "Edificio Horizonte", cnpj: "34.567.890/0001-12",
     sindico: { email: "sindico.horizonte@wave.com", name: "Marcos Tavares", unit: "Apto 100" },
     moradores: [
       { email: "horizonte.morador1@wave.com", name: "Patricia Gomes", unit: "Apto 301" },
@@ -393,7 +404,7 @@ const condosAdm = [
     avisos: 1, boletosPend: 1, propostasAbertas: 1,
   },
   {
-    id: "seed-condo-flores", name: "Parque das Flores",
+    id: "seed-condo-flores", name: "Parque das Flores", cnpj: "45.678.901/0001-23",
     sindico: { email: "sindico.flores@wave.com", name: "Sonia Barros", unit: "Casa 1" },
     moradores: [
       { email: "flores.morador1@wave.com", name: "Diego Martins", unit: "Casa 12" },
@@ -414,23 +425,25 @@ const PROP_CATS = ["MELHORIAS", "SUSTENTABILIDADE"];
 for (const cfg of condosAdm) {
   const condo = await prisma.condominium.upsert({
     where: { id: cfg.id },
-    update: { name: cfg.name, administradoraId: adm.id },
-    create: { id: cfg.id, name: cfg.name, administradoraId: adm.id },
+    update: { name: cfg.name, administradoraId: adm.id, cnpj: cfg.cnpj },
+    create: { id: cfg.id, name: cfg.name, administradoraId: adm.id, cnpj: cfg.cnpj },
   });
 
-  await prisma.user.upsert({
-    where: { condominiumId_email: { condominiumId: condo.id, email: cfg.sindico.email } },
-    update: { passwordHash, name: cfg.sindico.name, role: "SINDICO", unit: cfg.sindico.unit },
+  const sindicoSaved = await prisma.user.upsert({
+    where: { email: cfg.sindico.email },
+    update: { passwordHash, name: cfg.sindico.name, role: "SINDICO", unit: cfg.sindico.unit, condominiumId: condo.id },
     create: { email: cfg.sindico.email, passwordHash, name: cfg.sindico.name, role: "SINDICO", unit: cfg.sindico.unit, condominiumId: condo.id },
   });
+  await vincular(sindicoSaved.id, condo.id, "SINDICO");
 
   const moradorIds = [];
   for (const m of cfg.moradores) {
     const saved = await prisma.user.upsert({
-      where: { condominiumId_email: { condominiumId: condo.id, email: m.email } },
-      update: { passwordHash, name: m.name, role: "MORADOR", unit: m.unit },
+      where: { email: m.email },
+      update: { passwordHash, name: m.name, role: "MORADOR", unit: m.unit, condominiumId: condo.id },
       create: { email: m.email, passwordHash, name: m.name, role: "MORADOR", unit: m.unit, condominiumId: condo.id },
     });
+    await vincular(saved.id, condo.id, "MORADOR");
     moradorIds.push(saved.id);
   }
 
@@ -484,6 +497,12 @@ for (const cfg of condosAdm) {
 
   console.log("Seed ok -> " + cfg.name + ": 1 sindico, " + cfg.moradores.length + " moradores, " + cfg.avisos + " avisos, " + cfg.boletosPend + " boletos, " + cfg.propostasAbertas + " propostas");
 }
+
+// SÍN-031 (demo síndico profissional multi-condomínio): Joao (sindico@wave.com),
+// além de Síndico no Condominio Demo, é membro do CONSELHO na Residencial Aurora.
+// Ao logar, ele vê o seletor de condomínio e alterna entre os papéis por condo.
+await vincular(usersByEmail["sindico@wave.com"], "seed-condo-aurora", "CONSELHO");
+console.log("Seed ok -> Joao Silva: Sindico (Condominio Demo) + Conselho (Residencial Aurora)");
 
 console.log("Senha para todos: Senha@12345");
 await prisma.$disconnect();

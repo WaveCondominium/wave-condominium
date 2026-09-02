@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Menu, Building2, ChevronLeft } from 'lucide-react';
 import { Sidebar } from '@/components/Sidebar';
+import { CondominioSwitcher } from '@/components/CondominioSwitcher';
 import { useUser } from '@/contexts/UserContext';
 import { PendenciasProvider } from '@/contexts/PendenciasContext';
 import { useRouter, usePathname } from 'next/navigation';
@@ -101,6 +102,11 @@ export default function DashboardLayout({
           </button>
           <span className="font-serif text-lg text-wave-800">Wave</span>
         </header>
+
+        {/* Seletor de condomínio ativo (SÍN-031) — aparece para usuários com
+            vínculo em mais de um condomínio (ex.: síndico profissional). A
+            Administradora usa o próprio fluxo de painel/banner abaixo. */}
+        {userProfile.role !== 'Administradora' && <CondominioSwitcher />}
 
         {/* Banner de contexto da Administradora — indica qual condominio esta
             sendo gerenciado e permite voltar ao painel multi-condominio. */}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isManager, isPlatformAdmin, isAdministradora } from "./rbac";
+import { isManager, isPlatformAdmin, isAdministradora, isConselho } from "./rbac";
 
 // RBAC é o coração da segurança do Wave: um erro aqui libera ou bloqueia
 // funcionalidades inteiras para o perfil errado. Estes testes travam o
@@ -14,6 +14,10 @@ describe("isManager", () => {
 
   it("retorna false para Morador", () => {
     expect(isManager("Morador")).toBe(false);
+  });
+
+  it("retorna false para Conselho — SÍN-031: leitura/participação, sem gestão", () => {
+    expect(isManager("Conselho")).toBe(false);
   });
 
   it("retorna false para ausência de papel (undefined/null)", () => {
@@ -49,5 +53,18 @@ describe("isAdministradora", () => {
     expect(isAdministradora("Síndico")).toBe(false);
     expect(isAdministradora("Morador")).toBe(false);
     expect(isAdministradora(null)).toBe(false);
+  });
+});
+
+describe("isConselho", () => {
+  it("retorna true apenas para Conselho", () => {
+    expect(isConselho("Conselho")).toBe(true);
+  });
+
+  it("retorna false para os demais papéis e ausência", () => {
+    expect(isConselho("Síndico")).toBe(false);
+    expect(isConselho("Administradora")).toBe(false);
+    expect(isConselho("Morador")).toBe(false);
+    expect(isConselho(undefined)).toBe(false);
   });
 });
