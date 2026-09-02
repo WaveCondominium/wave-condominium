@@ -12,7 +12,13 @@
 
 // --- Tipos de fonte (extensível: financeiro, reuniões, manutenção... depois) -
 
-export type PendenciaTipo = 'RESERVA' | 'PROPOSTA' | 'DESPESA' | 'ATA' | 'MANUTENCAO';
+export type PendenciaTipo =
+  | 'RESERVA'
+  | 'PROPOSTA'
+  | 'DESPESA'
+  | 'ATA'
+  | 'MANUTENCAO'
+  | 'CONVOCACAO';
 
 export const PENDENCIA_TIPO_LABEL: Record<PendenciaTipo, string> = {
   RESERVA: 'Reserva de área comum',
@@ -20,6 +26,7 @@ export const PENDENCIA_TIPO_LABEL: Record<PendenciaTipo, string> = {
   DESPESA: 'Despesa acima da alçada',
   ATA: 'Ata de reunião',
   MANUTENCAO: 'Solicitação de manutenção',
+  CONVOCACAO: 'Convocação de reunião',
 };
 
 // --- Entidade unificada ------------------------------------------------------

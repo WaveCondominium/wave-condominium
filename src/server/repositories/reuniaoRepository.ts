@@ -30,6 +30,15 @@ export const reuniaoRepository = {
     return prisma.reuniao.updateMany({ where: { id, condominiumId }, data });
   },
 
+  /**
+   * Remove uma reunião (escopado por condomínio). Usado para descartar um
+   * rascunho de convocação rejeitado na Central (SÍN-026). Confirmações são
+   * removidas em cascata (onDelete: Cascade) — rascunhos não têm confirmações.
+   */
+  remove(id: string, condominiumId: string) {
+    return prisma.reuniao.deleteMany({ where: { id, condominiumId } });
+  },
+
   // --- Confirmações de presença (MOR-032) ------------------------------------
 
   /** Todas as confirmações do condomínio (para exibição/contagem na UI). */

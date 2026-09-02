@@ -17,6 +17,7 @@
 
 import type { StatusReuniao as PrismaStatusReuniao } from "@prisma/client";
 import { requireSession, requireManager } from "@/server/auth/guard";
+import { isManager } from "@/lib/rbac";
 import { reuniaoRepository } from "@/server/repositories/reuniaoRepository";
 import { userRepository } from "@/server/repositories/userRepository";
 import { calcularHashAta } from "@/components/meetings/atasIntegridade";
@@ -29,6 +30,7 @@ import {
 import type { ConfirmacaoPresenca } from "@/components/meetings/presencaConfirmacoes";
 
 const STATUS_FROM_DB: Record<PrismaStatusReuniao, StatusReuniao> = {
+  RASCUNHO: "draft",
   AGENDADA: "scheduled",
   EM_ANDAMENTO: "ongoing",
   CONCLUIDA: "completed",
@@ -49,6 +51,7 @@ function toApp(r: any): Reuniao {
     agenda: r.pauta ?? [],
     createdBy: r.criadoPor,
     createdAt: new Date(r.criadoEm).toLocaleDateString("pt-BR"),
+    createdAtISO: new Date(r.criadoEm).toISOString(),
     ataContent: r.ataContent ?? undefined,
     ataHash: r.ataHash ?? undefined,
     recordingUrl: r.recordingUrl ?? undefined,
@@ -74,7 +77,10 @@ export async function listReunioesAction(): Promise<Reuniao[]> {
   const session = await requireSession();
   if (!session.condominiumId) return [];
   const rows = await reuniaoRepository.listByCondominium(session.condominiumId);
-  return rows.map(toApp);
+  // Convocações em RASCUNHO só são visíveis à gestão até serem publicadas
+  // (SÍN-026). O morador nunca recebe um rascunho — filtro NO SERVIDOR.
+  const gestor = isManager(session.role);
+  return rows.filter((r: any) => gestor || r.status !== "RASCUNHO").map(toApp);
 }
 
 export async function listConfirmacoesAction(): Promise<ConfirmacaoPresenca[]> {
@@ -105,10 +111,50 @@ export async function criarReuniaoAction(input: NovaReuniaoInput): Promise<Reuni
     meetLink: input.meetLink?.trim() || "",
     maxParticipantes: input.maxParticipants,
     pauta: input.agenda.filter((i) => i && i.trim()),
-    status: "AGENDADA",
+    // SÍN-026: nasce como RASCUNHO — só vira AGENDADA (visível aos moradores)
+    // após a publicação do síndico na Central de Aprovações.
+    status: "RASCUNHO",
     criadoPor: gestor?.name ?? "Gestor",
   });
   return { ok: true, reuniao: toApp({ ...row, _count: { confirmacoes: 0 } }) };
+}
+
+// --- Publicação / descarte da convocação (gestor) — SÍN-026 ------------------
+
+/**
+ * Publica a convocação (RASCUNHO → AGENDADA), tornando-a visível aos moradores.
+ * Decisão do síndico na Central de Aprovações. Só rascunhos podem ser publicados.
+ */
+export async function publicarReuniaoAction(id: string): Promise<ReuniaoResult> {
+  const session = await requireManager();
+  if (!session.condominiumId) {
+    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+  }
+  const existente = await reuniaoRepository.findById(id, session.condominiumId);
+  if (!existente) return { ok: false, error: "Reunião não encontrada." };
+  if ((existente as any).status !== "RASCUNHO") {
+    return { ok: false, error: "Só é possível publicar convocações em rascunho." };
+  }
+  await reuniaoRepository.update(id, session.condominiumId, { status: "AGENDADA" });
+  return recarregarReuniao(id, session.condominiumId);
+}
+
+/**
+ * Descarta (remove) uma convocação em rascunho — rejeição na Central. Somente
+ * rascunhos podem ser descartados (nunca uma reunião já publicada/visível).
+ */
+export async function descartarReuniaoAction(id: string): Promise<{ ok: boolean; error?: string }> {
+  const session = await requireManager();
+  if (!session.condominiumId) {
+    return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+  }
+  const existente = await reuniaoRepository.findById(id, session.condominiumId);
+  if (!existente) return { ok: false, error: "Reunião não encontrada." };
+  if ((existente as any).status !== "RASCUNHO") {
+    return { ok: false, error: "Só é possível descartar convocações em rascunho." };
+  }
+  await reuniaoRepository.remove(id, session.condominiumId);
+  return { ok: true };
 }
 
 // --- Ata (gestor) — Etapa B: salvar envia a ata para aprovação ---------------

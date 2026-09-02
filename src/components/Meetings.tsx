@@ -48,7 +48,9 @@ export function Meetings({ userProfile }: MeetingsProps) {
     const res = await criar(data);
     if (!res.ok) { toast.error(res.error); return; }
     setShowCreateModal(false);
-    toast.success('Reunião agendada com sucesso!');
+    toast.success('Convocação criada como rascunho!', {
+      description: 'Publique em Aprovações Pendentes para torná-la visível aos moradores.',
+    });
   };
 
   const handleConfirmPresence = async (meetingId: string) => {
@@ -94,6 +96,13 @@ export function Meetings({ userProfile }: MeetingsProps) {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'draft':
+        return (
+          <span className="flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm">
+            <FileText className="w-4 h-4" />
+            Rascunho
+          </span>
+        );
       case 'scheduled':
         return (
           <span className="flex items-center gap-1 px-3 py-1 bg-wave-100 text-wave-600 rounded-full text-sm">
@@ -314,7 +323,18 @@ export function Meetings({ userProfile }: MeetingsProps) {
                 </div>
 
                 {/* Actions */}
-                {meeting.status === 'scheduled' || meeting.status === 'ongoing' ? (
+                {meeting.status === 'draft' ? (
+                  /* Convocação em rascunho (SÍN-026) — visível só à gestão até a
+                     publicação na Central de Aprovações. */
+                  <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                    <Clock className="w-5 h-5 shrink-0 mt-0.5" />
+                    <span>
+                      Convocação em <strong>rascunho</strong>. Publique em{' '}
+                      <strong>Aprovações Pendentes</strong> para torná-la visível aos moradores
+                      (ou rejeite para descartá-la).
+                    </span>
+                  </div>
+                ) : meeting.status === 'scheduled' || meeting.status === 'ongoing' ? (
                   <div className="flex gap-3">
                     {/* MOR-055: "Entrar na Reunião" só aparece quando há link válido
                         cadastrado pelo responsável; caso contrário, apenas informa. */}

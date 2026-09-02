@@ -32,6 +32,7 @@ describe('catálogo', () => {
     expect(PENDENCIA_TIPO_LABEL.DESPESA).toMatch(/alçada|despesa/i);
     expect(PENDENCIA_TIPO_LABEL.ATA).toMatch(/ata/i);
     expect(PENDENCIA_TIPO_LABEL.MANUTENCAO).toMatch(/manuten/i);
+    expect(PENDENCIA_TIPO_LABEL.CONVOCACAO).toMatch(/convoca/i);
   });
 });
 

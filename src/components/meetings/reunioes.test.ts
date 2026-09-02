@@ -4,6 +4,7 @@ import {
   STATUS_REUNIAO_LABEL,
   STATUS_ATA_LABEL,
   podeEditarAta,
+  ehRascunhoConvocacao,
   validarNovaReuniao,
   type NovaReuniaoInput,
 } from './reunioes';
@@ -23,10 +24,16 @@ function nova(overrides: Partial<NovaReuniaoInput> = {}): NovaReuniaoInput {
 }
 
 describe('status de reunião', () => {
-  it('rotula os três status', () => {
+  it('rotula os status (inclui rascunho de convocação — SÍN-026)', () => {
+    expect(STATUS_REUNIAO_LABEL.draft).toBe('Rascunho');
     expect(STATUS_REUNIAO_LABEL.scheduled).toBe('Agendada');
     expect(STATUS_REUNIAO_LABEL.ongoing).toBe('Ao Vivo');
     expect(STATUS_REUNIAO_LABEL.completed).toBe('Concluída');
+  });
+  it('identifica um rascunho de convocação', () => {
+    expect(ehRascunhoConvocacao('draft')).toBe(true);
+    expect(ehRascunhoConvocacao('scheduled')).toBe(false);
+    expect(ehRascunhoConvocacao('completed')).toBe(false);
   });
 });
 

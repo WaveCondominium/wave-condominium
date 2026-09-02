@@ -21,7 +21,13 @@ import { requireManager } from "@/server/auth/guard";
 import { listReservasAction, aprovarReservaAction, rejeitarReservaAction } from "@/app/actions/reservas";
 import { listPropostasAction, homologarPropostaAction, rejeitarPropostaAction } from "@/app/actions/governanca";
 import { listDespesasAction, aprovarDespesaAction, reprovarDespesaAction } from "@/app/actions/despesas";
-import { listReunioesAction, aprovarAtaAction, rejeitarAtaAction } from "@/app/actions/reunioes";
+import {
+  listReunioesAction,
+  aprovarAtaAction,
+  rejeitarAtaAction,
+  publicarReuniaoAction,
+  descartarReuniaoAction,
+} from "@/app/actions/reunioes";
 import type { Reuniao } from "@/components/meetings/reunioes";
 import {
   listSolicitacoesAguardandoAction,
@@ -145,6 +151,29 @@ function mapAta(r: Reuniao): Pendencia {
   };
 }
 
+function mapConvocacao(r: Reuniao): Pendencia {
+  // Entrada = criação do rascunho; prazo = a própria data/horário da reunião
+  // (a convocação precisa ser publicada antes do encontro acontecer).
+  const prazo = `${r.date}T${r.time || "00:00"}:00`;
+  const pauta = r.agenda.filter((i) => i && i.trim());
+  return {
+    tipo: "CONVOCACAO",
+    id: r.id,
+    titulo: `Reunião · ${r.title}`,
+    solicitante: r.createdBy,
+    dataEntrada: r.createdAtISO ?? `${r.date}T00:00:00`,
+    prazo,
+    detalhes: [
+      { label: "Data", valor: formatDataBR(r.date) },
+      { label: "Horário", valor: `${r.time} (${r.duration}min)` },
+      ...(r.description ? [{ label: "Descrição", valor: r.description }] : []),
+      ...(pauta.length ? [{ label: "Pauta", valor: pauta.join(" · ") }] : []),
+    ],
+    // Descartar um rascunho da própria gestão não exige motivo.
+    rejeicaoMotivoObrigatorio: false,
+  };
+}
+
 function mapSolicitacao(s: Solicitacao): Pendencia {
   return {
     tipo: "MANUTENCAO",
@@ -188,6 +217,9 @@ export async function listPendenciasAction(): Promise<Pendencia[]> {
     if (d.status === "AGUARDANDO_APROVACAO") pendencias.push(mapDespesa(d));
   }
   for (const r of reunioes) {
+    // Convocação aguardando publicação (rascunho criado pela gestão).
+    if (r.status === "draft") pendencias.push(mapConvocacao(r));
+    // Ata aguardando homologação (fluxo independente da publicação).
     if (r.ataStatus === "AGUARDANDO_APROVACAO") pendencias.push(mapAta(r));
   }
   for (const s of solicitacoes) {
@@ -256,6 +288,15 @@ export async function decidirPendenciaAction(input: DecidirPendenciaInput): Prom
     }
     const r = await recusarSolicitacaoAction(input.id, motivo);
     return r.ok ? { ok: true } : { ok: false, error: r.error };
+  }
+
+  if (input.tipo === "CONVOCACAO") {
+    if (input.decisao === "aprovar") {
+      const r = await publicarReuniaoAction(input.id); // publica (rascunho → agendada)
+      return r.ok ? { ok: true } : { ok: false, error: r.error };
+    }
+    const r = await descartarReuniaoAction(input.id); // descarta o rascunho
+    return r.ok ? { ok: true } : { ok: false, error: r.error ?? "Não foi possível descartar a convocação." };
   }
 
   return { ok: false, error: "Tipo de pendência não suportado." };

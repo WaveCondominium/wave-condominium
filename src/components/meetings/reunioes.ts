@@ -9,13 +9,22 @@
 // (AGENDADA/EM_ANDAMENTO/CONCLUIDA) de/para estes rótulos-string.
 // ---------------------------------------------------------------------------
 
-export type StatusReuniao = 'scheduled' | 'ongoing' | 'completed';
+// SÍN-026 (Convocações): a reunião nasce como 'draft' (rascunho) e só fica
+// visível aos moradores quando o síndico a publica na Central de Aprovações
+// (publicar → 'scheduled'; rejeitar → descarta o rascunho).
+export type StatusReuniao = 'draft' | 'scheduled' | 'ongoing' | 'completed';
 
 export const STATUS_REUNIAO_LABEL: Record<StatusReuniao, string> = {
+  draft: 'Rascunho',
   scheduled: 'Agendada',
   ongoing: 'Ao Vivo',
   completed: 'Concluída',
 };
+
+/** Rascunho de convocação — visível apenas à gestão até ser publicado. */
+export function ehRascunhoConvocacao(status: StatusReuniao): boolean {
+  return status === 'draft';
+}
 
 // SÍN-026 (Etapa B): ciclo de aprovação da ata.
 export type StatusAta = 'RASCUNHO' | 'AGUARDANDO_APROVACAO' | 'OFICIAL';
@@ -54,7 +63,10 @@ export interface Reuniao {
   maxParticipants: number;
   agenda: string[];
   createdBy: string;
+  /** Data de criação já formatada (pt-BR) para exibição direta na UI. */
   createdAt: string;
+  /** Data de criação em ISO — usada pela Central para ordenar/derivar prazos. */
+  createdAtISO?: string;
   /** Ata + código de integridade (MOR-033). */
   ataContent?: string;
   ataHash?: string;

@@ -333,6 +333,16 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
     ataHash: "EC739E9B9E85E62B",
     ataStatus: "OFICIAL",
   },
+  {
+    // SÍN-026 (Convocações): rascunho aguardando publicação na Central de
+    // Aprovações — visível apenas à gestão até o síndico publicá-lo.
+    titulo: "Assembleia Extraordinaria - Reforma da Fachada",
+    descricao: "Convocacao para deliberar sobre o orcamento da reforma da fachada",
+    data: ymd(30), horario: "19:30", duracao: 120,
+    meetLink: "", status: "RASCUNHO", maxParticipantes: 100,
+    pauta: ["Apresentacao dos orcamentos", "Cronograma da obra", "Rateio e forma de pagamento", "Votacao"],
+    criadoPor: "Sindico Joao Silva",
+  },
 ];
 for (const r of reunioes) await prisma.reuniao.create({ data: { condominiumId: condo.id, ...r } });
 console.log("Seed ok -> " + reunioes.length + " reunioes");

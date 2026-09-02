@@ -637,6 +637,7 @@ model ConviteAcesso {
 // pelos moradores com a identidade da sessão (MOR-032), uma por usuário/reunião.
 
 enum StatusReuniao {
+  RASCUNHO
   AGENDADA
   EM_ANDAMENTO
   CONCLUIDA
