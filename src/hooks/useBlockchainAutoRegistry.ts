@@ -6,7 +6,7 @@ import { anchorMetadataOnChain } from '@/app/actions/blockchain';
 
 export interface BlockchainRecord {
   id: string;
-  type: 'proposal' | 'vote' | 'financial' | 'document' | 'user' | 'unit' | 'approval';
+  type: 'proposal' | 'vote' | 'financial' | 'document' | 'user' | 'unit' | 'approval' | 'onboarding';
   title: string;
   description: string;
   timestamp: string;
@@ -328,6 +328,31 @@ export function useBlockchainAutoRegistry() {
     );
   }, [registerOnBlockchain]);
 
+  // SÍN-030: rastreabilidade das etapas do onboarding do condomínio (cadastro,
+  // início da subconta no PSP, progressão do KYC até apto).
+  const registerOnboardingStep = useCallback(async (data: {
+    etapa: string;
+    condominioNome: string;
+    cnpj: string;
+    responsavel: string;
+    statusPsp: string;
+  }) => {
+    return registerOnBlockchain(
+      'onboarding',
+      `Onboarding: ${data.condominioNome}`,
+      `${data.etapa} · CNPJ ${data.cnpj} · responsável ${data.responsavel} — PSP: ${data.statusPsp}`,
+      {
+        etapa: data.etapa,
+        condominioNome: data.condominioNome,
+        cnpj: data.cnpj,
+        responsavel: data.responsavel,
+        statusPsp: data.statusPsp,
+        registradoEm: new Date().toISOString(),
+      },
+      true,
+    );
+  }, [registerOnBlockchain]);
+
   return {
     records,
     registerUser,
@@ -339,5 +364,6 @@ export function useBlockchainAutoRegistry() {
     registerUnitChange,
     registerAccessChange,
     registerApprovalDecision,
+    registerOnboardingStep,
   };
 }

@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   Shield, ExternalLink, Search, CheckCircle, XCircle, Clock,
   DollarSign, FileText, Vote, User, AlertCircle, Receipt, Filter,
-  AlertTriangle, Wrench, ChevronRight, ShieldCheck, ShieldAlert, Loader2, X, Home,
+  AlertTriangle, Wrench, ChevronRight, ShieldCheck, ShieldAlert, Loader2, X, Home, Building2,
 } from 'lucide-react';
 import { useBlockchainAutoRegistry } from '@/hooks/useBlockchainAutoRegistry';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -15,7 +15,7 @@ import { verifyDocumentOnChain } from '@/app/actions/blockchain';
 // Tipos internos
 // ---------------------------------------------------------------------------
 
-type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document' | 'unit' | 'approval';
+type FilterType = 'all' | 'financial' | 'proposal' | 'vote' | 'document' | 'unit' | 'approval' | 'onboarding';
 type MoradorTab = 'pagamentos' | 'votacoes' | 'documentos';
 
 const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
@@ -26,6 +26,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
   user:      { label: 'Usuário',   icon: User,       color: 'text-gray-700',   bg: 'bg-gray-100'    },
   unit:      { label: 'Unidade',   icon: Home,       color: 'text-wave-600',   bg: 'bg-wave-100'    },
   approval:  { label: 'Aprovação', icon: CheckCircle, color: 'text-emerald-700', bg: 'bg-emerald-100' },
+  onboarding: { label: 'Onboarding', icon: Building2, color: 'text-brand-deep', bg: 'bg-wave-100'   },
 };
 
 const MORADOR_TABS: { key: MoradorTab; label: string; icon: React.ElementType }[] = [

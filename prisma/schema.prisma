@@ -34,6 +34,29 @@ model Administradora {
   users        User[]
 }
 
+// SÍN-030: onboarding do condomínio + vínculo com o PSP.
+enum TipoContaBancaria {
+  CORRENTE
+  POUPANCA
+}
+
+enum RelacaoResponsavel {
+  SINDICO
+  ADMINISTRADORA
+  PROCURADOR
+}
+
+// Máquina de estados do vínculo com o PSP (subconta + KYP/KYC do PAG-002). O
+// condomínio só é apto a operações financeiras quando APTO.
+enum StatusOnboardingPsp {
+  NAO_INICIADO
+  SUBCONTA_CRIANDO
+  KYC_PENDENTE
+  EM_ANALISE
+  APTO
+  RECUSADO
+}
+
 model Condominium {
   id               String          @id @default(cuid())
   name             String
@@ -48,6 +71,36 @@ model Condominium {
   // PSP fica para um card próprio. Receitas/despesas/boletos operam sempre no
   // contexto do condomínio, então herdam esta subconta.
   pspSubcontaId String? @unique
+
+  // SÍN-030 (onboarding): dados cadastrais (endereço), bancários e do responsável,
+  // consentimento de representação e o STATUS do vínculo com o PSP.
+  cep         String?
+  logradouro  String?
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  uf          String?
+
+  bancoNome      String?
+  bancoAgencia   String?
+  bancoConta     String?
+  bancoTipoConta TipoContaBancaria?
+  pixChave       String?
+
+  responsavelNome     String?
+  responsavelEmail    String?
+  responsavelTelefone String?
+  responsavelRelacao  RelacaoResponsavel?
+
+  // Evidência de representação (arts. 1.347–1.349 CC): declaração + carimbo de tempo.
+  consentimentoRepresentacao Boolean   @default(false)
+  consentimentoEm            DateTime?
+
+  // Estado do onboarding no PSP (KYC/subconta). Gate das operações financeiras.
+  pspStatus       StatusOnboardingPsp @default(NAO_INICIADO)
+  pspAtualizadoEm DateTime?
+  pspMotivoRecusa String?
 
   // SÍN-026 (financeiro): alçada de aprovação. Despesas com valor ACIMA deste
   // teto exigem aprovação do síndico na Central. null = sem alçada (toda

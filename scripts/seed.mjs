@@ -13,8 +13,9 @@ function daysFromNow(days) {
 
 const condo = await prisma.condominium.upsert({
   where: { id: "seed-condo" },
-  update: { cnpj: "12.345.678/0001-90" },
-  create: { id: "seed-condo", name: "Condominio Demo", cnpj: "12.345.678/0001-90" },
+  // SÍN-030: condomínios de demo já operam → PSP APTO.
+  update: { cnpj: "12.345.678/0001-90", pspStatus: "APTO" },
+  create: { id: "seed-condo", name: "Condominio Demo", cnpj: "12.345.678/0001-90", pspStatus: "APTO" },
 });
 
 const passwordHash = await bcrypt.hash("Senha@12345", 12);
@@ -425,8 +426,8 @@ const PROP_CATS = ["MELHORIAS", "SUSTENTABILIDADE"];
 for (const cfg of condosAdm) {
   const condo = await prisma.condominium.upsert({
     where: { id: cfg.id },
-    update: { name: cfg.name, administradoraId: adm.id, cnpj: cfg.cnpj },
-    create: { id: cfg.id, name: cfg.name, administradoraId: adm.id, cnpj: cfg.cnpj },
+    update: { name: cfg.name, administradoraId: adm.id, cnpj: cfg.cnpj, pspStatus: "APTO" },
+    create: { id: cfg.id, name: cfg.name, administradoraId: adm.id, cnpj: cfg.cnpj, pspStatus: "APTO" },
   });
 
   const sindicoSaved = await prisma.user.upsert({
