@@ -13,6 +13,7 @@ import { OcorrenciaBadge } from './OcorrenciaBadge';
 import { SolicitacaoDetailsModal } from './SolicitacaoDetailsModal';
 import { MoradorAtencaoSection } from './MoradorAtencaoSection';
 import { ProfissionaisSection } from '../staff/ProfissionaisSection';
+import { FundoReservaCard } from '../fundoReserva/FundoReservaCard';
 
 const MAX_ITENS = 4;
 
@@ -42,6 +43,9 @@ export function MoradorDashboard() {
       {/* Atenção Necessária — o que exige a atenção do morador (MOR-015):
           comunicados urgentes/importantes + solicitações da unidade em aberto. */}
       <MoradorAtencaoSection comunicados={comunicados} solicitacoes={solicitacoes} />
+
+      {/* MOR-023: Fundo de Reserva via Open Finance (somente leitura). */}
+      <FundoReservaCard />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Meus Documentos */}

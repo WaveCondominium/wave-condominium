@@ -107,19 +107,77 @@ model Condominium {
   // despesa segue direto para PENDENTE — comportamento anterior preservado).
   alcadaAprovacao Decimal? @db.Decimal(12, 2)
 
-  users       User[]
-  memberships CondominiumMembership[]
-  avisos      Aviso[]
-  reservas    Reserva[]
-  bloqueios   Bloqueio[]
-  boletos     Boleto[]
-  propostas   Proposta[]
-  despesas    Despesa[]
-  unidades    Unidade[]
-  convites    ConviteAcesso[]
-  reunioes    Reuniao[]
+  users        User[]
+  memberships  CondominiumMembership[]
+  avisos       Aviso[]
+  reservas     Reserva[]
+  bloqueios    Bloqueio[]
+  boletos      Boleto[]
+  propostas    Proposta[]
+  despesas     Despesa[]
+  unidades     Unidade[]
+  convites     ConviteAcesso[]
+  reunioes     Reuniao[]
+  fundoConexao FundoReservaConexao?
+  fundoSnapshots FundoReservaSnapshot[]
 
   @@index([administradoraId])
+}
+
+// MOR-023: Fundo de Reserva via Open Finance (SOMENTE LEITURA).
+enum StatusConexaoOF {
+  DESCONECTADO
+  CONECTANDO
+  CONECTADO
+  EXPIRADO
+  REVOGADO
+  ERRO
+}
+
+// Conexão + consentimento de Open Finance do condomínio. Uma por condomínio. A
+// autorização é do Síndico (representação, arts. 1.347–1.349 CC). Guardamos só o
+// necessário (LGPD): instituição, item externo do agregador e dados do consent.
+model FundoReservaConexao {
+  id            String      @id @default(cuid())
+  condominiumId String      @unique
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  status     StatusConexaoOF @default(DESCONECTADO)
+  agregador  String          @default("SIMULADO") // Belvo/Pluggy/... no futuro
+  instituicao String?
+  // Id da conexão no agregador (não são credenciais — apenas referência).
+  externalItemId String?
+
+  consentimentoPor      String? // userId do síndico que autorizou
+  consentimentoPorNome  String?
+  consentimentoEm       DateTime?
+  consentimentoExpiraEm DateTime?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+}
+
+// Snapshot verificável de uma consulta ao Fundo de Reserva. Só agregados (saldo/
+// investido) — nunca transações individuais (LGPD: coleta mínima). O hash é
+// ancorado na Stellar (registro verificável), como no módulo Auditoria.
+model FundoReservaSnapshot {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  saldoDisponivel Decimal @db.Decimal(14, 2)
+  valorInvestido  Decimal @db.Decimal(14, 2)
+  moeda           String  @default("BRL")
+  origem          String // ex.: "Open Finance · Banco X"
+  consultadoEm    DateTime
+
+  hash                String
+  blockchainTxHash    String?
+  stellarExplorerUrl  String?
+
+  criadoEm DateTime @default(now())
+
+  @@index([condominiumId, consultadoEm])
 }
 
 enum Role {

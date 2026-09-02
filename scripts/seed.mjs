@@ -359,6 +359,32 @@ Encerramento às 20h30. Quórum: 42 unidades presentes.`,
 for (const r of reunioes) await prisma.reuniao.create({ data: { condominiumId: condo.id, ...r } });
 console.log("Seed ok -> " + reunioes.length + " reunioes");
 
+// --- Fundo de Reserva via Open Finance (MOR-023) -----------------------------
+// Conexao ativa + snapshot recente para o Condominio Demo (o morador ja ve os
+// valores; o sindico pode atualizar/desconectar).
+await prisma.fundoReservaConexao.upsert({
+  where: { condominiumId: condo.id },
+  update: {
+    status: "CONECTADO", instituicao: "Banco Simulado S.A. (Open Finance sandbox)",
+    consentimentoPorNome: "Joao Silva", consentimentoEm: new Date(), consentimentoExpiraEm: daysFromNow(90),
+  },
+  create: {
+    condominiumId: condo.id, status: "CONECTADO", agregador: "SIMULADO",
+    instituicao: "Banco Simulado S.A. (Open Finance sandbox)", externalItemId: "of_item_seed_demo",
+    consentimentoPor: usersByEmail["sindico@wave.com"], consentimentoPorNome: "Joao Silva",
+    consentimentoEm: new Date(), consentimentoExpiraEm: daysFromNow(90),
+  },
+});
+await prisma.fundoReservaSnapshot.deleteMany({ where: { condominiumId: condo.id } });
+await prisma.fundoReservaSnapshot.create({
+  data: {
+    condominiumId: condo.id, saldoDisponivel: 78500, valorInvestido: 246000, moeda: "BRL",
+    origem: "Open Finance · Banco Simulado S.A. (Open Finance sandbox)", consultadoEm: new Date(),
+    hash: "0xseeddemofundoreserva", blockchainTxHash: null, stellarExplorerUrl: null,
+  },
+});
+console.log("Seed ok -> Fundo de Reserva (Open Finance) conectado + snapshot");
+
 // --- Administradora + condominios (Entregavel 2: multi-condominio) ------------
 
 const adm = await prisma.administradora.upsert({
