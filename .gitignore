@@ -36,3 +36,6 @@ next-env.d.ts
 
 /src/generated/prisma
 *.patch
+
+# SÍN-031: saída transitória do dedupe de e-mails (não versionar)
+scripts/pending-memberships.json
