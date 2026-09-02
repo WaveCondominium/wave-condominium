@@ -211,6 +211,25 @@ for (const b of boletos) {
 }
 console.log("Seed ok -> " + boletos.length + " boletos");
 
+// --- Receitas (MOR-057): cotas da unidade 203 contabilizadas via confirmacao PSP
+await prisma.receita.deleteMany({ where: { condominiumId: condo.id } });
+const boletos203 = await prisma.boleto.findMany({
+  where: { condominiumId: condo.id, unitNumber: "203" },
+  orderBy: { referenceMonth: "asc" },
+});
+let nReceitas = 0;
+for (const b of boletos203.slice(0, 2)) {
+  await prisma.receita.create({
+    data: {
+      condominiumId: condo.id, boletoId: b.id, unitNumber: b.unitNumber, unitOwner: b.unitOwner,
+      referenceMonth: b.referenceMonth, valor: b.amount, dataPagamento: daysFromNow(-15),
+      status: "CONTABILIZADA", origem: "PSP_WEBHOOK", pspReferencia: "psp_tx_seed_" + b.id.slice(-6),
+    },
+  });
+  nReceitas++;
+}
+console.log("Seed ok -> " + nReceitas + " receitas (cotas contabilizadas via PSP)");
+
 // --- Despesas / pagamentos (SÍN-011) -----------------------------------------
 // Mistura de status para exercitar a Gestão de Despesas: pagas (entram no
 // extrato e na distribuição), pendente (a vencer) e vencida (pendente com

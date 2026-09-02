@@ -120,8 +120,50 @@ model Condominium {
   reunioes     Reuniao[]
   fundoConexao FundoReservaConexao?
   fundoSnapshots FundoReservaSnapshot[]
+  receitas     Receita[]
 
   @@index([administradoraId])
+}
+
+// MOR-057: Receita da cota condominial. Nasce EXCLUSIVAMENTE da confirmação de
+// pagamento pelo PSP/Gateway (webhook) → baixa automática → contabilização.
+// Open Finance NÃO é fonte (só reconciliação, MOR-023).
+enum StatusContabilizacao {
+  CONTABILIZADA
+  PENDENTE_CONCILIACAO
+  DIVERGENTE
+}
+
+enum OrigemReceita {
+  PSP_WEBHOOK
+}
+
+model Receita {
+  id            String      @id @default(cuid())
+  condominiumId String
+  condominium   Condominium @relation(fields: [condominiumId], references: [id], onDelete: Cascade)
+
+  // Uma receita por boleto (idempotência da baixa). Boleto é a cota condominial.
+  boletoId String? @unique
+  boleto   Boleto? @relation(fields: [boletoId], references: [id], onDelete: SetNull)
+
+  unitNumber     String
+  unitOwner      String
+  referenceMonth String // 'YYYY-MM' — a cota
+  valor          Decimal @db.Decimal(10, 2)
+  dataPagamento  DateTime // confirmação do pagamento pelo PSP
+
+  status StatusContabilizacao @default(CONTABILIZADA)
+  origem OrigemReceita        @default(PSP_WEBHOOK)
+  // Rastreabilidade da origem (id da transação no PSP).
+  pspReferencia String?
+  // Divergência detectada na conciliação (valor pago x boleto), quando houver.
+  divergenciaMotivo String?
+
+  contabilizadaEm DateTime @default(now())
+
+  @@index([condominiumId, unitNumber])
+  @@index([condominiumId, referenceMonth])
 }
 
 // MOR-023: Fundo de Reserva via Open Finance (SOMENTE LEITURA).
@@ -409,6 +451,10 @@ model Boleto {
   blockchainHash         String?
   blockchainRegisteredAt DateTime?
   stellarExplorerUrl     String?
+
+  // MOR-057: referência da confirmação do PSP que originou a baixa (rastreabilidade).
+  pspReferencia String?
+  receita       Receita?
 
   issuedBy  String
   issuedAt  DateTime @default(now())

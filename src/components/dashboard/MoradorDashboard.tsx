@@ -14,6 +14,7 @@ import { SolicitacaoDetailsModal } from './SolicitacaoDetailsModal';
 import { MoradorAtencaoSection } from './MoradorAtencaoSection';
 import { ProfissionaisSection } from '../staff/ProfissionaisSection';
 import { FundoReservaCard } from '../fundoReserva/FundoReservaCard';
+import { MinhasReceitasCard } from '../treasury/MinhasReceitasCard';
 
 const MAX_ITENS = 4;
 
@@ -46,6 +47,9 @@ export function MoradorDashboard() {
 
       {/* MOR-023: Fundo de Reserva via Open Finance (somente leitura). */}
       <FundoReservaCard />
+
+      {/* MOR-057: Receitas da própria cota (confirmação do PSP → contabilização). */}
+      <MinhasReceitasCard />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Meus Documentos */}
