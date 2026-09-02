@@ -3,16 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  AlertTriangle, 
+  AlertTriangle,
   Clock,
   Wrench,
-  Shield,
   DollarSign,
-  Users,
   FileText,
   Vote,
   Calendar,
-  Activity,
   Zap,
   Bell,
   MapPin,
@@ -26,6 +23,9 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useUser } from '@/contexts/UserContext';
 import { isManager } from '@/lib/rbac';
+import { usePendencias } from '@/contexts/PendenciasContext';
+import { listPropostasAction } from '@/app/actions/governanca';
+import { PENDENCIA_TIPO_LABEL } from '@/components/approvals/pendencias';
 import { MoradorDashboard } from '@/components/dashboard/MoradorDashboard';
 import {
   CONDOMINIUM_SETTINGS_KEY,
@@ -96,6 +96,20 @@ function GestorDashboard() {
   const { abertas, emAndamento, concluidas } = useMaintenanceOrders();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
+  // SÍN-004: Atenção Necessária e métricas de governança usam DADOS REAIS do
+  // banco (escopados ao condomínio ativo), não mais mocks. Aprovações pendentes
+  // vêm do contexto (Central de Aprovações); propostas em votação, da governança.
+  const { pendencias, count: aprovacoesPendentes } = usePendencias();
+  const [propostasAbertas, setPropostasAbertas] = useState(0);
+  useEffect(() => {
+    if (!isManager(userProfile.role)) { setPropostasAbertas(0); return; }
+    let alive = true;
+    listPropostasAction()
+      .then((r) => { if (alive) setPropostasAbertas(r.propostas.filter((p) => p.status === 'votacao_aberta').length); })
+      .catch(() => { /* silencioso: o card mostra 0 */ });
+    return () => { alive = false; };
+  }, [userProfile.role]);
+
   const [avisos] = useLocalStorage<AvisoEvento[]>('wave_avisos', []);
   const [condominiumSettings] = useLocalStorage<CondominiumSettings>(
     CONDOMINIUM_SETTINGS_KEY,
@@ -114,36 +128,6 @@ function GestorDashboard() {
       router.push(notification.actionUrl);
     }
   }
-
-  const criticalAlerts = [
-    {
-      id: '1',
-      type: 'warning',
-      title: 'Garantia da Bomba D\'água vence em 28 dias',
-      action: 'Abrir OS de Vistoria',
-      link: '/dashboard/maintenance',
-      priority: 'high',
-      date: '30 dias'
-    },
-    {
-      id: '2',
-      type: 'info',
-      title: 'Assembleia: Instalação de Painéis Solares',
-      action: 'Votar Agora',
-      link: '/dashboard/governance',
-      priority: 'medium',
-      date: '5 dias restantes'
-    },
-    {
-      id: '3',
-      type: 'warning',
-      title: 'Uso de Fundo de Reserva detectado',
-      action: 'Verificar Autorização',
-      link: '/dashboard/treasury',
-      priority: 'high',
-      date: 'Hoje'
-    }
-  ];
 
   return (
     <div className="space-y-8 relative">
@@ -279,25 +263,33 @@ function GestorDashboard() {
           <p className="text-wave-400 text-xs">{emAndamento} em andamento · {concluidas} concluídas</p>
         </Link>
 
+        {/* SÍN-004: métricas REAIS do banco (não mais valores fictícios de
+            conformidade/participação). Contagens escopadas ao condomínio ativo. */}
         {[
           {
-            title: 'Conformidade',
-            value: '100%',
-            icon: Shield,
-            description: 'AVCB e Seguros',
-            detail: 'Documentação em dia'
+            title: 'Aprovações pendentes',
+            value: String(aprovacoesPendentes),
+            icon: CheckCheck,
+            description: 'Aguardando sua decisão',
+            detail: aprovacoesPendentes > 0 ? 'Abrir Central de Aprovações' : 'Nada pendente',
+            href: '/dashboard/approvals',
           },
           {
-            title: 'Participação',
-            value: '78%',
-            icon: Users,
-            description: 'Última assembleia',
-            detail: 'Quórum atingido'
-          }
-        ].map((metric, index) => {
+            title: 'Propostas em votação',
+            value: String(propostasAbertas),
+            icon: Vote,
+            description: 'Governança',
+            detail: propostasAbertas > 0 ? 'Ver votações abertas' : 'Nenhuma votação aberta',
+            href: '/dashboard/governance',
+          },
+        ].map((metric) => {
           const Icon = metric.icon;
           return (
-            <div key={index} className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-wave-100 shadow-sm hover:shadow-md transition-all group">
+            <Link
+              key={metric.title}
+              href={metric.href}
+              className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-wave-100 shadow-sm hover:shadow-md hover:border-wave-300 transition-all group block"
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 rounded-xl bg-brand-teal/15 text-brand-teal group-hover:scale-110 transition-transform">
                   <Icon className="w-6 h-6" />
@@ -309,7 +301,7 @@ function GestorDashboard() {
               <h3 className="text-wave-800 font-medium mb-1">{metric.title}</h3>
               <p className="text-wave-500 text-sm mb-2">{metric.description}</p>
               <p className="text-wave-400 text-xs">{metric.detail}</p>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -329,70 +321,48 @@ function GestorDashboard() {
               <h2 className="font-display font-normal text-xl text-brand-navy">Atenção Necessária</h2>
             </div>
             
+            {/* SÍN-004: itens REAIS que aguardam decisão (Central de Aprovações),
+                escopados ao condomínio ativo. Sem estado vazio fictício. */}
             <div className="space-y-4">
-              {criticalAlerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between p-4 bg-wave-50/50 rounded-xl border border-wave-100 hover:border-wave-300 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-2 h-2 rounded-full ${
-                      alert.priority === 'high' ? 'bg-red-500' : 'bg-orange-500'
-                    }`} />
-                    <div>
-                      <h3 className="text-wave-800 font-medium">{alert.title}</h3>
-                      <p className="text-wave-500 text-sm flex items-center gap-2">
-                        <Clock className="w-3 h-3" />
-                        {alert.date}
-                      </p>
-                    </div>
-                  </div>
-                  <Link 
-                    href={alert.link}
-                    className="px-4 py-2 bg-white text-wave-500 text-sm rounded-lg border border-wave-200 hover:bg-wave-50 hover:border-wave-300 transition-all shadow-sm"
+              {pendencias.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCheck className="w-10 h-10 text-brand-teal mx-auto mb-3" />
+                  <p className="text-wave-700 font-medium">Nenhuma pendência no momento.</p>
+                  <p className="text-wave-500 text-sm mt-1 mb-4">
+                    Aprovações de propostas, reservas, despesas e reuniões aparecem aqui assim que surgirem.
+                  </p>
+                  <Link
+                    href="/dashboard/approvals"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white text-wave-600 text-sm rounded-lg border border-wave-200 hover:bg-wave-50 hover:border-wave-300 transition-all shadow-sm"
                   >
-                    {alert.action}
+                    Abrir Central de Aprovações
                   </Link>
                 </div>
-              ))}
+              ) : (
+                pendencias.slice(0, 5).map((p) => (
+                  <div key={`${p.tipo}:${p.id}`} className="flex items-center justify-between gap-3 p-4 bg-wave-50/50 rounded-xl border border-wave-100 hover:border-wave-300 transition-colors">
+                    <div className="flex items-center gap-4 min-w-0">
+                      <div className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
+                      <div className="min-w-0">
+                        <h3 className="text-wave-800 font-medium truncate">{p.titulo}</h3>
+                        <p className="text-wave-500 text-sm truncate">
+                          {PENDENCIA_TIPO_LABEL[p.tipo]} · {p.solicitante}
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      href="/dashboard/approvals"
+                      className="px-4 py-2 bg-white text-wave-500 text-sm rounded-lg border border-wave-200 hover:bg-wave-50 hover:border-wave-300 transition-all shadow-sm shrink-0"
+                    >
+                      Decidir
+                    </Link>
+                  </div>
+                ))
+              )}
             </div>
           </div>
           )}
 
-          {/* Atividade Recente — removida temporariamente a pedido da equipe (14/07/2026). Estrutura preservada para reimplementação futura.
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-wave-100 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-wave-100 rounded-lg">
-                  <Activity className="w-5 h-5 text-wave-500" />
-                </div>
-                <h2 className="text-xl text-wave-800">Atividade Recente</h2>
-              </div>
-              <select className="bg-wave-50 border border-wave-200 text-wave-800 text-sm rounded-lg px-3 py-1 outline-none">
-                <option>Últimos 7 dias</option>
-                <option>Últimos 30 dias</option>
-                <option>Este ano</option>
-              </select>
-            </div>
-            
-            <div className="h-64 flex items-end justify-between gap-2 px-4 pb-2">
-              {[40, 70, 45, 90, 60, 80, 50].map((height, i) => (
-                <div key={i} className="w-full bg-wave-100 rounded-t-lg relative group overflow-hidden">
-                  <div 
-                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-brand-deep to-brand-steel transition-all duration-500 group-hover:opacity-80"
-                    style={{ height: `${height}%` }}
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between px-4 mt-2 text-xs text-wave-400">
-              <span>Seg</span>
-              <span>Ter</span>
-              <span>Qua</span>
-              <span>Qui</span>
-              <span>Sex</span>
-              <span>Sáb</span>
-              <span>Dom</span>
-            </div>
-          </div>
-          */}
         </div>
 
         <div className="space-y-8">
