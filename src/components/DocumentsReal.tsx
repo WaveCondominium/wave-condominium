@@ -292,6 +292,20 @@ function MoradorDocumentsView() {
     }
   }, []);
 
+  // SEG-009 — corrige XSS armazenado: título, descrição, nome de arquivo e
+  // outros campos de texto livre do documento eram interpolados direto no
+  // HTML do comprovante (document.write), sem escape. Um título ou nome de
+  // arquivo malicioso (ex.: "</h2><script>...") executava no navegador de
+  // qualquer usuário que baixasse/imprimisse o comprovante daquele documento.
+  function escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // Download PDF — gera um comprovante PDF estilizado via print nativo do browser
   const handleDownloadPdf = useCallback(async (doc: DocumentRecord) => {
     setDownloadError(null);
@@ -312,18 +326,18 @@ function MoradorDocumentsView() {
       if (doc.updatedAt) fields.push({ label: 'Última atualização', value: new Date(doc.updatedAt).toLocaleString('pt-BR') });
 
       const fieldsHtml = fields
-        .map(f => `<tr><td style="color:#64748b;font-weight:600;padding:8px 16px 8px 0;white-space:nowrap;vertical-align:top">${f.label}</td><td style="color:#1e293b;padding:8px 0;word-break:break-word">${f.value}</td></tr>`)
+        .map(f => `<tr><td style="color:#64748b;font-weight:600;padding:8px 16px 8px 0;white-space:nowrap;vertical-align:top">${escapeHtml(f.label)}</td><td style="color:#1e293b;padding:8px 0;word-break:break-word">${escapeHtml(f.value)}</td></tr>`)
         .join('');
 
       const descriptionHtml = doc.description
-        ? `<div style="margin-top:20px"><p style="color:#64748b;font-weight:600;font-size:13px;margin-bottom:6px">Descrição</p><p style="color:#334155;line-height:1.6;font-size:13px">${doc.description}</p></div>`
+        ? `<div style="margin-top:20px"><p style="color:#64748b;font-weight:600;font-size:13px;margin-bottom:6px">Descrição</p><p style="color:#334155;line-height:1.6;font-size:13px">${escapeHtml(doc.description)}</p></div>`
         : '';
 
       const verificationHtml = doc.stellarTxHash
         ? `<div style="margin-top:24px;padding:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px">
             <p style="color:#15803d;font-weight:700;font-size:14px;margin-bottom:8px">Documento com registro de autenticidade</p>
             <p style="color:#64748b;font-size:11px;margin-bottom:4px">Identificador de verificação:</p>
-            <p style="color:#334155;font-size:11px;font-family:monospace;word-break:break-all">${doc.stellarTxHash}</p>
+            <p style="color:#334155;font-size:11px;font-family:monospace;word-break:break-all">${escapeHtml(doc.stellarTxHash)}</p>
           </div>`
         : '';
 
@@ -331,7 +345,7 @@ function MoradorDocumentsView() {
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>${doc.title} — Wave Condominium</title>
+  <title>${escapeHtml(doc.title)} — Wave Condominium</title>
   <style>
     @page { size: A4; margin: 20mm; }
     @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
@@ -347,7 +361,7 @@ function MoradorDocumentsView() {
   </div>
 
   <!-- Título -->
-  <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">${doc.title}</h2>
+  <h2 style="font-size:22px;color:#0f172a;margin-bottom:8px">${escapeHtml(doc.title)}</h2>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0 24px">
 
   <!-- Detalhes -->
