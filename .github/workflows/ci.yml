@@ -14,6 +14,28 @@ permissions:
   contents: read
 
 jobs:
+  # SEG-005 — Secret scanning. Roda em todo push/PR e BLOQUEIA o pipeline
+  # (job obrigatório) se encontrar algo com cara de segredo no diff analisado.
+  # Sempre marcar este check como "required" em Settings → Branches, tanto
+  # para main quanto para develop.
+  secret-scan:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (histórico completo para o gitleaks comparar o range certo)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Repo público: não precisa de GITLEAKS_LICENSE. Se o repo virar
+          # privado, criar o secret GITLEAKS_LICENSE (ver docs do gitleaks-action)
+          # e descomentar a linha abaixo.
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
   quality:
     name: Lint • Types • Test • Build
     runs-on: ubuntu-latest

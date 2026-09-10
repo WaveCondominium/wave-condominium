@@ -27,6 +27,17 @@ const ROLE_ICON: Record<AppRole, LucideIcon> = {
   Admin: Settings,
 };
 
+// SEG-005 / SÍN-002 — Login rápido (demo): só deve existir em dev/homolog.
+// A env var NEXT_PUBLIC_SHOW_DEMO_LOGINS NUNCA deve ser definida no projeto de
+// PRODUÇÃO na Vercel. Sem ela, o Next.js elimina este bloco (e a senha demo)
+// do bundle de produção em tempo de build — não é apenas "esconder" em
+// runtime, o literal da senha não chega a existir no JS entregue ao cliente.
+const SHOW_DEMO_LOGINS = process.env.NEXT_PUBLIC_SHOW_DEMO_LOGINS === 'true';
+
+// Senha do seed de dev/homolog, também fora do código-fonte (nunca hardcoded
+// em texto no repositório, mesmo sendo uma credencial de baixo valor).
+const DEMO_SEED_PASSWORD = process.env.NEXT_PUBLIC_DEMO_SEED_PASSWORD || '';
+
 export function Login({ onLogin, onChooseProfile, needsProfileChoice = false, availableRoles = [] }: LoginProps) {
   const router = useRouter();
   const { t } = useI18n();
@@ -240,22 +251,24 @@ export function Login({ onLogin, onChooseProfile, needsProfileChoice = false, av
           </div>
 
           <div className="mt-6 pt-5 border-t border-brand-light">
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              {[
-                { label: t('login.demo.sindico'),        email: 'sindico@wave.com' },
-                { label: t('login.demo.morador'),        email: 'morador@wave.com' },
-                { label: t('login.demo.administradora'), email: 'administradora@wave.com' },
-              ].map((item, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setFormData({ email: item.email, password: 'Senha@12345' })}
-                  className="px-2 py-1.5 bg-brand-light border border-brand-chrome/50 rounded-lg text-brand-grey hover:border-brand-steel hover:text-brand-navy transition-all text-center"
-                >
-                  <p className="font-medium text-xs">{item.label}</p>
-                </button>
-              ))}
-            </div>
+            {SHOW_DEMO_LOGINS && (
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                {[
+                  { label: t('login.demo.sindico'),        email: 'sindico@wave.com' },
+                  { label: t('login.demo.morador'),        email: 'morador@wave.com' },
+                  { label: t('login.demo.administradora'), email: 'administradora@wave.com' },
+                ].map((item, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setFormData({ email: item.email, password: DEMO_SEED_PASSWORD })}
+                    className="px-2 py-1.5 bg-brand-light border border-brand-chrome/50 rounded-lg text-brand-grey hover:border-brand-steel hover:text-brand-navy transition-all text-center"
+                  >
+                    <p className="font-medium text-xs">{item.label}</p>
+                  </button>
+                ))}
+              </div>
+            )}
             <button
               type="button"
               onClick={() => router.push('/')}
