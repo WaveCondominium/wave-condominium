@@ -124,15 +124,30 @@ export interface BoletoPatch {
 }
 
 /** Atualiza pagamento/compensacao de um boleto (persiste status + ancora Stellar). */
-export async function atualizarBoletoAction(id: string, patch: BoletoPatch): Promise<{ ok: boolean }> {
+export async function atualizarBoletoAction(id: string, patch: BoletoPatch): Promise<{ ok: boolean; error?: string }> {
   const session = await requireSession();
-  if (!session.condominiumId) return { ok: false };
+  if (!session.condominiumId) return { ok: false, error: "Condomínio ativo não identificado na sessão." };
+
+  const boleto = await boletoRepository.findById(id, session.condominiumId);
+  if (!boleto) return { ok: false, error: "Boleto não encontrado." };
 
   // SÍN-009: o gestor (Síndico/Admin/Administradora) NÃO paga boletos de
   // terceiros. Um pagamento é identificado por `paidAt`; quem paga é o próprio
   // morador da unidade. Bloqueado no SERVIDOR — não basta ocultar o botão.
   if (patch.paidAt && isManager(session.role)) {
-    return { ok: false };
+    return { ok: false, error: "Gestores não podem marcar boletos como pagos." };
+  }
+
+  // SEG-009 — Broken Access Control (OWASP A01): antes, um morador podia
+  // chamar esta Server Action diretamente com o ID de QUALQUER boleto do
+  // condomínio (não só o da própria unidade) e alterar status/paidAt/
+  // blockchainHash — sem checagem nenhuma de que o boleto era dele. Agora,
+  // fora de gestão, só é permitido alterar o boleto da própria unidade.
+  if (!isManager(session.role)) {
+    const user = await userRepository.findById(session.userId);
+    if (!user?.unit || user.unit !== boleto.unitNumber) {
+      return { ok: false, error: "Você só pode atualizar boletos da sua própria unidade." };
+    }
   }
 
   await boletoRepository.update(id, session.condominiumId, {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { X, CheckCircle, Loader, ExternalLink, ArrowRight, AlertCircle, Shield, RefreshCw, CreditCard, Smartphone, FileText } from 'lucide-react';
@@ -13,7 +13,6 @@ interface PagamentoStellarModalProps {
     description: string;
     barcode: string;
   };
-  payerName: string;
   onClose: () => void;
   onSuccess: (result: any) => void;
 }
@@ -29,7 +28,6 @@ interface StepState {
 
 export function PagamentoStellarModal({
   boleto,
-  payerName,
   onClose,
   onSuccess,
 }: PagamentoStellarModalProps) {
@@ -58,13 +56,10 @@ export function PagamentoStellarModal({
 
     try {
       // Etapa 2 — Liquidação via Stellar (Server Action real)
-      const res = await pagarBoletoViaStellar({
-        boletoId: boleto.id,
-        brlAmount: boleto.amount,
-        unitNumber: boleto.unitNumber,
-        referenceMonth: boleto.referenceMonth,
-        payerName,
-      });
+      // SEG-009: só enviamos o boletoId. Valor, unidade e mês de referência
+      // agora são lidos e validados no servidor a partir do banco — nunca
+      // mais confiamos nesses campos vindos do cliente.
+      const res = await pagarBoletoViaStellar({ boletoId: boleto.id });
 
       if (!res.success) {
         setSteps(s => ({ ...s, settlement: 'error' }));

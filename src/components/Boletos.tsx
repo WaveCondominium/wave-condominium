@@ -507,7 +507,6 @@ export function Boletos({ userProfile }: BoletosProps) {
       {boletoParaPagar && (
         <PagamentoStellarModal
           boleto={boletoParaPagar}
-          payerName={userProfile.name}
           onClose={() => setBoletoParaPagar(null)}
           onSuccess={(result) => {
             handlePagamentoStellarSucesso(result);
