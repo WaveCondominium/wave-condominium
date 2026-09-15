@@ -121,6 +121,7 @@ model Condominium {
   fundoConexao FundoReservaConexao?
   fundoSnapshots FundoReservaSnapshot[]
   receitas     Receita[]
+  eventosSeguranca EventoSeguranca[]
 
   @@index([administradoraId])
 }
@@ -264,6 +265,7 @@ model User {
   memberships CondominiumMembership[]
   sessions    Session[]
   votos       Voto[]
+  eventosSeguranca EventoSeguranca[]
   createdAt   DateTime @default(now())
 
   @@index([condominiumId])
@@ -890,4 +892,55 @@ model ConfirmacaoPresenca {
   // Uma confirmação por usuário em cada reunião.
   @@unique([reuniaoId, userId])
   @@index([reuniaoId])
+}
+
+// --- SEG-016: Eventos de segurança -----------------------------------------
+//
+// Trilha SEPARADA da auditoria de negócio (BlockchainRegistry/Auditoria, que
+// registra "o que mudou" em Boletos/Manutenção/Unidades/Reuniões/Aprovações).
+// Aqui registramos "quem tentou acessar ou realizar uma ação sensível e em
+// que contexto" — login, falha de login, logout, acesso negado, senha,
+// revogação/restauração de acesso. Nunca grava senha, token ou credencial.
+//
+// Append-only por design: nenhuma action de update/delete é exposta para
+// este model (nem para gestores) — ver docs/SEG-016-EVENTOS-SEGURANCA.md.
+
+enum TipoEventoSeguranca {
+  LOGIN_SUCESSO
+  LOGIN_FALHA
+  LOGOUT
+  ACESSO_NEGADO
+  SENHA_ALTERADA
+  ACESSO_REVOGADO
+  ACESSO_RESTAURADO
+}
+
+enum ResultadoEventoSeguranca {
+  SUCESSO
+  FALHA
+}
+
+model EventoSeguranca {
+  id        String                   @id @default(cuid())
+  tipo      TipoEventoSeguranca
+  resultado ResultadoEventoSeguranca
+  timestamp DateTime                 @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Snapshot do e-mail no momento do evento — sobrevive à exclusão do
+  // usuário e cobre falha de login com e-mail inexistente (userId nulo).
+  email  String?
+
+  condominiumId String?
+  condominium   Condominium? @relation(fields: [condominiumId], references: [id], onDelete: SetNull)
+
+  ip        String?
+  userAgent String?
+  recurso   String? // ex.: "auth.login", "auth.acessoNegado:requireManager"
+  metadata  Json? // detalhes técnicos extras — NUNCA senha/token/credencial
+
+  @@index([tipo, timestamp])
+  @@index([userId])
+  @@index([condominiumId, timestamp])
 }

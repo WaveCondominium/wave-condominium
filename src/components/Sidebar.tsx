@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, SlidersHorizontal, Video, Receipt, Shield, MessageSquare, UserPlus, User, X, Building2, Repeat, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Vote, Wallet, FileText, Wrench, Home, LogOut, Settings, SlidersHorizontal, Video, Receipt, Shield, MessageSquare, UserPlus, User, X, Building2, Repeat, ClipboardCheck, ShieldAlert } from 'lucide-react';
 import { formatDisplayName } from '@/lib/formatName';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMenuBadges } from '@/hooks/useMenuBadges';
@@ -33,6 +33,12 @@ interface SidebarProps {
 export function Sidebar({ userProfile, onLogout, onSwitchProfile, isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const isManagerRole = isManager(userProfile.role);
+  // SEG-016: menu de Eventos de Segurança visível só p/ Admin de plataforma e
+  // Síndico — NÃO usa isManagerRole (que inclui Administradora, cujo escopo
+  // de acesso a eventos de segurança ainda não foi decidido). O RBAC real é
+  // sempre validado no servidor (listarEventosSegurancaAction); isto é só a
+  // visibilidade do item no menu.
+  const podeVerEventosSeguranca = userProfile.role === 'Admin' || userProfile.role === 'Síndico';
   // Perfis alternativos ao ATIVO (SÍN-003). Vazio quando o usuário tem 1 só.
   const outrosPerfis = (userProfile.availableRoles ?? [userProfile.role]).filter(
     (r) => r !== userProfile.role,
@@ -64,6 +70,11 @@ export function Sidebar({ userProfile, onLogout, onSwitchProfile, isMobileOpen =
     { href: '/dashboard/maintenance',    label: 'Manutenção',  icon: Wrench,          badge: maintenanceCount > 0 ? maintenanceCount : undefined },
     { href: '/dashboard/blockchain',     label: 'Auditoria',  icon: Shield },
     { href: '/dashboard/units',          label: 'Unidades',    icon: Home },
+    // SEG-016: item próprio (não entra no bloco isManagerRole abaixo, que
+    // inclui Administradora — ver comentário em podeVerEventosSeguranca).
+    ...(podeVerEventosSeguranca ? [
+      { href: '/dashboard/security-events', label: 'Eventos de Segurança', icon: ShieldAlert },
+    ] : []),
     // RBAC (regra permanente do projeto): "Criar Nova Conta" é restrito a
     // Síndico/Administrador — Morador não deve ver esse item no menu.
     ...(isManagerRole ? [

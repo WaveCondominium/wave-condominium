@@ -9,6 +9,7 @@ import {
   type CondominioMembership,
 } from "@/lib/memberships";
 import type { Role as PrismaRole } from "@prisma/client";
+import { registrarEventoSeguranca } from "@/server/security/registrarEventoSeguranca";
 
 // Ponto UNICO de conversao entre o enum do banco e o rotulo do app.
 // Mantido aqui para nao recriar o bug de grafia que o rbac.ts eliminou.
@@ -111,11 +112,33 @@ export async function login(email: string, password: string): Promise<LoginResul
   const user = await userRepository.findByEmail(email);
   // verifyPassword roda mesmo sem user (dummy hash) para nao vazar por timing.
   const valid = await verifyPassword(user?.passwordHash, password);
-  if (!user || !valid) return { ok: false, error: "E-mail ou senha invalidos." };
+  if (!user || !valid) {
+    // SEG-016: userId fica nulo quando o e-mail não existe (não revelamos
+    // se a conta existe); quando existe mas a senha está errada, guardamos o
+    // userId — é justamente o padrão de "várias falhas na mesma conta" que a
+    // detecção de anomalia (fase futura) precisa enxergar.
+    await registrarEventoSeguranca({
+      tipo: "LOGIN_FALHA",
+      resultado: "FALHA",
+      userId: user?.id ?? null,
+      email,
+      recurso: "auth.login",
+    });
+    return { ok: false, error: "E-mail ou senha invalidos." };
+  }
 
   // SÍN-022: acesso revogado pelo síndico bloqueia o login (verificado só após
   // credenciais válidas, para não revelar existência de conta a terceiros).
   if (user.acessoRevogado) {
+    await registrarEventoSeguranca({
+      tipo: "LOGIN_FALHA",
+      resultado: "FALHA",
+      userId: user.id,
+      email,
+      condominiumId: user.condominiumId ?? null,
+      recurso: "auth.login",
+      metadata: { motivo: "acesso_revogado" },
+    });
     return { ok: false, error: "Seu acesso foi revogado. Fale com o síndico do condomínio." };
   }
 
@@ -136,6 +159,16 @@ export async function login(email: string, password: string): Promise<LoginResul
     administradoraId: user.administradoraId ?? null,
     mustChangePassword: user.mustChangePassword ?? false,
   });
+
+  await registrarEventoSeguranca({
+    tipo: "LOGIN_SUCESSO",
+    resultado: "SUCESSO",
+    userId: user.id,
+    email: user.email,
+    condominiumId: activeCondo,
+    recurso: "auth.login",
+  });
+
   return {
     ok: true,
     user: toPublic(user, ativo, disponiveis, activeCondo),
@@ -181,7 +214,19 @@ export async function setActiveProfile(role: Role): Promise<SetActiveProfileResu
 }
 
 export async function logout(): Promise<void> {
+  // SEG-016: precisa ler a sessão ANTES de destruí-la, senão perdemos o
+  // userId/condomínio do evento (getSession() depois disso retornaria nulo).
+  const session = await getSession();
   await destroySession();
+  if (session) {
+    await registrarEventoSeguranca({
+      tipo: "LOGOUT",
+      resultado: "SUCESSO",
+      userId: session.userId,
+      condominiumId: session.condominiumId ?? null,
+      recurso: "auth.logout",
+    });
+  }
 }
 
 export async function getCurrentUser(): Promise<PublicUser | null> {
@@ -355,6 +400,15 @@ export async function changePassword(newPassword: string): Promise<ChangePasswor
     condominiumId: user.condominiumId ?? null,
     administradoraId: user.administradoraId ?? null,
     mustChangePassword: false,
+  });
+
+  await registrarEventoSeguranca({
+    tipo: "SENHA_ALTERADA",
+    resultado: "SUCESSO",
+    userId: user.id,
+    email: user.email,
+    condominiumId: user.condominiumId ?? null,
+    recurso: "auth.changePassword",
   });
 
   return { ok: true };
