@@ -36,6 +36,62 @@ jobs:
           # e descomentar a linha abaixo.
           # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
+  # SEG-013 — Varredura de dependências (SCA). Roda em todo push/PR, em
+  # paralelo ao job "quality". BLOQUEIA o pipeline (job obrigatório) em
+  # vulnerabilidade High ou Critical; Moderate/Low ficam só registradas no
+  # relatório (artifact) para acompanhamento — não bloqueiam o deploy.
+  # Marcar este check como "required" em Settings → Branches (main e develop),
+  # junto com "Lint • Types • Test • Build" e "Secret Scan (gitleaks)".
+  dependency-scan:
+    name: Dependências (SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Gate: falha o job (bloqueia o merge/deploy) só em High ou Critical.
+      # Não usar "npm audit fix --force" aqui — pode introduzir breaking changes;
+      # a correção é sempre uma decisão manual do desenvolvedor via PR.
+      - name: npm audit — bloqueio High/Critical
+        run: npm audit --audit-level=high
+
+      # Relatório completo (inclui Moderate/Low), gerado mesmo se o passo acima
+      # falhar — é o que fica arquivado para avaliação/acompanhamento contínuo.
+      - name: Relatório completo do npm audit (para acompanhamento)
+        if: always()
+        run: npm audit --json > npm-audit-report.json || true
+
+      - name: Upload do relatório de auditoria
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: npm-audit-report.json
+          retention-days: 90
+
+      # SBOM (CycloneDX) — inventário de dependências diretas e transitivas
+      # do build atual, para rastreio futuro de pacote/versão/vulnerabilidade.
+      - name: Gerar SBOM (CycloneDX)
+        if: always()
+        run: npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json
+
+      - name: Upload do SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
+
   quality:
     name: Lint • Types • Test • Build
     runs-on: ubuntu-latest
