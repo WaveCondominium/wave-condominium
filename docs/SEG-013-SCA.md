@@ -41,17 +41,42 @@ existentes, no mesmo padrão (`runs-on: ubuntu-latest`, checkout + setup Node):
 vulnerabilidade é sempre uma decisão manual do desenvolvedor, feita via PR do
 Dependabot ou upgrade manual, conforme o card exige.
 
-## 2. Por que gate em `--audit-level=high` (e não uma lógica própria)
-`npm audit --audit-level=high` já sai com código de erro se **qualquer**
-vulnerabilidade **High ou Critical** for encontrada, e com código 0 se só
-houver Moderate/Low — bate exatamente com a política do card (Critical/High
-bloqueiam, Moderate/Low não) sem precisar de script próprio para interpretar
-severidade. Menor superfície de manutenção (KISS).
+## 2. Gate com exceções documentadas (`scripts/security/audit-gate.mjs`)
+A primeira versão usava `npm audit --audit-level=high` puro. Ao rodar de
+verdade na `develop`, apareceram **22 vulnerabilidades pré-existentes**
+(nenhuma introduzida pelo SEG-013 — só ficaram visíveis porque não existia
+gate antes). `npm audit fix` (sem `--force`) resolveu 5 sem risco de quebra
+(`baseline-browser-mapping`, `brace-expansion`, `browserslist`, `js-yaml`,
+`nanoid`). As **17 restantes** exigem upgrade major (`--force`, breaking
+change) — inclusive um **Critical no `next`** (RCE não-autenticada, entre
+~30 CVEs). Não dá pra corrigir isso dentro do escopo do SEG-013 sem virar uma
+mudança grande e arriscada disfarçada de "ajuste de pipeline".
+
+Por isso o gate final não é `npm audit` puro — é
+`scripts/security/audit-gate.mjs`, que roda `npm audit --json` e só bloqueia
+High/Critical que **não** estejam em `security/audit-exceptions.json`. Cada
+exceção exige `reason` (motivo), `cardRef` (card de correção vinculado) e
+`expiresAt` (prazo curto — força reavaliação periódica; passado o prazo, a
+exceção para de valer e o pacote volta a bloquear). Isso atende diretamente
+o critério de aceite do próprio card: *"não existem vulnerabilidades
+High/Critical conhecidas **sem justificativa documentada**"* — a justificativa
+fica no repositório, versionada, visível em todo log de CI, não escondida
+numa exclusão silenciosa.
+
+**Limitação aceita conscientemente:** o match é por nome do pacote, não pelo
+ID da vulnerabilidade (GHSA) — documentado no cabeçalho do script. Por isso os
+prazos são curtos (2 semanas), não meses.
+
+Sem exceção (`security/audit-exceptions.json` vazio), o comportamento é
+idêntico a `npm audit --audit-level=high` puro — o script não afrouxa nada
+por padrão, só permite documentar o que já foi conscientemente adiado.
 
 ## 3. Arquivos
-**Novos:** `.github/dependabot.yml`, `docs/SEG-013-SCA.md` (este arquivo).
+**Novos:** `.github/dependabot.yml`, `docs/SEG-013-SCA.md` (este arquivo),
+`scripts/security/audit-gate.mjs`, `security/audit-exceptions.json`.
 **Alterado:** `.github/workflows/ci.yml` (novo job `dependency-scan`; nada nos
-jobs `secret-scan`/`quality` foi tocado).
+jobs `secret-scan`/`quality` foi tocado), `package.json`/`package-lock.json`
+(via `npm audit fix`, sem breaking change — commit `bf894f7`).
 
 ## 4. Ações manuais do Robson (não dá para fazer por arquivo)
 1. **GitHub → repositório → Settings → Code security and analysis**:
@@ -88,14 +113,38 @@ test/seg-013-vuln`) — nunca deixar a dependência vulnerável entrar em
 
 ## 6. Critérios de aceite — status
 - [x] `npm audit` executado automaticamente no pipeline.
-- [x] High/Critical bloqueiam o pipeline (`--audit-level=high`).
+- [x] High/Critical bloqueiam o pipeline (via `audit-gate.mjs`, sem exceção válida).
 - [x] Moderate/Low registrados (artifact `npm-audit-report`, não bloqueiam).
 - [x] SBOM gerado automaticamente por build (artifact `sbom-cyclonedx`, CycloneDX).
+- [x] Dependências críticas possuem rotina de atualização (Dependabot semanal).
+- [x] Vulnerabilidades High/Critical conhecidas têm justificativa documentada
+      (`security/audit-exceptions.json`, com motivo + card + prazo).
 - [ ] Dependabot Alerts ativo — **toggle manual pendente** (seção 4.1).
 - [ ] Dependabot Security Updates ativo — **toggle manual pendente** (seção 4.1).
 - [ ] Evidência do teste com vulnerabilidade conhecida — **a rodar pelo
       Robson** (seção 5), pois exige abrir um PR real no GitHub.
 - [ ] Checks marcados como `required` em Branches — **pendente** (seção 4.2).
+
+## 9. Cards abertos a partir das exceções (correção real, não permanente)
+- **SEG-014** — Upgrade Next.js 14 → 16 (corrige o Critical + `postcss`/`glob`/
+  `eslint-config-next`/`@next/eslint-plugin-next` na mesma leva).
+- **SEG-016** — Upgrade `@stellar/stellar-sdk` → 17.1.0 (corrige `toml`),
+  com teste dedicado da âncora de integridade.
+- **SEG-017** — Upgrade do Prisma CLI → 6.12.0+ (corrige `deepmerge-ts`/
+  `@prisma/config`/`prisma`), com teste de migrations/seed.
+- **SEG-018** — Upgrade Vitest → 5.0.1 (corrige `vite`/`vitest`), validando
+  as 241 suítes de teste antes de aplicar.
+
+Todas com `expiresAt: 2026-09-29` em `security/audit-exceptions.json` — se
+nenhum desses cards avançar até lá, o pipeline volta a bloquear sozinho.
+
+> Nota: rodando o script pela primeira vez de verdade, apareceram mais
+> pacotes na allowlist do que os 5 "causa raiz" originalmente listados —
+> `prisma`, `@prisma/config`, `@stellar/stellar-sdk`, `eslint-config-next`,
+> `@next/eslint-plugin-next` herdam a severidade de quem depende deles no
+> relatório JSON do `npm audit`, mesmo não sendo a origem da vulnerabilidade.
+> Isso confirma a limitação já documentada no cabeçalho do script (match por
+> nome de pacote) — foram todos mapeados para o mesmo `cardRef` da causa raiz.
 
 ## 7. Riscos / observações
 - `npm audit` depende do banco de advisories do npm/GitHub — não é uma
