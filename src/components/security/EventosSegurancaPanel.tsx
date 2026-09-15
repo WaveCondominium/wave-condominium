@@ -1,10 +1,11 @@
 "use client";
 
-import { ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
+import { ShieldAlert, ShieldCheck, ShieldX, RefreshCw } from "lucide-react";
 
 import { useEventosSeguranca } from "@/hooks/useEventosSeguranca";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -23,7 +24,7 @@ function formatarDataHora(iso: string): string {
 }
 
 export function EventosSegurancaPanel() {
-  const { itens, total, loading, error, semPermissao } = useEventosSeguranca();
+  const { itens, total, loading, error, semPermissao, recarregar } = useEventosSeguranca();
 
   if (semPermissao) {
     return (
@@ -42,9 +43,21 @@ export function EventosSegurancaPanel() {
 
   return (
     <div className="p-4 md:p-8 space-y-4">
-      <div className="flex items-center gap-2">
-        <ShieldAlert className="w-6 h-6 text-wave-700" />
-        <h1 className="text-xl font-semibold text-wave-800">Eventos de Segurança</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="w-6 h-6 text-wave-700" />
+          <h1 className="text-xl font-semibold text-wave-800">Eventos de Segurança</h1>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => recarregar()}
+          disabled={loading}
+          className="gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          Atualizar
+        </Button>
       </div>
       <p className="text-sm text-wave-500">
         Trilha separada da Auditoria de negócio — aqui ficam login, falha de
