@@ -26,6 +26,7 @@ import { userRepository } from "@/server/repositories/userRepository";
 import { ativarAcessoMorador } from "@/server/services/authService";
 import { gerarToken, hashToken } from "@/server/access/token";
 import { getEmailService } from "@/server/access/email";
+import { registrarEventoSeguranca } from "@/server/security/registrarEventoSeguranca";
 import {
   validarMorador,
   validarSenhaAtivacao,
@@ -267,6 +268,14 @@ export async function revogarConviteAction(id: string): Promise<RevogarConviteRe
   if (convite.usuarioId) {
     try {
       await userRepository.setAcessoRevogado(convite.usuarioId, true);
+      await registrarEventoSeguranca({
+        tipo: "ACESSO_REVOGADO",
+        resultado: "SUCESSO",
+        userId: convite.usuarioId,
+        condominiumId: session.condominiumId,
+        recurso: "convites.revogarConvite",
+        metadata: { revogadoPorUserId: session.userId, revogadoPorNome: revogadoPor },
+      });
     } catch (e) {
       console.error("[SÍN-022] Falha ao bloquear usuário na revogação", e);
     }
@@ -307,12 +316,21 @@ async function revogarAnteriores(
   anteriores: { id: string; usuarioId: string | null }[],
   condominiumId: string,
   revogadoPor: string,
+  executorUserId: string,
 ): Promise<void> {
   for (const c of anteriores) {
     await conviteRepository.marcarRevogado(c.id, condominiumId, revogadoPor);
     if (c.usuarioId) {
       try {
         await userRepository.setAcessoRevogado(c.usuarioId, true);
+        await registrarEventoSeguranca({
+          tipo: "ACESSO_REVOGADO",
+          resultado: "SUCESSO",
+          userId: c.usuarioId,
+          condominiumId,
+          recurso: "convites.revogarAnteriores",
+          metadata: { revogadoPorUserId: executorUserId, revogadoPorNome: revogadoPor, motivo: "troca_morador" },
+        });
       } catch (e) {
         console.error("[SÍN-022] Falha ao bloquear usuário anterior na troca", e);
       }
@@ -360,7 +378,7 @@ export async function registrarTrocaAction(input: RegistrarTrocaInput): Promise<
     vinculo,
   );
   const anteriorNome = anteriores[0]?.nome ?? null;
-  await revogarAnteriores(anteriores, session.condominiumId, criadoPor);
+  await revogarAnteriores(anteriores, session.condominiumId, criadoPor, session.userId);
 
   // 3) Gera o novo convite para o novo morador.
   let resultado: ConviteGerado;
