@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { eventoSegurancaRepository } from "@/server/repositories/eventoSegurancaRepository";
 import { calcularDataCorte } from "@/server/security/eventoSeguranca";
 
+// Sem isso, o Next tenta pré-renderizar esta rota como estática no build
+// (não usa nenhuma API "dinâmica" de forma incondicional) e falha, porque
+// não há banco acessível durante o build — só em runtime, quando o cron
+// realmente dispara. `force-dynamic` garante que ela SEMPRE roda sob
+// demanda, nunca é gerada estaticamente.
+export const dynamic = "force-dynamic";
+
 /**
  * SEG-016 Fase 2 — expurgo de retenção (12 meses), acionado pelo Vercel Cron
  * (ver vercel.json). Protegido por CRON_SECRET: o Vercel injeta
