@@ -117,11 +117,19 @@ export async function login(email: string, password: string): Promise<LoginResul
     // se a conta existe); quando existe mas a senha está errada, guardamos o
     // userId — é justamente o padrão de "várias falhas na mesma conta" que a
     // detecção de anomalia (fase futura) precisa enxergar.
+    //
+    // BUG corrigido: condominiumId também precisa ser preenchido quando o
+    // usuário existe. Sem isso, a falha ficava com condominiumId nulo e
+    // desaparecia da consulta do Síndico (que filtra "meu condomínio" — um
+    // registro nulo nunca bate nesse filtro). Só o Admin de plataforma
+    // (sem filtro) enxergava. Para e-mail inexistente, condominiumId
+    // continua nulo mesmo (não há como saber de qual condomínio seria).
     await registrarEventoSeguranca({
       tipo: "LOGIN_FALHA",
       resultado: "FALHA",
       userId: user?.id ?? null,
       email,
+      condominiumId: user?.condominiumId ?? null,
       recurso: "auth.login",
     });
     return { ok: false, error: "E-mail ou senha invalidos." };
