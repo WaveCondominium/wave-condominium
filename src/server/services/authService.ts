@@ -216,13 +216,18 @@ export async function setActiveProfile(role: Role): Promise<SetActiveProfileResu
 export async function logout(): Promise<void> {
   // SEG-016: precisa ler a sessão ANTES de destruí-la, senão perdemos o
   // userId/condomínio do evento (getSession() depois disso retornaria nulo).
+  // O e-mail é só para exibição na tela de consulta (ficaria só o cuid do
+  // userId sem isso) — se a busca falhar por qualquer motivo, o evento ainda
+  // é gravado sem e-mail, nunca deixamos de registrar o logout por causa disso.
   const session = await getSession();
   await destroySession();
   if (session) {
+    const user = await userRepository.findById(session.userId).catch(() => null);
     await registrarEventoSeguranca({
       tipo: "LOGOUT",
       resultado: "SUCESSO",
       userId: session.userId,
+      email: user?.email ?? null,
       condominiumId: session.condominiumId ?? null,
       recurso: "auth.logout",
     });
