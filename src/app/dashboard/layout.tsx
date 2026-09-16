@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { CondominioSwitcher } from '@/components/CondominioSwitcher';
 import { useUser } from '@/contexts/UserContext';
 import { PendenciasProvider } from '@/contexts/PendenciasContext';
+import { AlertasSegurancaProvider } from '@/contexts/AlertasSegurancaContext';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   contextoAdministradoraAction,
@@ -79,6 +80,7 @@ export default function DashboardLayout({
 
   return (
     <PendenciasProvider>
+    <AlertasSegurancaProvider>
     <div className="flex min-h-screen bg-wave-50">
       <Sidebar
         userProfile={userProfile}
@@ -134,6 +136,7 @@ export default function DashboardLayout({
         </main>
       </div>
     </div>
+    </AlertasSegurancaProvider>
     </PendenciasProvider>
   );
 }

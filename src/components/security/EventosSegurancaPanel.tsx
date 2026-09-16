@@ -1,8 +1,9 @@
 "use client";
 
-import { ShieldAlert, ShieldCheck, ShieldX, RefreshCw } from "lucide-react";
+import { ShieldAlert, ShieldCheck, ShieldX, RefreshCw, AlertTriangle, Check } from "lucide-react";
 
 import { useEventosSeguranca } from "@/hooks/useEventosSeguranca";
+import { useListaAlertasSeguranca } from "@/hooks/useListaAlertasSeguranca";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,12 @@ function formatarDataHora(iso: string): string {
 
 export function EventosSegurancaPanel() {
   const { itens, total, loading, error, semPermissao, recarregar } = useEventosSeguranca();
+  const {
+    itens: alertas,
+    loading: loadingAlertas,
+    resolvendo,
+    resolver: resolverAlerta,
+  } = useListaAlertasSeguranca();
 
   if (semPermissao) {
     return (
@@ -65,6 +72,40 @@ export function EventosSegurancaPanel() {
         login, logout, tentativas de acesso negadas, alteração de senha e
         revogação/restauração de acesso. Somente leitura.
       </p>
+
+      {!loadingAlertas && alertas.length > 0 && (
+        <Card className="p-4 border-orange-200 bg-orange-50 space-y-3">
+          <div className="flex items-center gap-2 text-orange-800 font-semibold">
+            <AlertTriangle className="w-5 h-5" />
+            Alertas de segurança em aberto ({alertas.length})
+          </div>
+          <div className="space-y-2">
+            {alertas.map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center justify-between gap-3 bg-white rounded-lg border border-orange-100 px-3 py-2"
+              >
+                <div className="text-sm">
+                  <span className="font-medium text-wave-800">{a.tipoLabel}</span>
+                  <span className="text-wave-500"> — {a.descricao}</span>
+                  {a.email && <span className="text-wave-400"> · {a.email}</span>}
+                  {a.ip && <span className="text-wave-400"> · IP {a.ip}</span>}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={resolvendo === a.id}
+                  onClick={() => resolverAlerta(a.id)}
+                  className="gap-1 shrink-0"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  Marcar como resolvido
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-0 overflow-hidden">
         {loading ? (

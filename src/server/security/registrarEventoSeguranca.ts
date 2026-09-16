@@ -5,6 +5,7 @@ import {
   type TipoEventoSeguranca,
   type ResultadoEvento,
 } from "@/server/security/eventoSeguranca";
+import { avaliarAnomalias } from "@/server/security/detectarAnomalias";
 import type {
   TipoEventoSeguranca as PrismaTipo,
   ResultadoEventoSeguranca as PrismaResultado,
@@ -74,6 +75,19 @@ export async function registrarEventoSeguranca(
       // nunca senha, token ou credencial (ver regra no topo do arquivo).
       metadata: (params.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
     });
+
+    // SEG-016 Fase 2: avalia as regras de anomalia SÓ para os tipos que têm
+    // regra definida — evita trabalho e consultas desnecessárias nos demais
+    // eventos (login sucesso, logout, senha alterada etc.).
+    if (params.tipo === "LOGIN_FALHA" || params.tipo === "ACESSO_NEGADO") {
+      await avaliarAnomalias({
+        tipoEvento: params.tipo,
+        userId: params.userId ?? null,
+        email: params.email ?? null,
+        ip,
+        condominiumId: params.condominiumId ?? null,
+      });
+    }
   } catch (err) {
     console.error("[eventoSeguranca] falha ao registrar evento de segurança", err);
   }
