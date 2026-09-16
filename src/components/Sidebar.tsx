@@ -5,6 +5,7 @@ import { formatDisplayName } from '@/lib/formatName';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMenuBadges } from '@/hooks/useMenuBadges';
 import { usePendencias } from '@/contexts/PendenciasContext';
+import { useAlertasSeguranca } from '@/contexts/AlertasSegurancaContext';
 import { isManager, isAdministradora, type Role } from '@/lib/rbac';
 import { ThemeToggle } from './ThemeToggle';
 import Link from 'next/link';
@@ -47,6 +48,7 @@ export function Sidebar({ userProfile, onLogout, onSwitchProfile, isMobileOpen =
   const { governanceCount, communicationCount, meetingsCount, boletosCount, maintenanceCount } = useMenuBadges();
   // SÍN-026: contador de pendências da Central de Aprovações (só gestão).
   const { count: pendenciasCount } = usePendencias();
+  const { count: alertasSegurancaCount } = useAlertasSeguranca();
 
   // Fecha o menu mobile automaticamente ao navegar para outra rota —
   // melhoria de UX (sem isso, o menu ficaria aberto cobrindo a tela nova)
@@ -73,7 +75,7 @@ export function Sidebar({ userProfile, onLogout, onSwitchProfile, isMobileOpen =
     // SEG-016: item próprio (não entra no bloco isManagerRole abaixo, que
     // inclui Administradora — ver comentário em podeVerEventosSeguranca).
     ...(podeVerEventosSeguranca ? [
-      { href: '/dashboard/security-events', label: 'Eventos de Segurança', icon: ShieldAlert },
+      { href: '/dashboard/security-events', label: 'Eventos de Segurança', icon: ShieldAlert, badge: alertasSegurancaCount > 0 ? alertasSegurancaCount : undefined },
     ] : []),
     // RBAC (regra permanente do projeto): "Criar Nova Conta" é restrito a
     // Síndico/Administrador — Morador não deve ver esse item no menu.

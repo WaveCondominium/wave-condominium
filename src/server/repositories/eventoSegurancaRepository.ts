@@ -85,4 +85,40 @@ export const eventoSegurancaRepository = {
 
     return { itens, total, page, pageSize };
   },
+
+  /** Quantas LOGIN_FALHA para o mesmo e-mail, desde um instante. */
+  async contarFalhasLoginPorEmail(email: string, desde: Date): Promise<number> {
+    return prisma.eventoSeguranca.count({
+      where: { tipo: "LOGIN_FALHA", email, timestamp: { gte: desde } },
+    });
+  },
+
+  /** Quantos e-mails DISTINTOS tentaram (e falharam) login pelo mesmo IP, desde um instante. */
+  async contarEmailsDistintosPorIpFalhaLogin(ip: string, desde: Date): Promise<number> {
+    const linhas = await prisma.eventoSeguranca.findMany({
+      where: { tipo: "LOGIN_FALHA", ip, timestamp: { gte: desde }, email: { not: null } },
+      distinct: ["email"],
+      select: { email: true },
+    });
+    return linhas.length;
+  },
+
+  /** Quantos ACESSO_NEGADO para o mesmo usuário, desde um instante. */
+  async contarAcessosNegadosPorUsuario(userId: string, desde: Date): Promise<number> {
+    return prisma.eventoSeguranca.count({
+      where: { tipo: "ACESSO_NEGADO", userId, timestamp: { gte: desde } },
+    });
+  },
+
+  /**
+   * Expurgo de retenção (SEG-016 Fase 2): remove eventos mais antigos que a
+   * data de corte. Chamado pelo cron diário (ver
+   * src/app/api/cron/purge-eventos-seguranca/route.ts) — nunca pelo cliente.
+   */
+  async expurgarAntigos(dataCorte: Date): Promise<number> {
+    const { count } = await prisma.eventoSeguranca.deleteMany({
+      where: { timestamp: { lt: dataCorte } },
+    });
+    return count;
+  },
 };

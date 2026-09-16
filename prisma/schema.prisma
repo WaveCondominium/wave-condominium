@@ -122,6 +122,7 @@ model Condominium {
   fundoSnapshots FundoReservaSnapshot[]
   receitas     Receita[]
   eventosSeguranca EventoSeguranca[]
+  alertasSeguranca AlertaSeguranca[]
 
   @@index([administradoraId])
 }
@@ -266,6 +267,8 @@ model User {
   sessions    Session[]
   votos       Voto[]
   eventosSeguranca EventoSeguranca[]
+  alertasSeguranca         AlertaSeguranca[] @relation("AlertasSegurancaUsuario")
+  alertasSegurancaResolvidos AlertaSeguranca[] @relation("AlertasSegurancaResolvidoPor")
   createdAt   DateTime @default(now())
 
   @@index([condominiumId])
@@ -943,4 +946,44 @@ model EventoSeguranca {
   @@index([tipo, timestamp])
   @@index([userId])
   @@index([condominiumId, timestamp])
+}
+
+// --- SEG-016 Fase 2: Detecção de anomalias e alertas -----------------------
+//
+// Regras determinísticas e configuráveis (sem IA/ML nesta fase, conforme o
+// card pede) sobre os eventos já registrados (LOGIN_FALHA/ACESSO_NEGADO).
+// AlertaSeguranca é separado de EventoSeguranca: o evento é o fato bruto; o
+// alerta é a CONCLUSÃO de uma regra sobre um conjunto de eventos.
+
+enum TipoAlertaSeguranca {
+  MULTIPLAS_FALHAS_LOGIN_MESMA_CONTA
+  MULTIPLOS_LOGINS_MESMO_IP
+  MUITOS_ACESSOS_NEGADOS
+}
+
+model AlertaSeguranca {
+  id        String              @id @default(cuid())
+  tipo      TipoAlertaSeguranca
+  descricao String
+  contagem  Int
+  createdAt DateTime            @default(now())
+
+  userId String?
+  user   User?   @relation("AlertasSegurancaUsuario", fields: [userId], references: [id], onDelete: SetNull)
+  email  String?
+
+  condominiumId String?
+  condominium   Condominium? @relation(fields: [condominiumId], references: [id], onDelete: SetNull)
+
+  ip String?
+
+  // Resolução: quem viu/tratou o alerta. NUNCA excluído (histórico) — só
+  // marcado como resolvido, some do contador/badge mas continua na lista.
+  resolvidoEm     DateTime?
+  resolvidoPorId  String?
+  resolvidoPor    User?     @relation("AlertasSegurancaResolvidoPor", fields: [resolvidoPorId], references: [id], onDelete: SetNull)
+
+  @@index([tipo, createdAt])
+  @@index([condominiumId, resolvidoEm])
+  @@index([email])
 }

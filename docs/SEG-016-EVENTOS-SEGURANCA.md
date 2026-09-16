@@ -1,8 +1,11 @@
-# SEG-016 · Eventos de Segurança e Detecção de Anomalias — Fase 1
+# SEG-016 · Eventos de Segurança e Detecção de Anomalias
 
-> Status: **FASE 1 PRONTA PARA REVISÃO** — gerada fora do repositório do
-> usuário (sem acesso de push nesta sessão). Falta: copiar os arquivos para
-> `wave-v2-deploy`, `prisma migrate dev` (schema novo), rodar a suíte
+> Status: **FASE 1 CONCLUÍDA E VALIDADA em homologação** (login, logout,
+> senha, revogação/restauração de acesso, acesso negado — com escopo por
+> perfil incluindo Administradora). **FASE 2 (parte 1) PRONTA PARA REVISÃO**:
+> detecção de anomalias + alertas + retenção — gerada fora do repositório do
+> usuário (sem acesso de push nesta sessão). Falta: copiar os arquivos,
+> `prisma migrate dev`, configurar `CRON_SECRET` na Vercel, rodar a suíte
 > completa, revisar e commitar.
 
 ## ⚠️ Conflito de numeração (resolver antes de fechar o card)
@@ -135,30 +138,129 @@ sobreposição de tabela ou de fluxo — atende literalmente o requisito do card
 - [x] Alterações de senha são registradas.
 - [ ] Alterações de **permissões/roles** — parcial: só cobre
       revogação/restauração de acesso (`ACESSO_REVOGADO`/`RESTAURADO`).
-      Troca de papel/membership (ex.: SÍN-003/SÍN-031) fica para a Fase 2.
-- [ ] Ações de **exportação** são registradas — Fase 2.
+      Troca de papel/membership (ex.: SÍN-003/SÍN-031) fica para uma leva
+      futura.
+- [ ] Ações de **exportação** são registradas — leva futura (não há fonte
+      instrumentada ainda).
 - [x] Acessos negados são registrados (guards de gestão + consulta negada).
-- [ ] Regras básicas de anomalia — Fase 2.
-- [ ] Alertas quando uma regra é acionada — Fase 2.
+- [x] Regras básicas de anomalia — **Fase 2**: 3 regras determinísticas
+      (múltiplas falhas na mesma conta, múltiplos logins no mesmo IP, muitos
+      acessos negados) — ver seção 8.
+- [x] Alertas quando uma regra é acionada — **Fase 2**: badge no menu +
+      painel com "marcar como resolvido" (nunca exclui, preserva histórico).
 - [x] Logs possuem acesso restrito (RBAC no servidor via `resolverEscopoConsulta`).
 - [x] Senhas, tokens e credenciais não são armazenados nos logs.
-- [ ] Retenção documentada — **pendente de decisão** (não perguntado ainda).
-- [ ] Testes de segurança documentados — os 13 testes cobrem a regra de
-      escopo e validação; falta um teste de integração real (login →
-      evento gravado) quando `prisma generate` rodar na sua máquina.
+- [x] Retenção documentada — **Fase 2**: 12 meses, expurgo via Vercel Cron
+      diário (ver seção 8).
+- [ ] Testes de segurança documentados — os 27 testes (15 + 13 desta fase)
+      cobrem escopo, validação e regras de anomalia; falta um teste de
+      integração real (evento → alerta gravado no banco) quando
+      `prisma generate` rodar na sua máquina.
 
-## 7. Pendências / decisões em aberto para a Fase 2
-1. **Resolver a duplicidade de numeração** (seção "⚠️" acima) — bloqueia
-   fechar qualquer um dos dois cards SEG-016 com clareza.
-2. **Escopo da Administradora** na consulta de eventos — hoje negada por
-   padrão; decidir se ela deve ver os condomínios que administra.
-3. **Retenção dos logs** — por quanto tempo guardar (a tabela cresce
-   indefinidamente hoje; não há job de expurgo).
+## 7. Pendências / decisões em aberto (o que ainda falta)
+1. ~~**Resolver a duplicidade de numeração**~~ — segue pendente, não resolvida.
+2. ~~**Escopo da Administradora**~~ — **RESOLVIDO**: ela vê os condomínios
+   que administra (`Condominium.administradoraId`), não a plataforma inteira.
+3. ~~**Retenção dos logs**~~ — **RESOLVIDO nesta fase**: 12 meses + cron.
 4. **Fontes que faltam**: exportação de dados, acesso a dados sensíveis,
    alterações de configuração de segurança, eventos de PSP/credenciais,
-   troca de papel/membership além de revogação.
-5. **Motor de regras de anomalia** (item 3 do card) e **alertas** (item 4) —
-   nenhum dos dois entrou nesta fase.
+   troca de papel/membership além de revogação. Nenhuma tem fonte
+   instrumentada ainda — cada uma é, na prática, um card de instrumentação
+   pontual num módulo diferente (Boletos, Unidades, Tesouraria, Onboarding).
+5. ~~**Motor de regras de anomalia** e **alertas**~~ — **RESOLVIDO nesta
+   fase**, com o escopo possível hoje (só sobre LOGIN_FALHA/ACESSO_NEGADO,
+   os únicos tipos instrumentados). Regras sobre exportação/horário exigem o
+   item 4 primeiro.
 6. **Recuperação de senha real** (hoje é demo client-side) — quando virar
    feature de servidor, instrumentar `SENHA_RECUPERACAO_SOLICITADA`/
    `CONCLUIDA` junto.
+
+## 8. Fase 2 (parte 1) — Detecção de anomalias, alertas e retenção
+
+### Decisões confirmadas com o Robson
+- **Por onde começar:** núcleo de anomalia + alertas antes de mais fontes de
+  evento (menor raio de mudança, usa o que já existe).
+- **Retenção:** 12 meses, com expurgo automático (não é arquivamento — os
+  dados são removidos de verdade).
+- **Alertas:** badge no menu, mesmo padrão da Central de Aprovações (SÍN-026).
+
+### Regras implementadas (determinísticas, sem IA — como o card pede)
+Todas em `src/server/security/anomalia.ts` (`REGRAS_ANOMALIA`), configuráveis
+sem mudança de schema:
+1. **`MULTIPLAS_FALHAS_LOGIN_MESMA_CONTA`** — 5 falhas de login na mesma
+   conta em 15 minutos.
+2. **`MULTIPLOS_LOGINS_MESMO_IP`** — 3 contas diferentes tentando (e
+   falhando) login pelo mesmo IP em 10 minutos — indício de credential
+   stuffing.
+3. **`MUITOS_ACESSOS_NEGADOS`** — 10 tentativas de acesso negadas do mesmo
+   usuário em 30 minutos.
+
+**Cooldown:** depois de disparar, cada regra fica "em silêncio" por um tempo
+(30-60min) para o mesmo padrão — evita um alerta novo a cada evento
+subsequente enquanto o primeiro ainda não foi resolvido.
+
+**Fora do escopo desta parte** (exemplos do card que não dá pra fazer ainda):
+exportação de grande volume, exportação fora de hora, "alteração de
+permissão seguida de acesso a dados sensíveis" — todos dependem de fontes de
+evento que ainda não existem (item 4 da seção 7).
+
+### Arquitetura
+- `src/server/security/anomalia.ts` (+test) — regras puras, testadas (13
+  testes): limites, cooldown, descrição do alerta. Sem Prisma.
+- `src/server/security/detectarAnomalias.ts` — orquestra a avaliação, chamado
+  por `registrarEventoSeguranca` **depois** de um evento `LOGIN_FALHA` ou
+  `ACESSO_NEGADO` ser gravado com sucesso. Nunca lança (mesma filosofia da
+  Fase 1) — uma falha na detecção não pode atrapalhar login/guards.
+- `AlertaSeguranca` (model novo, migration
+  `20260916000000_add_alerta_seguranca`) — **separado** de `EventoSeguranca`:
+  o evento é o fato bruto, o alerta é a conclusão de uma regra sobre um
+  conjunto de eventos. Nunca excluído — só marcado `resolvidoEm`.
+- `src/server/repositories/eventoSegurancaRepository.ts` — 3 métodos de
+  contagem novos (`contarFalhasLoginPorEmail`,
+  `contarEmailsDistintosPorIpFalhaLogin`, `contarAcessosNegadosPorUsuario`) +
+  `expurgarAntigos` (retenção).
+- `src/server/repositories/alertaSegurancaRepository.ts` — criar, buscar
+  último aberto (cooldown), listar (escopado — reaproveita
+  `resolverEscopoConsulta`/`whereDoEscopo`, mesma regra de Admin/Síndico/
+  Administradora da Fase 1), contar abertos (badge), resolver.
+- `src/app/actions/alertasSeguranca.ts` — actions guardadas pelo mesmo RBAC.
+- `src/contexts/AlertasSegurancaContext.tsx` — contador do badge, mesmo
+  padrão do `PendenciasContext` (SÍN-026); montado em
+  `src/app/dashboard/layout.tsx`.
+- `src/hooks/useListaAlertasSeguranca.ts` + seção nova em
+  `EventosSegurancaPanel.tsx` — lista de alertas abertos com "Marcar como
+  resolvido" acima da tabela de eventos.
+- `src/components/Sidebar.tsx` — badge de contagem no item "Eventos de
+  Segurança" (mesmo item, não criei um menu separado).
+
+### Retenção (12 meses)
+- `RETENCAO_DIAS = 365` + `calcularDataCorte()` em `eventoSeguranca.ts`
+  (puro, testado).
+- `eventoSegurancaRepository.expurgarAntigos(dataCorte)` — `deleteMany`, sem
+  soft-delete (é expurgo de verdade, não arquivamento).
+- `src/app/api/cron/purge-eventos-seguranca/route.ts` + `vercel.json` — roda
+  todo dia às 3h (UTC). **Ação manual do Robson:** configurar a env var
+  `CRON_SECRET` no projeto Vercel (Settings → Environment Variables) — sem
+  ela, a rota aceita qualquer chamada (o Vercel Cron não precisa dela pra
+  funcionar, mas sem o secret, nada impede outra origem de chamar a rota e
+  disparar o expurgo fora de hora).
+
+### Verificação feita no clone
+- **Vitest: 269/269** (13 novos de `anomalia.test.ts`, 2 novos em
+  `eventoSeguranca.test.ts` — Administradora + retenção).
+- **ESLint:** limpo nos 15 arquivos novos/alterados desta parte.
+- **Type-check escopado** (shim ampliado com `AlertaSeguranca` +
+  `condominium.findMany` + `deleteMany`): limpo nos 6 arquivos que tocam
+  Prisma diretamente.
+
+### Riscos / observações
+- **Alerta silencioso enquanto não configurar `CRON_SECRET`** — a tabela de
+  eventos cresce sem expurgo até isso ser feito (não é urgente, mas não
+  esquecer).
+- **Limites das regras são um ponto de partida** (5/15min, 3/10min,
+  10/30min) — ajustar depois de ver volume real de uso em produção; estão
+  centralizados em `REGRAS_ANOMALIA`, não espalhados pelo código.
+- **Cooldown por chave simples** (e-mail, IP ou userId) — se dois padrões
+  diferentes disparam na mesma janela para chaves diferentes, cada um gera
+  seu próprio alerta (correto); o cooldown só evita repetição do MESMO
+  padrão na MESMA chave.

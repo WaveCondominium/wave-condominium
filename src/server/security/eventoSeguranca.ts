@@ -49,6 +49,21 @@ export function validarResultado(
 }
 
 // ---------------------------------------------------------------------------
+// Retenção (SEG-016 Fase 2) — decisão confirmada com o Robson: 12 meses.
+// Depois disso, eventos são expurgados (não arquivados) — ver o cron em
+// src/app/api/cron/purge-eventos-seguranca/route.ts, que roda diariamente.
+// ---------------------------------------------------------------------------
+
+export const RETENCAO_DIAS = 365;
+
+/** Data de corte: eventos com timestamp ANTES disso podem ser expurgados. */
+export function calcularDataCorte(agora: Date): Date {
+  const corte = new Date(agora);
+  corte.setDate(corte.getDate() - RETENCAO_DIAS);
+  return corte;
+}
+
+// ---------------------------------------------------------------------------
 // Escopo de consulta — quem pode ver o quê.
 //
 // Decisão confirmada com o Robson: Admin de plataforma vê TODOS os
