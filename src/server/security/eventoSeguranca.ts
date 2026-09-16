@@ -52,22 +52,28 @@ export function validarResultado(
 // Escopo de consulta — quem pode ver o quê.
 //
 // Decisão confirmada com o Robson: Admin de plataforma vê TODOS os
-// condomínios; Síndico vê só os eventos do PRÓPRIO condomínio ativo.
-// Qualquer outro papel (Morador, Conselho) é negado. Administradora
-// (gestora de múltiplos condomínios) fica NEGADA por ora — o escopo dela
-// não foi decidido ainda (ver docs/SEG-016-EVENTOS-SEGURANCA.md,
-// "pendências"); tratar como acesso aberto sem decisão explícita seria
-// assumir um requisito de segurança não confirmado.
+// condomínios; Síndico vê só os eventos do PRÓPRIO condomínio ativo;
+// Administradora vê os eventos de TODOS OS CONDOMÍNIOS QUE ELA GERE (não a
+// plataforma inteira) — resolvido via `Condominium.administradoraId`, a
+// mesma modelagem já usada no painel dela (SÍN-031). Qualquer outro papel
+// (Morador, Conselho) é negado.
+//
+// A resolução de QUAIS condomínios uma Administradora gere depende do banco
+// (não é pura) — por isso o tipo "ADMINISTRADORA" carrega só o
+// `administradoraId`; é o repository (eventoSegurancaRepository) quem busca
+// a lista de condomínios e monta o filtro final.
 // ---------------------------------------------------------------------------
 
 export type EscopoConsultaEventos =
   | { tipo: "TODOS" }
   | { tipo: "CONDOMINIO"; condominiumId: string }
+  | { tipo: "ADMINISTRADORA"; administradoraId: string }
   | { tipo: "NEGADO" };
 
 export interface SessaoParaEscopo {
   role: string;
   condominiumId: string | null;
+  administradoraId?: string | null;
 }
 
 export function resolverEscopoConsulta(
@@ -77,6 +83,10 @@ export function resolverEscopoConsulta(
   if (sessao.role === "Síndico") {
     if (!sessao.condominiumId) return { tipo: "NEGADO" };
     return { tipo: "CONDOMINIO", condominiumId: sessao.condominiumId };
+  }
+  if (sessao.role === "Administradora") {
+    if (!sessao.administradoraId) return { tipo: "NEGADO" };
+    return { tipo: "ADMINISTRADORA", administradoraId: sessao.administradoraId };
   }
   return { tipo: "NEGADO" };
 }

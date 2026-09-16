@@ -56,8 +56,22 @@ export const eventoSegurancaRepository = {
     if (escopo.tipo === "NEGADO") {
       throw new Error("Escopo negado — chamador deveria ter barrado antes de chegar aqui.");
     }
-    const where: Prisma.EventoSegurancaWhereInput =
-      escopo.tipo === "CONDOMINIO" ? { condominiumId: escopo.condominiumId } : {};
+
+    let where: Prisma.EventoSegurancaWhereInput = {};
+    if (escopo.tipo === "CONDOMINIO") {
+      where = { condominiumId: escopo.condominiumId };
+    } else if (escopo.tipo === "ADMINISTRADORA") {
+      // A Administradora vê os condomínios que ELA GERE, não a plataforma
+      // inteira — resolvido aqui (não é lógica pura, depende do banco).
+      const condominios = await prisma.condominium.findMany({
+        where: { administradoraId: escopo.administradoraId },
+        select: { id: true },
+      });
+      const ids = condominios.map((c) => c.id);
+      // Sem condomínio nenhum sob gestão: retorna vazio, não erro — é um
+      // resultado legítimo (Administradora recém-criada, por exemplo).
+      where = { condominiumId: { in: ids } };
+    }
 
     const [itens, total] = await Promise.all([
       prisma.eventoSeguranca.findMany({
