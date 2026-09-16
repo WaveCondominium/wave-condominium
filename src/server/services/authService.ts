@@ -218,6 +218,24 @@ export async function setActiveProfile(role: Role): Promise<SetActiveProfileResu
     administradoraId: user.administradoraId ?? null,
     mustChangePassword: user.mustChangePassword ?? false,
   });
+
+  // SEG-016 Fase 3: registra a troca entre papéis que o usuário JÁ TEM
+  // (dual-profile, SÍN-003) — não é concessão de novo acesso, é mudança de
+  // contexto de sessão. "Conceder papel a OUTRO usuário" (o sentido mais
+  // forte de "alteração de permissão" do card) não existe como feature no
+  // app hoje — ver docs/SEG-016-EVENTOS-SEGURANCA.md.
+  if (role !== session.role) {
+    await registrarEventoSeguranca({
+      tipo: "PERFIL_ALTERADO",
+      resultado: "SUCESSO",
+      userId: user.id,
+      email: user.email,
+      condominiumId: session.condominiumId,
+      recurso: "auth.setActiveProfile",
+      metadata: { de: session.role, para: role },
+    });
+  }
+
   return { ok: true, user: toPublic(user, role, disponiveis, session.condominiumId) };
 }
 

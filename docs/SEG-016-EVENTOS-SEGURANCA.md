@@ -1,12 +1,9 @@
 # SEG-016 · Eventos de Segurança e Detecção de Anomalias
 
-> Status: **FASE 1 CONCLUÍDA E VALIDADA em homologação** (login, logout,
-> senha, revogação/restauração de acesso, acesso negado — com escopo por
-> perfil incluindo Administradora). **FASE 2 (parte 1) PRONTA PARA REVISÃO**:
-> detecção de anomalias + alertas + retenção — gerada fora do repositório do
-> usuário (sem acesso de push nesta sessão). Falta: copiar os arquivos,
-> `prisma migrate dev`, configurar `CRON_SECRET` na Vercel, rodar a suíte
-> completa, revisar e commitar.
+> Status: **FASE 1 e FASE 2 CONCLUÍDAS e validadas em homologação**. **FASE 3
+> (troca de perfil ativo) PRONTA PARA REVISÃO** — gerada fora do repositório
+> do usuário (sem acesso de push nesta sessão). Falta: copiar os arquivos,
+> `prisma migrate dev`, rodar a suíte completa, revisar e commitar.
 
 ## ⚠️ Conflito de numeração (resolver antes de fechar o card)
 Existem **dois cards diferentes chamados "SEG-016"**: este (Eventos de
@@ -264,3 +261,58 @@ evento que ainda não existem (item 4 da seção 7).
   diferentes disparam na mesma janela para chaves diferentes, cada um gera
   seu próprio alerta (correto); o cooldown só evita repetição do MESMO
   padrão na MESMA chave.
+
+## 9. Fase 3 — "Alteração de permissões/roles" (o que dava pra fazer de verdade)
+
+### O que foi investigado antes de codar
+Antes de instrumentar, conferi dois itens do card que eu tinha marcado como
+"viáveis" numa avaliação anterior — e teve mudança de plano nos dois,
+seguindo a regra do projeto contra assumir requisito sem confirmar no código:
+
+- **"Alterações em configurações de segurança"** — a página `/dashboard/settings`
+  **não é** uma configuração de segurança: hoje só guarda o link do grupo do
+  WhatsApp do condomínio, em localStorage, sem backend. Instrumentar isso
+  como "evento de segurança" seria só preencher uma caixinha do card sem
+  significado real. **Não implementado** — não existe configuração de
+  segurança de verdade no app hoje.
+- **"Conceder papel a outro usuário"** — procurei todo lugar que atribui
+  `Role` via `membershipRepository.upsert`/`create`: o único caso real é o
+  **próprio usuário se atribuindo SÍNDICO** ao criar um condomínio no
+  onboarding (SÍN-030) — não existe uma tela onde um gestor promove ou
+  concede papel a outra pessoa. **Não implementado** pelo mesmo motivo.
+
+### O que É real e foi implementado
+**Troca de perfil ativo (SÍN-003, dual-profile)** — quando um usuário com
+mais de um papel (ex.: síndico que também é morador) troca entre os papéis
+que **já tem**. Não é concessão de novo acesso, mas é uma mudança de
+contexto de sessão que vale a pena auditar.
+
+- Novo tipo `PERFIL_ALTERADO` no enum (migration
+  `20260917000000_add_perfil_alterado_evento`, `ALTER TYPE ... ADD VALUE`).
+- `authService.setActiveProfile()` registra o evento só quando o papel
+  realmente muda (`role !== session.role`), com `metadata: { de, para }`
+  guardando os dois papéis envolvidos — sem isso, saber "pra qual papel"
+  exigiria abrir o `metadata` sem contexto.
+- **15 testes** em `eventoSeguranca.test.ts` (rótulo do novo tipo incluído no
+  teste de completude já existente — não precisou de teste novo dedicado,
+  a regra `RESULTADO_FIXO` cobre o caso).
+
+### Critérios de aceite — atualização final
+- [x] Alterações de permissões/roles — **parcial, e documentado como tal**:
+      cobre revogação/restauração de acesso (Fase 1) + troca de perfil ativo
+      entre papéis já concedidos (Fase 3). **Não cobre** concessão de papel
+      a outro usuário — a feature não existe.
+- [ ] Ações de exportação — sem fonte real no app, não implementado.
+- [ ] Acesso a dados sensíveis — sem fonte real no app, não implementado.
+- [ ] Alterações em configurações de segurança — sem fonte real no app
+      (settings hoje é só WhatsApp/localStorage), não implementado.
+- [ ] Eventos de PSP/credenciais — PSP é simulado (SÍN-030); sem credencial
+      real para vazar ainda, não implementado.
+
+**Conclusão honesta:** o card, como escrito, presume um conjunto de
+features (exportação, dados sensíveis, config de segurança, PSP real) que
+**não existem** na Wave hoje. Tudo que tinha uma fonte real por trás foi
+instrumentado (auth completo, acesso negado, revogação/restauração,
+anomalias, alertas, retenção, troca de perfil). O restante vira card de
+instrumentação natural **quando cada feature-base for construída** — não
+antes, para não inflar escopo com integração vazia.
