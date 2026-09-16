@@ -33,12 +33,12 @@ interface SidebarProps {
 export function Sidebar({ userProfile, onLogout, onSwitchProfile, isMobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const isManagerRole = isManager(userProfile.role);
-  // SEG-016: menu de Eventos de Segurança visível só p/ Admin de plataforma e
-  // Síndico — NÃO usa isManagerRole (que inclui Administradora, cujo escopo
-  // de acesso a eventos de segurança ainda não foi decidido). O RBAC real é
-  // sempre validado no servidor (listarEventosSegurancaAction); isto é só a
-  // visibilidade do item no menu.
-  const podeVerEventosSeguranca = userProfile.role === 'Admin' || userProfile.role === 'Síndico';
+  // SEG-016: menu de Eventos de Segurança visível p/ Admin de plataforma,
+  // Síndico e Administradora (cada um com seu escopo — ver
+  // resolverEscopoConsulta no servidor, que é a autoridade real). Morador e
+  // Conselho seguem sem acesso.
+  const podeVerEventosSeguranca =
+    userProfile.role === 'Admin' || userProfile.role === 'Síndico' || userProfile.role === 'Administradora';
   // Perfis alternativos ao ATIVO (SÍN-003). Vazio quando o usuário tem 1 só.
   const outrosPerfis = (userProfile.availableRoles ?? [userProfile.role]).filter(
     (r) => r !== userProfile.role,

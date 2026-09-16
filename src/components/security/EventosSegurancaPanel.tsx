@@ -34,7 +34,8 @@ export function EventosSegurancaPanel() {
           <h2 className="text-wave-800 font-semibold mb-1">Acesso restrito</h2>
           <p className="text-wave-500 text-sm">
             A consulta de eventos de segurança é exclusiva do Admin de
-            plataforma e do síndico (só do próprio condomínio).
+            plataforma, do síndico (só do próprio condomínio) e da
+            administradora (só dos condomínios que ela gere).
           </p>
         </div>
       </div>

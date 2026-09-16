@@ -37,9 +37,23 @@ describe("resolverEscopoConsulta", () => {
     ).toBe("NEGADO");
   });
 
-  it("Administradora é negada por ora (escopo dela ainda não foi decidido)", () => {
+  it("Administradora vê os condomínios que ela gere (via administradoraId)", () => {
     expect(
-      resolverEscopoConsulta({ role: "Administradora", condominiumId: "c1" }).tipo
+      resolverEscopoConsulta({
+        role: "Administradora",
+        condominiumId: null,
+        administradoraId: "adm1",
+      })
+    ).toEqual({ tipo: "ADMINISTRADORA", administradoraId: "adm1" });
+  });
+
+  it("Administradora sem administradoraId na sessão é negada (não existe universo vazio)", () => {
+    expect(
+      resolverEscopoConsulta({
+        role: "Administradora",
+        condominiumId: null,
+        administradoraId: null,
+      }).tipo
     ).toBe("NEGADO");
   });
 });

@@ -43,6 +43,7 @@ export async function listarEventosSegurancaAction(
     const escopo = resolverEscopoConsulta({
       role: session.role,
       condominiumId: session.condominiumId ?? null,
+      administradoraId: session.administradoraId ?? null,
     });
 
     if (escopo.tipo === "NEGADO") {
