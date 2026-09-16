@@ -104,6 +104,7 @@ describe("TIPO_EVENTO_LABEL", () => {
       "SENHA_ALTERADA",
       "ACESSO_REVOGADO",
       "ACESSO_RESTAURADO",
+      "PERFIL_ALTERADO",
     ];
     for (const tipo of tipos) {
       expect(TIPO_EVENTO_LABEL[tipo]).toBeTruthy();

@@ -13,7 +13,8 @@ export type TipoEventoSeguranca =
   | "ACESSO_NEGADO"
   | "SENHA_ALTERADA"
   | "ACESSO_REVOGADO"
-  | "ACESSO_RESTAURADO";
+  | "ACESSO_RESTAURADO"
+  | "PERFIL_ALTERADO";
 
 export type ResultadoEvento = "SUCESSO" | "FALHA";
 
@@ -25,6 +26,7 @@ export const TIPO_EVENTO_LABEL: Record<TipoEventoSeguranca, string> = {
   SENHA_ALTERADA: "Senha alterada",
   ACESSO_REVOGADO: "Acesso revogado",
   ACESSO_RESTAURADO: "Acesso restaurado",
+  PERFIL_ALTERADO: "Perfil ativo alterado",
 };
 
 // Eventos cujo resultado é sempre o mesmo (não faz sentido, por exemplo, um
@@ -38,6 +40,7 @@ const RESULTADO_FIXO: Partial<Record<TipoEventoSeguranca, ResultadoEvento>> = {
   ACESSO_REVOGADO: "SUCESSO",
   ACESSO_RESTAURADO: "SUCESSO",
   ACESSO_NEGADO: "FALHA",
+  PERFIL_ALTERADO: "SUCESSO",
 };
 
 export function validarResultado(

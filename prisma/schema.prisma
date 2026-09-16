@@ -916,6 +916,7 @@ enum TipoEventoSeguranca {
   SENHA_ALTERADA
   ACESSO_REVOGADO
   ACESSO_RESTAURADO
+  PERFIL_ALTERADO
 }
 
 enum ResultadoEventoSeguranca {
