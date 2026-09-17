@@ -1,0 +1,4 @@
+{
+  "_readme": "Exceções ao gate de SEG-021 (scripts/security/sast-gate.mjs). Cada item precisa de 'reason' e 'cardRef' — nunca registrar uma exceção sem card de correção vinculado. 'path' é opcional (omitido = vale para qualquer ocorrência da regra, usar com cautela). 'expiresAt' curto força reavaliação periódica.",
+  "exceptions": []
+}

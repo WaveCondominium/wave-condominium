@@ -95,6 +95,56 @@ jobs:
           path: sbom.cdx.json
           retention-days: 90
 
+  # SEG-021 — SAST (Semgrep). Roda em todo push/PR, em paralelo aos demais
+  # jobs. BLOQUEIA o pipeline (job obrigatório) em finding de severidade
+  # ERROR (equivalente a High/Critical) que não esteja em
+  # security/sast-exceptions.json (mesma allowlist documentada do SEG-013).
+  # WARNING/INFO ficam só no relatório (artifact), para acompanhamento.
+  # Marcar este check como "required" em Settings → Branches, junto com os
+  # outros três (Lint • Types • Test • Build, Secret Scan, Dependências SCA).
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar Semgrep
+        run: pip install semgrep
+
+      # Rulesets públicos do Semgrep Registry — cobrem SQL Injection, XSS,
+      # problemas de auth, uso inseguro de API e padrões vulneráveis
+      # genéricos de JS/TS/React/Next.js. Não precisa de conta/token — são
+      # regras open-source, baixadas na hora.
+      - name: Rodar Semgrep (relatório completo, todas as severidades)
+        run: |
+          semgrep scan \
+            --config=p/owasp-top-ten \
+            --config=p/javascript \
+            --config=p/typescript \
+            --config=p/react \
+            --config=p/nextjs \
+            --json --output=semgrep-report.json
+
+      - name: Upload do relatório Semgrep
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep-report.json
+          retention-days: 90
+
+      # Gate: falha o job (bloqueia o merge) em qualquer finding ERROR sem
+      # exceção documentada e válida. Não usar "semgrep --error" direto no
+      # comando acima — precisamos da allowlist antes de decidir bloquear.
+      - name: SAST — bloqueio de findings ERROR (com exceções documentadas)
+        run: node scripts/security/sast-gate.mjs
+
   quality:
     name: Lint • Types • Test • Build
     runs-on: ubuntu-latest
