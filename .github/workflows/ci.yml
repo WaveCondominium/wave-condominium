@@ -117,10 +117,12 @@ jobs:
       - name: Instalar Semgrep
         run: pip install semgrep
 
-      # Rulesets públicos do Semgrep Registry — cobrem SQL Injection, XSS,
-      # problemas de auth, uso inseguro de API e padrões vulneráveis
-      # genéricos de JS/TS/React/Next.js. Não precisa de conta/token — são
-      # regras open-source, baixadas na hora.
+      # Rulesets públicos do Semgrep Registry (SQL Injection, XSS, auth, uso
+      # inseguro de API — cobertura genérica) + regras PRÓPRIAS
+      # (.semgrep/custom-rules.yml, de alta confiança, testadas localmente)
+      # para os casos que os pacotes públicos não cobrem bem sozinhos (ex.:
+      # eval() puro não é pego por nenhum pacote público testado). Nenhum
+      # dos dois exige conta/token.
       - name: Rodar Semgrep (relatório completo, todas as severidades)
         run: |
           semgrep scan \
@@ -129,6 +131,7 @@ jobs:
             --config=p/typescript \
             --config=p/react \
             --config=p/nextjs \
+            --config=.semgrep/custom-rules.yml \
             --json --output=semgrep-report.json
 
       - name: Upload do relatório Semgrep

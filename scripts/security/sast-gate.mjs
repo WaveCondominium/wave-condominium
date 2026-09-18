@@ -2,15 +2,18 @@
 // SEG-021 — Gate de SAST (Semgrep) com exceções documentadas.
 //
 // Roda `semgrep scan --json` (já executado antes de chamar este script, que
-// só LÊ o relatório) e falha (exit 1) se houver algum finding de severidade
-// ERROR que NÃO esteja em security/sast-exceptions.json. Mesma filosofia do
+// só LÊ o relatório) e falha (exit 1) se houver algum finding BLOQUEANTE que
+// NÃO esteja em security/sast-exceptions.json. Mesma filosofia do
 // audit-gate.mjs (SEG-013): exceção sempre com motivo, card de correção e
 // prazo de validade — nunca uma exclusão silenciosa.
 //
-// Severidades do Semgrep: INFO / WARNING / ERROR. Tratamos ERROR como o
-// equivalente a "High/Critical" (bloqueia); WARNING/INFO só ficam no
-// relatório completo (artifact), para acompanhamento — mesma política do
-// card (Critical/High bloqueiam, Moderate/Low só registram).
+// IMPORTANTE (descoberto testando de verdade, não suposto): o Semgrep usa
+// DUAS terminologias de severidade dependendo da regra — regras clássicas de
+// padrão de código relatam "ERROR"/"WARNING"/"INFO", enquanto regras mais
+// novas de configuração/supply-chain (ex.: dependabot, GitHub Actions)
+// relatam direto "CRITICAL"/"HIGH"/"MEDIUM"/"LOW". Tratamos qualquer uma das
+// duas como bloqueante quando equivalente a High/Critical.
+const BLOCKING_SEVERITIES = new Set(["ERROR", "CRITICAL", "HIGH"]);
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -43,7 +46,7 @@ const allFindings = (report.results ?? []).map((r) => ({
   message: r.extra?.message ?? "",
 }));
 
-const errorFindings = allFindings.filter((f) => f.severity === "ERROR");
+const blockingCandidates = allFindings.filter((f) => BLOCKING_SEVERITIES.has(f.severity));
 const allExceptions = loadExceptions();
 const activeExceptions = allExceptions.filter((e) => e.expiresAt >= TODAY);
 const expiredExceptions = allExceptions.filter((e) => e.expiresAt < TODAY);
@@ -51,7 +54,7 @@ const expiredExceptions = allExceptions.filter((e) => e.expiresAt < TODAY);
 const accepted = [];
 const blocking = [];
 
-for (const finding of errorFindings) {
+for (const finding of blockingCandidates) {
   const exception = activeExceptions.find((e) => matches(e, finding));
   if (exception) {
     accepted.push({ finding, exception });
@@ -61,7 +64,7 @@ for (const finding of errorFindings) {
 }
 
 console.log("== SEG-021: gate de SAST (Semgrep) ==\n");
-console.log(`Findings ERROR: ${errorFindings.length} — WARNING/INFO: ${allFindings.length - errorFindings.length} (no relatório completo, não bloqueiam)\n`);
+console.log(`Findings bloqueantes (ERROR/CRITICAL/HIGH): ${blockingCandidates.length} — demais severidades: ${allFindings.length - blockingCandidates.length} (no relatório completo, não bloqueiam)\n`);
 
 if (accepted.length) {
   console.log("Risco aceito (documentado, com prazo):");
@@ -82,7 +85,7 @@ if (expiredExceptions.length) {
 }
 
 if (blocking.length) {
-  console.log("BLOQUEANDO — findings ERROR sem exceção válida:");
+  console.log("BLOQUEANDO — findings ERROR/CRITICAL/HIGH sem exceção válida:");
   for (const f of blocking) {
     console.log(`  - ${f.checkId} em ${f.path}:${f.line} — ${f.message}`);
   }
@@ -91,5 +94,5 @@ if (blocking.length) {
   process.exit(1);
 }
 
-console.log("OK — nenhum finding ERROR sem exceção documentada e válida.");
+console.log("OK — nenhum finding ERROR/CRITICAL/HIGH sem exceção documentada e válida.");
 process.exit(0);
