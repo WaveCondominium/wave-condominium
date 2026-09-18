@@ -21,31 +21,53 @@ parte do zero**:
 
 ## 2. O que faltava e foi implementado nesta entrega
 
-### SAST — Semgrep (novo)
+### SAST — Semgrep (novo, corrigido após teste real)
 Novo job `sast` no `ci.yml`, mesmo padrão dos outros: roda em todo push/PR,
 gera relatório completo (artifact) e bloqueia com um gate próprio.
 
 - **Ferramenta:** Semgrep CLI (open-source, sem conta/token necessário para
-  os rulesets públicos usados). Rulesets: `p/owasp-top-ten`, `p/javascript`,
-  `p/typescript`, `p/react`, `p/nextjs` — cobrem SQL Injection, XSS,
-  problemas de autenticação/autorização, uso inseguro de API e padrões de
-  código vulneráveis, exatamente os itens mínimos do card.
-- **Gate:** `scripts/security/sast-gate.mjs` — **mesma arquitetura do
-  `audit-gate.mjs`** (SEG-013): lê o relatório JSON do Semgrep, bloqueia
-  qualquer finding de severidade **ERROR** (equivalente ao High/Critical do
-  card) que não esteja em `security/sast-exceptions.json`. WARNING/INFO só
-  ficam no relatório (artifact), para acompanhamento — mesma política do
-  card (Critical/High bloqueiam, Moderate/Low só registram).
-- **Testado de verdade nesta sessão** (rodei o Semgrep real contra um
-  relatório sintético, já que `semgrep.dev` não é alcançável do meu
-  ambiente, mas é alcançável do GitHub Actions normalmente): confirmei que
-  o gate bloqueia um ERROR sem exceção, aceita com exceção válida, e volta
-  a bloquear quando a exceção vence — os 3 comportamentos node a node.
-- **Comportamento fail-closed confirmado:** se o Semgrep não conseguir
-  baixar os rulesets (rede fora, `semgrep.dev` indisponível), o próprio
-  comando `semgrep scan` falha com código de saída ≠ 0 — o job trava
-  **antes** de chegar no gate, nunca passa silenciosamente achando que não
-  há findings.
+  os rulesets públicos usados).
+- **Rulesets públicos:** `p/owasp-top-ten`, `p/javascript`, `p/typescript`,
+  `p/react`, `p/nextjs`.
+- **Regras PRÓPRIAS** (`.semgrep/custom-rules.yml`) — adicionadas depois de
+  descobrir, testando de verdade, que os pacotes públicos **não pegam
+  `eval()` puro**. Em vez de confiar cegamente em composição de pacote que
+  não controlo, escrevi 3 regras de alta confiança, testadas localmente
+  (zero falso-positivo em código Prisma parametrizado legítimo):
+  - `wave-eval-arbitrary-code` — `eval()`/`new Function()`.
+  - `wave-dangerously-set-inner-html-unsanitized` — XSS via
+    `dangerouslySetInnerHTML`.
+  - `wave-raw-sql-unsafe` — SQL Injection via `$queryRawUnsafe`/
+    `$executeRawUnsafe` com string interpolada (Prisma).
+- **Gate:** `scripts/security/sast-gate.mjs` — mesma arquitetura do
+  `audit-gate.mjs` (SEG-013).
+
+### 🐛 Bug real encontrado e corrigido durante a validação (Teste 3)
+O primeiro teste (branch `test/seg-021-sast`, arquivo com `eval()`) **passou
+verde quando deveria bloquear** — e foi mergeado por engano antes de eu
+identificar a causa (revertido em seguida, sem impacto: era só uma função
+de teste, nada sensível). Duas causas, as duas corrigidas:
+
+1. **Nenhum ruleset público testado pega `eval()` puro.** Resolvido com as
+   regras próprias acima, testadas de verdade contra o mesmo `eval()` do
+   teste (confirmei localmente: `1 finding, severidade ERROR, bloqueia`).
+2. **Vocabulário de severidade incompleto no gate.** O relatório real do
+   Semgrep trouxe achados com severidade `"MEDIUM"` e `"WARNING"` (regras de
+   config/supply-chain, como falta de `cooldown` no Dependabot e uso de tag
+   mutável `@v4` nas actions) — o Semgrep moderno usa **duas terminologias**
+   dependendo da regra: `ERROR`/`WARNING`/`INFO` (padrão de código clássico)
+   e `CRITICAL`/`HIGH`/`MEDIUM`/`LOW` (regras mais novas de config). Meu gate
+   só reconhecia `"ERROR"`, então nunca bloquearia nada dessas regras mais
+   novas. Corrigido: `BLOCKING_SEVERITIES = new Set(["ERROR", "CRITICAL", "HIGH"])`.
+
+Os 13 achados do teste real eram legítimos, mas de severidade
+`MEDIUM`/`WARNING` (não bloqueante por desenho, correto): 2 sobre
+`dependabot.yml` sem `cooldown`, 11 sobre actions do `ci.yml` pinadas por
+tag (`@v4`) em vez de SHA — ambos já anotados na seção 3 como trade-off
+aceito conscientemente (não são erro, são o padrão comum). Ficam registrados
+aqui como aviso: se um dia quiserem endurecer isso, é só criar exceções ou
+corrigir — o gate já está pronto pra reconhecer a severidade certa quando
+(se) algum desses virar `HIGH`/`CRITICAL` numa atualização futura do Semgrep.
 
 ### Ação pendente descoberta: checks obrigatórios incompletos
 Conferindo o histórico de PRs desta sessão, **só 2 dos 3 checks já
@@ -70,27 +92,24 @@ pode contornar os gates") — ver seção 5, ação manual nº 1.
 
 ## 4. Arquivos
 **Novos:** `scripts/security/sast-gate.mjs`, `security/sast-exceptions.json`,
-`docs/SEG-021-CICD-DEVSECOPS.md` (este arquivo).
+`.semgrep/custom-rules.yml`, `docs/SEG-021-CICD-DEVSECOPS.md` (este arquivo).
 **Alterado:** `.github/workflows/ci.yml` (novo job `sast`; nada nos outros
 3 jobs foi tocado).
 
 ## 5. Ações manuais (não dá pra fazer por arquivo)
-1. **Settings → Branches** (regras de `develop` e `main`): adicionar
-   **"Dependências (SCA)"** (pendente desde o SEG-013) e **"SAST (Semgrep)"**
-   (novo) à lista de required status checks, junto dos 2 que já estavam lá.
-   **Isso é o item mais importante desta entrega** — sem isso, os gates
-   existem mas não bloqueiam merge de verdade.
-2. Confirmar que **"Require branches to be up to date before merging"**
-   está ativo nessa mesma tela (garante que o PR roda a esteira contra o
-   código mais recente da base, não uma versão desatualizada).
+1. ~~**Settings → Branches**: adicionar "Dependências (SCA)" e "SAST
+   (Semgrep)" a required status checks~~ — **FEITO, confirmado em `develop`
+   e `main`** (print conferido: os 4 checks aparecem como `Required`).
+2. ~~Confirmar "Require branches to be up to date before merging"~~ —
+   **FEITO** (visível ativo no mesmo print).
 3. Revisar **quem pode aprovar PR** e **quem pode fazer push direto**
-   (Settings → Branches → "Restrict who can push").
+   (Settings → Branches → "Restrict who can push") — **pendente**.
 4. Revisar **quem pode editar arquivos em `.github/workflows/`** — via regra
    de branch protection com "Restrict who can push to matching branches"
    aplicada a um padrão que cubra o diretório, ou via CODEOWNERS
    (`.github/CODEOWNERS` com `/.github/workflows/ @robsonmaia`, por
    exemplo) — não implementado nesta entrega, decisão de quem deve revisar
-   fica com o time.
+   fica com o time. **Pendente.**
 
 ## 6. Referências externas sem contexto disponível
 O card menciona alinhamento com **TEC-009 — Staging** e **TEC-016 —
@@ -124,29 +143,37 @@ sem mergear.
 `npm audit` bloqueou, evidência no log do CI). Não precisa repetir — é a
 mesma esteira, mesmo mecanismo.
 
-### Teste 3 — Falha de SAST (novo, fazer agora)
-Numa branch descartável, nunca em `develop`/`main`:
+### Teste 3 — Falha de SAST (feito nesta sessão, com um incidente no meio)
+A primeira tentativa (antes da correção da seção 2) **passou verde por
+engano e foi mergeada** — revertido em seguida (branch
+`fix/remove-arquivo-teste-sast`, sem impacto real, era só uma função de
+teste). Depois de corrigir o gate e adicionar as regras próprias, testei
+localmente contra o mesmo `eval()` e confirmei o bloqueio (`1 finding,
+severidade ERROR, exit 1`).
+
+**Falta repetir em PR real** com o gate corrigido, pra ter a evidência
+definitiva em CI (não só local). Roteiro, numa branch descartável:
 ```powershell
-git checkout -b test/seg-021-sast
+git checkout -b test/seg-021-sast-v2
 ```
-Criar um arquivo temporário `src/teste-seg-021-sast.ts`:
-```typescript
+```powershell
+@"
 // TEMP — só para validar o gate de SAST (SEG-021). Não mergear.
 export function testeInseguro(entrada: string) {
   return eval(entrada);
 }
+"@ | Out-File -Encoding utf8 src\teste-seg-021-sast.ts
 ```
 ```powershell
 git add src/teste-seg-021-sast.ts
 git commit -m "test: padrao inseguro para validar SAST (nao mergear)"
-git push origin test/seg-021-sast
+git push origin test/seg-021-sast-v2
 ```
 Abrir o PR contra `develop` e conferir na aba Checks:
-1. Semgrep identifica o `eval()` (regra de `p/javascript` costuma pegar
-   isso como ERROR — "eval-detected" ou similar).
+1. Semgrep identifica o `eval()` via a regra própria `wave-eval-arbitrary-code`.
 2. O job **"SAST (Semgrep)"** falha (vermelho).
 3. O relatório (`semgrep-report`, artifact) mostra o finding.
-4. O merge fica bloqueado (depois que o check virar `required` — seção 5).
+4. O merge fica bloqueado — o check já é `required`.
 
 **Depois do teste:** fechar o PR **sem mergear**, apagar `src/teste-seg-021-sast.ts`
 e a branch local/remota — nunca deixar esse arquivo em `develop`.
