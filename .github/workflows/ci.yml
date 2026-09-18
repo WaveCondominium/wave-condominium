@@ -182,3 +182,10 @@ jobs:
 
       - name: Build (sem migrate)
         run: npx next build
+
+      # SEG-006 Teste 2 — confirma que nenhum padrão de segredo estruturado
+      # (connection string, chave privada, prefixo de API key conhecido)
+      # foi parar no bundle enviado ao navegador (.next/static/). Roda a
+      # cada build — não é uma verificação pontual.
+      - name: Varredura de segredos no bundle do cliente
+        run: node scripts/security/scan-client-bundle.mjs
