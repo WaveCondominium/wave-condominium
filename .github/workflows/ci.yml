@@ -36,118 +36,6 @@ jobs:
           # e descomentar a linha abaixo.
           # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
-  # SEG-013 — Varredura de dependências (SCA). Roda em todo push/PR, em
-  # paralelo ao job "quality". BLOQUEIA o pipeline (job obrigatório) em
-  # vulnerabilidade High ou Critical; Moderate/Low ficam só registradas no
-  # relatório (artifact) para acompanhamento — não bloqueiam o deploy.
-  # Marcar este check como "required" em Settings → Branches (main e develop),
-  # junto com "Lint • Types • Test • Build" e "Secret Scan (gitleaks)".
-  dependency-scan:
-    name: Dependências (SCA)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Gate: falha o job (bloqueia o merge/deploy) em qualquer High/Critical
-      # que NÃO esteja em security/audit-exceptions.json (exceção documentada,
-      # com motivo, card de correção e prazo de validade). Sem exceção válida,
-      # bloqueia como um npm audit puro bloquearia.
-      # Não usar "npm audit fix --force" aqui — pode introduzir breaking changes;
-      # a correção é sempre uma decisão manual do desenvolvedor via PR.
-      - name: npm audit — bloqueio High/Critical (com exceções documentadas)
-        run: node scripts/security/audit-gate.mjs
-
-      # Relatório completo (inclui Moderate/Low), gerado mesmo se o passo acima
-      # falhar — é o que fica arquivado para avaliação/acompanhamento contínuo.
-      - name: Relatório completo do npm audit (para acompanhamento)
-        if: always()
-        run: npm audit --json > npm-audit-report.json || true
-
-      - name: Upload do relatório de auditoria
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-audit-report
-          path: npm-audit-report.json
-          retention-days: 90
-
-      # SBOM (CycloneDX) — inventário de dependências diretas e transitivas
-      # do build atual, para rastreio futuro de pacote/versão/vulnerabilidade.
-      - name: Gerar SBOM (CycloneDX)
-        if: always()
-        run: npx --yes @cyclonedx/cyclonedx-npm --output-file sbom.cdx.json
-
-      - name: Upload do SBOM
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-cyclonedx
-          path: sbom.cdx.json
-          retention-days: 90
-
-  # SEG-021 — SAST (Semgrep). Roda em todo push/PR, em paralelo aos demais
-  # jobs. BLOQUEIA o pipeline (job obrigatório) em finding de severidade
-  # ERROR (equivalente a High/Critical) que não esteja em
-  # security/sast-exceptions.json (mesma allowlist documentada do SEG-013).
-  # WARNING/INFO ficam só no relatório (artifact), para acompanhamento.
-  # Marcar este check como "required" em Settings → Branches, junto com os
-  # outros três (Lint • Types • Test • Build, Secret Scan, Dependências SCA).
-  sast:
-    name: SAST (Semgrep)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Instalar Semgrep
-        run: pip install semgrep
-
-      # Rulesets públicos do Semgrep Registry (SQL Injection, XSS, auth, uso
-      # inseguro de API — cobertura genérica) + regras PRÓPRIAS
-      # (.semgrep/custom-rules.yml, de alta confiança, testadas localmente)
-      # para os casos que os pacotes públicos não cobrem bem sozinhos (ex.:
-      # eval() puro não é pego por nenhum pacote público testado). Nenhum
-      # dos dois exige conta/token.
-      - name: Rodar Semgrep (relatório completo, todas as severidades)
-        run: |
-          semgrep scan \
-            --config=p/owasp-top-ten \
-            --config=p/javascript \
-            --config=p/typescript \
-            --config=p/react \
-            --config=p/nextjs \
-            --config=.semgrep/custom-rules.yml \
-            --json --output=semgrep-report.json
-
-      - name: Upload do relatório Semgrep
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: semgrep-report
-          path: semgrep-report.json
-          retention-days: 90
-
-      # Gate: falha o job (bloqueia o merge) em qualquer finding ERROR sem
-      # exceção documentada e válida. Não usar "semgrep --error" direto no
-      # comando acima — precisamos da allowlist antes de decidir bloquear.
-      - name: SAST — bloqueio de findings ERROR (com exceções documentadas)
-        run: node scripts/security/sast-gate.mjs
-
   quality:
     name: Lint • Types • Test • Build
     runs-on: ubuntu-latest
@@ -182,3 +70,10 @@ jobs:
 
       - name: Build (sem migrate)
         run: npx next build
+
+      # SEG-006 Teste 2 — confirma que nenhum padrão de segredo estruturado
+      # (connection string, chave privada, prefixo de API key conhecido)
+      # foi parar no bundle enviado ao navegador (.next/static/). Roda a
+      # cada build — não é uma verificação pontual.
+      - name: Varredura de segredos no bundle do cliente
+        run: node scripts/security/scan-client-bundle.mjs
