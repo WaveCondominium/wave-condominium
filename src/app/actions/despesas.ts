@@ -108,6 +108,7 @@ interface ComprovanteFields {
  */
 async function processarComprovante(
   input: ComprovanteInput,
+  contexto: { userId: string; condominiumId: string | null },
 ): Promise<{ ok: true; fields: ComprovanteFields } | { ok: false; error: string }> {
   let bytes: Buffer;
   try {
@@ -139,7 +140,11 @@ async function processarComprovante(
   let blockchainRegisteredAt: Date | null = null;
   let stellarExplorerUrl: string | null = null;
   try {
-    const anchor = await anchorHashOnStellar(armazenado.hash);
+    const anchor = await anchorHashOnStellar(armazenado.hash, {
+      userId: contexto.userId,
+      condominiumId: contexto.condominiumId,
+      origem: "despesas.processarComprovante",
+    });
     if (anchor.success) {
       blockchainTxHash = anchor.txHash;
       stellarExplorerUrl = anchor.explorerUrl;
@@ -197,7 +202,10 @@ export async function criarDespesaAction(input: CriarDespesaInput): Promise<Desp
 
   let comprovanteFields: Partial<ComprovanteFields> = {};
   if (input.comprovante) {
-    const proc = await processarComprovante(input.comprovante);
+    const proc = await processarComprovante(input.comprovante, {
+      userId: session.userId,
+      condominiumId: session.condominiumId ?? null,
+    });
     if (!proc.ok) return { ok: false, error: proc.error };
     comprovanteFields = proc.fields;
   }
@@ -253,7 +261,10 @@ export async function registrarPagamentoDespesaAction(
 
   let comprovanteFields: Partial<ComprovanteFields> = {};
   if (input.comprovante) {
-    const proc = await processarComprovante(input.comprovante);
+    const proc = await processarComprovante(input.comprovante, {
+      userId: session.userId,
+      condominiumId: session.condominiumId ?? null,
+    });
     if (!proc.ok) return { ok: false, error: proc.error };
     comprovanteFields = proc.fields;
   }
@@ -342,7 +353,10 @@ export async function anexarComprovanteDespesaAction(
   const despesa = await despesaRepository.findById(id, session.condominiumId);
   if (!despesa) return { ok: false, error: "Despesa não encontrada." };
 
-  const proc = await processarComprovante(comprovante);
+  const proc = await processarComprovante(comprovante, {
+    userId: session.userId,
+    condominiumId: session.condominiumId ?? null,
+  });
   if (!proc.ok) return { ok: false, error: proc.error };
 
   await despesaRepository.update(id, session.condominiumId, { ...proc.fields });
